@@ -16,18 +16,33 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
+  // Auth: require builder role
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const token = authHeader.replace("Bearer ", "");
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const { data: userRole } = await supabase.from("user_roles").select("role").eq("user_id", user.id).single();
+  if (!userRole || userRole.role !== "builder") {
+    return new Response(JSON.stringify({ error: "Forbidden: builder only" }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     // GET — fetch current schedule
     if (req.method === "GET") {
       const { data, error } = await supabase.rpc("get_cron_jobs");
       
       if (error) {
-        // Fallback: query cron.job directly
-        const { data: jobs, error: jobErr } = await supabase
-          .from("cron_jobs_view")
-          .select("*");
-        
-        // If view doesn't exist either, return stored settings
         const { data: settingRow } = await supabase
           .from("settings")
           .select("value")
@@ -60,17 +75,15 @@ serve(async (req) => {
       const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
       const syncUrl = `${supabaseUrl}/functions/v1/sync`;
 
-      // First, try to unschedule any existing job
       try {
         await supabase.rpc("unschedule_cron_job", { job_name: SYNC_JOB_NAME });
       } catch {
-        // Job might not exist, that's fine
+        // Job might not exist
       }
 
       if (enabled) {
         const cronExpr = `0 ${hour_utc} * * *`;
         
-        // Schedule new job
         const { error: scheduleErr } = await supabase.rpc("schedule_cron_job", {
           job_name: SYNC_JOB_NAME,
           cron_expr: cronExpr,
@@ -80,10 +93,8 @@ serve(async (req) => {
 
         if (scheduleErr) {
           console.error("Schedule error:", scheduleErr);
-          // Fallback: direct SQL via service role
         }
 
-        // Convert UTC hour to EST (UTC-5)
         const estHour = ((hour_utc - 5) + 24) % 24;
         const schedule = {
           enabled: true,
@@ -102,7 +113,6 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       } else {
-        // Disable schedule
         const schedule = {
           enabled: false,
           time_utc: null,
@@ -128,7 +138,7 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("Schedule error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

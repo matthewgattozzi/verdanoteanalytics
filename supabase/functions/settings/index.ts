@@ -14,6 +14,27 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
+  // Auth: require builder role
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const token = authHeader.replace("Bearer ", "");
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const { data: userRole } = await supabase.from("user_roles").select("role").eq("user_id", user.id).single();
+  if (!userRole || userRole.role !== "builder") {
+    return new Response(JSON.stringify({ error: "Forbidden: builder only" }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const url = new URL(req.url);
   const path = url.pathname.replace(/^\/settings\/?/, "").replace(/\/$/, "");
 
@@ -75,30 +96,30 @@ serve(async (req) => {
     // POST /settings/test-meta — test Meta connection
     if (req.method === "POST" && path === "test-meta") {
       const body = await req.json();
-      let token = body.token;
+      let metaToken = body.token;
 
       // Use secret if no token provided
-      if (!token) {
-        token = Deno.env.get("META_ACCESS_TOKEN");
+      if (!metaToken) {
+        metaToken = Deno.env.get("META_ACCESS_TOKEN");
       }
-      if (!token) {
+      if (!metaToken) {
         // Fallback to DB
         const { data } = await supabase
           .from("settings")
           .select("value")
           .eq("key", "meta_access_token")
           .single();
-        token = data?.value;
+        metaToken = data?.value;
       }
 
-      if (!token) {
+      if (!metaToken) {
         return new Response(JSON.stringify({ error: "No Meta access token configured" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      const meResp = await fetch(`https://graph.facebook.com/v21.0/me?access_token=${encodeURIComponent(token)}`);
+      const meResp = await fetch(`https://graph.facebook.com/v21.0/me?access_token=${encodeURIComponent(metaToken)}`);
       const meData = await meResp.json();
 
       if (meData.error) {
@@ -111,12 +132,12 @@ serve(async (req) => {
       }
 
       const accountsResp = await fetch(
-        `https://graph.facebook.com/v21.0/me/adaccounts?fields=id,name,account_status&limit=100&access_token=${encodeURIComponent(token)}`
+        `https://graph.facebook.com/v21.0/me/adaccounts?fields=id,name,account_status&limit=100&access_token=${encodeURIComponent(metaToken)}`
       );
       const accountsData = await accountsResp.json();
 
       const debugResp = await fetch(
-        `https://graph.facebook.com/v21.0/debug_token?input_token=${encodeURIComponent(token)}&access_token=${encodeURIComponent(token)}`
+        `https://graph.facebook.com/v21.0/debug_token?input_token=${encodeURIComponent(metaToken)}&access_token=${encodeURIComponent(metaToken)}`
       );
       const debugData = await debugResp.json();
       const expiresAt = debugData?.data?.expires_at;
@@ -146,7 +167,7 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("Settings error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

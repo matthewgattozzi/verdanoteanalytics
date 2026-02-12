@@ -10,6 +10,28 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  // Auth: require builder or employee role
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const token = authHeader.replace("Bearer ", "");
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const { data: userRole } = await supabase.from("user_roles").select("role").eq("user_id", user.id).single();
+  if (!userRole || !["builder", "employee"].includes(userRole.role)) {
+    return new Response(JSON.stringify({ error: "Forbidden" }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const url = new URL(req.url);
   const path = url.pathname.replace(/^\/reports\/?/, "").replace(/\/$/, "");
 
@@ -41,17 +63,14 @@ serve(async (req) => {
         return withSpend.reduce((s: number, c: any) => s + Number(c[field] || 0), 0) / withSpend.length;
       };
 
-      // Win rate: ROAS > 1 among those with spend
       const winners = withSpend.filter((c: any) => Number(c.roas || 0) > 1);
       const winRate = withSpend.length > 0 ? (winners.length / withSpend.length) * 100 : 0;
 
-      // Tag source counts
       const tagCounts = { parsed: 0, csv_match: 0, manual: 0, untagged: 0 };
       list.forEach((c: any) => {
         if (c.tag_source in tagCounts) tagCounts[c.tag_source as keyof typeof tagCounts]++;
       });
 
-      // Top/bottom performers by ROAS (top 5)
       const sorted = [...withSpend].sort((a: any, b: any) => Number(b.roas || 0) - Number(a.roas || 0));
       const mapPerformer = (c: any) => ({
         ad_id: c.ad_id, ad_name: c.ad_name, unique_code: c.unique_code,
@@ -60,7 +79,6 @@ serve(async (req) => {
       const topPerformers = sorted.slice(0, 5).map(mapPerformer);
       const bottomPerformers = sorted.slice(-5).reverse().map(mapPerformer);
 
-      // Date range from creatives
       const dates = list.map((c: any) => c.created_at).sort();
       const dateStart = dates[0]?.split("T")[0] || null;
       const dateEnd = dates[dates.length - 1]?.split("T")[0] || null;
@@ -104,6 +122,6 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("Reports error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Internal server error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
