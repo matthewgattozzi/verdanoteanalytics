@@ -2,45 +2,23 @@ import { AppLayout } from "@/components/AppLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  Loader2,
-  RefreshCw,
-  Clock,
-  Upload,
-  Pencil,
-} from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useState, useRef } from "react";
 import {
-  useAccounts,
-  useToggleAccount,
-  useRenameAccount,
-  useUploadMappings,
-  useSync,
-  useUpdateAccountSettings,
+  useAccounts, useToggleAccount, useRenameAccount, useUploadMappings, useSync, useUpdateAccountSettings,
 } from "@/hooks/useApi";
 import { useAccountContext } from "@/contexts/AccountContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { AccountOverviewSection } from "@/components/settings/AccountOverviewSection";
+import { AIContextSection } from "@/components/settings/AIContextSection";
+import { SyncSettingsSection } from "@/components/settings/SyncSettingsSection";
 
 const SettingsPage = () => {
   const { isBuilder } = useAuth();
@@ -60,7 +38,6 @@ const SettingsPage = () => {
   const [csvMappings, setCsvMappings] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Account settings state
   const account = selectedAccountId === "all"
     ? null
     : (accounts || []).find((a: any) => a.id === selectedAccountId);
@@ -71,10 +48,8 @@ const SettingsPage = () => {
   const [primaryKpi, setPrimaryKpi] = useState("");
   const [secondaryKpis, setSecondaryKpis] = useState("");
   const [companyPdfUrl, setCompanyPdfUrl] = useState<string | null>(null);
-  const [uploadingPdf, setUploadingPdf] = useState(false);
   const [initialized, setInitialized] = useState<string | null>(null);
 
-  // Sync local state when account changes
   if (account && initialized !== account.id) {
     setDateRange(String(account.date_range_days || 30));
     setRoasThreshold(String(account.winner_roas_threshold || 2.0));
@@ -140,11 +115,6 @@ const SettingsPage = () => {
     setCsvMappings([]);
   };
 
-  const formatDate = (d: string | null) => {
-    if (!d) return "Never";
-    return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-  };
-
   if (!account) {
     return (
       <AppLayout>
@@ -168,180 +138,40 @@ const SettingsPage = () => {
       />
 
       <div className="max-w-2xl space-y-8">
-        {/* Account Overview */}
-        <section className="glass-panel p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold">Account Overview</h2>
-              <p className="text-[11px] font-mono text-muted-foreground">{account.id}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="ghost" onClick={() => setRenamingAccount({ id: account.id, name: account.name })} title="Rename">
-                <Pencil className="h-3.5 w-3.5" />
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => sync.mutate({ account_id: account.id })} disabled={sync.isPending}>
-                {sync.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
-                Sync
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => { setShowCsvModal(account.id); setCsvPreview([]); setCsvMappings([]); }}>
-                <Upload className="h-3.5 w-3.5 mr-1.5" />
-                Upload CSV
-              </Button>
-            </div>
-          </div>
+        <AccountOverviewSection
+          account={account}
+          onRename={() => setRenamingAccount({ id: account.id, name: account.name })}
+          onSync={() => sync.mutate({ account_id: account.id })}
+          syncPending={sync.isPending}
+          onUploadCsv={() => { setShowCsvModal(account.id); setCsvPreview([]); setCsvMappings([]); }}
+          onToggle={(checked) => toggleAccount.mutate({ id: account.id, is_active: checked })}
+        />
 
-          <div className="overflow-hidden rounded-md border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Active</TableHead>
-                  <TableHead>Creatives</TableHead>
-                  <TableHead>Untagged</TableHead>
-                  <TableHead>Last Synced</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow>
-                  <TableCell>
-                    <Switch
-                      checked={account.is_active}
-                      onCheckedChange={(checked) => toggleAccount.mutate({ id: account.id, is_active: checked })}
-                    />
-                  </TableCell>
-                  <TableCell className="text-sm">{account.creative_count}</TableCell>
-                  <TableCell>
-                    {account.untagged_count > 0 ? (
-                      <Badge variant="outline" className="bg-tag-untagged/10 text-tag-untagged border-tag-untagged/30 text-xs">
-                        {account.untagged_count}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">0</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {formatDate(account.last_synced_at)}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-        </section>
+        <AIContextSection
+          account={account}
+          primaryKpi={primaryKpi}
+          setPrimaryKpi={setPrimaryKpi}
+          secondaryKpis={secondaryKpis}
+          setSecondaryKpis={setSecondaryKpis}
+          companyPdfUrl={companyPdfUrl}
+          setCompanyPdfUrl={setCompanyPdfUrl}
+          onSaveSettings={async (updates) => {
+            await updateAccountSettings.mutateAsync({ id: account.id, ...updates });
+          }}
+        />
 
-        {/* AI Business Context */}
-        <section className="glass-panel p-6 space-y-4">
-          <div>
-            <h2 className="text-base font-semibold">AI Analysis Context</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Helps AI understand your business for better creative analysis. Company name is pulled from the account name.</p>
-          </div>
-          <div className="space-y-2">
-            <Label className="text-sm">Company Info PDF</Label>
-            <p className="text-[11px] text-muted-foreground">Upload a PDF with details about the company, products, target audience, etc. This context helps the AI produce more relevant analysis.</p>
-            <div className="flex items-center gap-3">
-              <input
-                type="file"
-                accept=".pdf"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  if (file.size > 10 * 1024 * 1024) {
-                    toast({ title: "File too large", description: "Max 10MB.", variant: "destructive" });
-                    return;
-                  }
-                  setUploadingPdf(true);
-                  try {
-                    const filePath = `${account.id}/${Date.now()}_${file.name}`;
-                    const { data: uploadData, error: uploadError } = await supabase.storage.from("company-docs").upload(filePath, file, { upsert: true });
-                    if (uploadError) throw uploadError;
-                    const pdfUrl = `company-docs/${uploadData.path}`;
-                    await updateAccountSettings.mutateAsync({
-                      id: account.id,
-                      company_pdf_url: pdfUrl,
-                    });
-                    setCompanyPdfUrl(pdfUrl);
-                    toast({ title: "PDF uploaded", description: "Company info PDF saved successfully." });
-                  } catch (err: any) {
-                    toast({ title: "Upload failed", description: err.message, variant: "destructive" });
-                  } finally {
-                    setUploadingPdf(false);
-                    e.target.value = "";
-                  }
-                }}
-                className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border file:border-border file:text-sm file:font-medium file:bg-secondary file:text-secondary-foreground hover:file:bg-accent cursor-pointer"
-                disabled={uploadingPdf}
-              />
-              {uploadingPdf && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-            </div>
-            {companyPdfUrl && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                <Badge variant="outline" className="text-xs">PDF uploaded</Badge>
-                <span className="truncate max-w-[200px]">{companyPdfUrl.split("/").pop()}</span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 px-2 text-xs text-destructive hover:text-destructive"
-                  onClick={async () => {
-                    const path = companyPdfUrl.replace("company-docs/", "");
-                    await supabase.storage.from("company-docs").remove([path]);
-                    await updateAccountSettings.mutateAsync({ id: account.id, company_pdf_url: null });
-                    setCompanyPdfUrl(null);
-                    toast({ title: "PDF removed" });
-                  }}
-                >
-                  Remove
-                </Button>
-              </div>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-sm">Primary KPI</Label>
-              <Input value={primaryKpi} onChange={(e) => setPrimaryKpi(e.target.value)} placeholder="e.g. Purchase ROAS > 1.5x" className="bg-background" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm">Secondary KPIs</Label>
-              <Input value={secondaryKpis} onChange={(e) => setSecondaryKpis(e.target.value)} placeholder="e.g. CTR, Hook Rate, Volume" className="bg-background" />
-            </div>
-          </div>
-        </section>
-
-        {/* Sync Settings */}
-        <section className="glass-panel p-6 space-y-4">
-          <div>
-            <h2 className="text-base font-semibold">Sync Settings</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Configure data range and thresholds for this account.</p>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-sm">Date Range (days)</Label>
-              <Input type="number" value={dateRange} onChange={(e) => setDateRange(e.target.value)} min="1" max="365" className="bg-background" />
-              <p className="text-[11px] text-muted-foreground">How many days of data to pull on each sync. This does not affect the date picker filter on the Creatives page.</p>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm">Winner ROAS Threshold</Label>
-              <Input type="number" value={roasThreshold} onChange={(e) => setRoasThreshold(e.target.value)} step="0.1" min="0" className="bg-background" />
-              <p className="text-[11px] text-muted-foreground">Minimum ROAS to consider a creative a "winner".</p>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm">Iteration Spend Threshold ($)</Label>
-              <Input type="number" value={spendThreshold} onChange={(e) => setSpendThreshold(e.target.value)} min="0" className="bg-background" />
-              <p className="text-[11px] text-muted-foreground">Minimum spend to include in iteration analysis.</p>
-            </div>
-          </div>
-          <div className="pt-2 flex items-center gap-2">
-            <Button size="sm" onClick={handleSave} disabled={updateAccountSettings.isPending}>
-              {updateAccountSettings.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-              Save Settings
-            </Button>
-            {accounts.length > 1 && (
-              <Button size="sm" variant="outline" onClick={handleApplyToAll} disabled={updateAccountSettings.isPending}>
-                Apply to All Accounts
-              </Button>
-            )}
-          </div>
-        </section>
+        <SyncSettingsSection
+          dateRange={dateRange}
+          setDateRange={setDateRange}
+          roasThreshold={roasThreshold}
+          setRoasThreshold={setRoasThreshold}
+          spendThreshold={spendThreshold}
+          setSpendThreshold={setSpendThreshold}
+          onSave={handleSave}
+          onApplyToAll={handleApplyToAll}
+          saving={updateAccountSettings.isPending}
+          showApplyAll={accounts.length > 1}
+        />
       </div>
 
       {/* Rename Account Modal */}
