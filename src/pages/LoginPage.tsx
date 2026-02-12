@@ -4,7 +4,7 @@ import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Zap } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 const LoginPage = () => {
   const { signIn, user, isLoading: authLoading } = useAuth();
@@ -36,11 +36,9 @@ const LoginPage = () => {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-sm">
-            <Zap className="h-6 w-6 text-primary-foreground" />
-          </div>
+          <img src="/favicon.png" alt="Verdanote" className="h-12 w-12" />
           <div className="text-center">
-            <h1 className="text-xl font-semibold tracking-tight">Creative Analytics</h1>
+            <h1 className="text-xl font-semibold tracking-tight">Verdanote</h1>
             <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
           </div>
         </div>
