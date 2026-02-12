@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.reports]
 verify_jwt = false
+
+[functions.user-management]
+verify_jwt = false

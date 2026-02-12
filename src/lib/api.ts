@@ -1,5 +1,6 @@
+import { supabase } from "@/integrations/supabase/client";
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 export async function apiFetch(
   functionName: string,
@@ -8,11 +9,15 @@ export async function apiFetch(
 ): Promise<any> {
   const url = `${SUPABASE_URL}/functions/v1/${functionName}${path ? `/${path}` : ""}`;
 
+  // Get current session token
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
   const resp = await fetch(url, {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${SUPABASE_KEY}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
   });
