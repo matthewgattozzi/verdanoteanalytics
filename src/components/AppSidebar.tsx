@@ -1,7 +1,6 @@
 import { NavLink } from "@/components/NavLink";
 import {
   Settings,
-  Building2,
   LayoutGrid,
   BarChart3,
   FileText,
@@ -11,7 +10,6 @@ import {
 
 const navItems = [
   { title: "Creatives", url: "/", icon: LayoutGrid },
-  { title: "Accounts", url: "/accounts", icon: Building2 },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Reports", url: "/reports", icon: FileText },
   { title: "Sync History", url: "/sync-history", icon: History },
