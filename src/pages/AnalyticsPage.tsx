@@ -30,7 +30,7 @@ const AnalyticsPage = () => {
   const roasThreshold = parseFloat(selectedAccount?.winner_roas_threshold || "2.0");
   const spendThreshold = parseFloat(selectedAccount?.iteration_spend_threshold || "50");
 
-  const untaggedCount = useMemo(() => creatives.filter((c: any) => c.tag_source === "untagged").length, [creatives]);
+  
 
   if (isLoading) {
     return <AppLayout><div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div></AppLayout>;
@@ -41,9 +41,6 @@ const AnalyticsPage = () => {
       <PageHeader
         title="Analytics"
         description="Win rate analysis, kill/scale recommendations, and iteration priorities."
-        badge={untaggedCount > 0 ? (
-          <Badge variant="outline" className="text-xs text-muted-foreground">{untaggedCount} untagged</Badge>
-        ) : undefined}
         actions={
           <SaveViewButton getConfig={() => ({
             page: "/analytics",
