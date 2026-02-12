@@ -8,6 +8,7 @@ import {
   Zap,
   LogOut,
   UserCog,
+  Bookmark,
 } from "lucide-react";
 import {
   Select,
@@ -26,6 +27,7 @@ const navItems = [
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Reports", url: "/reports", icon: FileText },
   { title: "Sync History", url: "/sync-history", icon: History },
+  { title: "Saved Views", url: "/saved-views", icon: Bookmark },
 ];
 
 export function AppSidebar() {
