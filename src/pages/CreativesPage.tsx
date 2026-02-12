@@ -97,8 +97,11 @@ import { useCreatives, useCreativeFilters, useBulkAnalyze, CREATIVES_PAGE_SIZE }
 import { useSync } from "@/hooks/useApi";
 import { exportCreativesCSV } from "@/lib/csv";
 import { useAccountContext } from "@/contexts/AccountContext";
+import { useSearchParams } from "react-router-dom";
 
 const CreativesPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [visibleCols, setVisibleCols] = useState<Set<string>>(() => {
     const saved = localStorage.getItem("creatives_visible_columns");
@@ -128,18 +131,22 @@ const CreativesPage = () => {
     setColumnOrder(newOrder);
     localStorage.setItem("creatives_column_order", JSON.stringify(newOrder));
   }, []);
-  const [delivery, setDelivery] = useState("");
-  const [filters, setFilters] = useState<Record<string, string>>({});
-  const [dateFrom, setDateFrom] = useState<string | undefined>();
-  const [dateTo, setDateTo] = useState<string | undefined>();
+  const [delivery, setDelivery] = useState(() => searchParams.get("delivery") || "");
+  const [filters, setFilters] = useState<Record<string, string>>(() => {
+    const raw = searchParams.get("filters");
+    if (raw) { try { return JSON.parse(raw); } catch { /* fall through */ } }
+    return {};
+  });
+  const [dateFrom, setDateFrom] = useState<string | undefined>(() => searchParams.get("from") || undefined);
+  const [dateTo, setDateTo] = useState<string | undefined>(() => searchParams.get("to") || undefined);
   const [selectedCreative, setSelectedCreative] = useState<any>(null);
-  const [groupBy, setGroupBy] = useState("__none__");
+  const [groupBy, setGroupBy] = useState(() => searchParams.get("group") || "__none__");
   const [sort, setSort] = useState<SortConfig>({ key: "", direction: null });
   const [dragSourceKey, setDragSourceKey] = useState<string | null>(null);
   const [dragTargetKey, setDragTargetKey] = useState<string | null>(null);
   const [page, setPage] = useState(0);
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState(() => searchParams.get("q") || "");
+  const [search, setSearch] = useState(() => searchParams.get("q") || "");
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
   const { selectedAccountId } = useAccountContext();
 
