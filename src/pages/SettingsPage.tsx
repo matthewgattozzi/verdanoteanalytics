@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
 import { useState, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   useAccounts, useToggleAccount, useRenameAccount, useUploadMappings, useSync, useUpdateAccountSettings,
 } from "@/hooks/useApi";
@@ -31,6 +33,7 @@ const SettingsPage = () => {
   const uploadMappings = useUploadMappings();
   const updateAccountSettings = useUpdateAccountSettings();
   const sync = useSync();
+  const queryClient = useQueryClient();
 
   const [renamingAccount, setRenamingAccount] = useState<{ id: string; name: string } | null>(null);
   const [showCsvModal, setShowCsvModal] = useState<string | null>(null);
@@ -94,25 +97,27 @@ const SettingsPage = () => {
 
   const handleApplyPromptsToAll = async () => {
     const allAccounts = (accounts || []) as any[];
-    const promptValues = {
+    const promptValues: Record<string, string | null> = {
       creative_analysis_prompt: creativePrompt === DEFAULT_CREATIVE_PROMPT ? null : creativePrompt || null,
       insights_prompt: insightsPrompt === DEFAULT_INSIGHTS_PROMPT ? null : insightsPrompt || null,
     };
     setApplyingPrompts(true);
     setApplyProgress({ current: 0, total: allAccounts.length });
-    let success = 0;
-    for (const acc of allAccounts) {
-      try {
-        await updateAccountSettings.mutateAsync({ id: acc.id, ...promptValues });
-        success++;
-        setApplyProgress(p => ({ ...p, current: p.current + 1 }));
-        await new Promise(r => setTimeout(r, 300));
-      } catch (e) {
-        setApplyProgress(p => ({ ...p, current: p.current + 1 }));
-      }
+    try {
+      const ids = allAccounts.map((a: any) => a.id);
+      const { error } = await supabase
+        .from("ad_accounts")
+        .update(promptValues)
+        .in("id", ids);
+      if (error) throw error;
+      setApplyProgress({ current: allAccounts.length, total: allAccounts.length });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      toast.success(`Prompts applied to all ${allAccounts.length} accounts`);
+    } catch (e: any) {
+      toast.error("Failed to apply prompts", { description: e.message });
+    } finally {
+      setApplyingPrompts(false);
     }
-    setApplyingPrompts(false);
-    toast.success(`Prompts applied to ${success}/${allAccounts.length} accounts`);
   };
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
