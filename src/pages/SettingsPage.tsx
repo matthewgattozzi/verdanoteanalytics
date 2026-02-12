@@ -4,22 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, Loader2, Eye, EyeOff, Sparkles } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Eye, EyeOff } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSettings, useSaveSettings, useTestMeta } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
 
 const SettingsPage = () => {
   const [showToken, setShowToken] = useState(false);
-  const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [metaToken, setMetaToken] = useState("");
-  const [geminiKey, setGeminiKey] = useState("");
   const [dateRange, setDateRange] = useState("30");
   const [roasThreshold, setRoasThreshold] = useState("2.0");
   const [spendThreshold, setSpendThreshold] = useState("50");
   const [metaStatus, setMetaStatus] = useState<"unknown" | "connected" | "disconnected" | "testing">("unknown");
   const [metaUser, setMetaUser] = useState<string | null>(null);
-  const [metaAccounts, setMetaAccounts] = useState<any[]>([]);
 
   const { data: settings, isLoading } = useSettings();
   const saveSettings = useSaveSettings();
@@ -43,7 +40,6 @@ const SettingsPage = () => {
       if (result.connected) {
         setMetaStatus("connected");
         setMetaUser(result.user?.name || null);
-        setMetaAccounts(result.accounts || []);
         toast({ title: "Connected to Meta", description: `Logged in as ${result.user?.name}. ${result.accounts?.length || 0} ad accounts found.` });
         if (result.tokenWarning) {
           toast({ title: "Token warning", description: result.tokenWarning, variant: "destructive" });
@@ -67,12 +63,6 @@ const SettingsPage = () => {
     });
   };
 
-  const handleSaveGeminiKey = () => {
-    if (!geminiKey) return;
-    saveSettings.mutate({ gemini_api_key: geminiKey });
-    setGeminiKey("");
-  };
-
   if (isLoading) {
     return (
       <AppLayout>
@@ -87,7 +77,7 @@ const SettingsPage = () => {
     <AppLayout>
       <PageHeader
         title="Settings"
-        description="Configure your Meta connection, sync preferences, and optional integrations."
+        description="Configure your Meta connection and sync preferences."
       />
 
       <div className="max-w-2xl space-y-8">
@@ -166,47 +156,21 @@ const SettingsPage = () => {
           </div>
         </section>
 
-        {/* Gemini API Key */}
-        <section className="glass-panel p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <div>
-                <h2 className="text-base font-semibold">AI Creative Analysis</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Optional. Enables AI-powered creative breakdown. Does NOT affect tags.
-                </p>
-              </div>
+        {/* AI Analysis Info */}
+        <section className="glass-panel p-6 space-y-2">
+          <div className="flex items-center gap-2">
+            <div>
+              <h2 className="text-base font-semibold">AI Creative Analysis</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                AI-powered creative breakdowns are built in — no API key needed. Analysis runs automatically when you click "Analyze" on any creative or use bulk analysis.
+              </p>
             </div>
-            <Badge variant="outline" className="gap-1.5">
-              {settings?.gemini_api_key_set === "true" ? (
-                <><CheckCircle2 className="h-3 w-3 text-success" /> Key Saved</>
-              ) : (
-                <span className="text-muted-foreground">Not Configured</span>
-              )}
+            <Badge variant="outline" className="gap-1.5 flex-shrink-0">
+              <CheckCircle2 className="h-3 w-3 text-success" /> Built-in
             </Badge>
           </div>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Input
-                type={showGeminiKey ? "text" : "password"}
-                placeholder={settings?.gemini_api_key_set === "true" ? "Key saved (enter new to replace)" : "Enter your Gemini API key..."}
-                value={geminiKey}
-                onChange={(e) => setGeminiKey(e.target.value)}
-                className="pr-10 bg-background"
-              />
-              <button
-                type="button"
-                onClick={() => setShowGeminiKey(!showGeminiKey)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showGeminiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-            <Button variant="outline" onClick={handleSaveGeminiKey} disabled={!geminiKey}>Save Key</Button>
-          </div>
           <p className="text-[11px] text-muted-foreground">
-            AI analysis uses Lovable AI to generate qualitative breakdowns of your creatives.
+            AI analysis generates qualitative breakdowns of each ad's hook, visuals, and CTA strategy. This does NOT affect tags — tags come from your naming convention.
           </p>
         </section>
       </div>
