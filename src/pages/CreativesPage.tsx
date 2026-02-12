@@ -34,6 +34,8 @@ const TABLE_COLUMNS: ColumnDef[] = [
   { key: "person", label: "Person", defaultVisible: true },
   { key: "style", label: "Style", defaultVisible: true },
   { key: "hook", label: "Hook", defaultVisible: true },
+  { key: "product", label: "Product", defaultVisible: false },
+  { key: "theme", label: "Theme", defaultVisible: false },
   { key: "spend", label: "Spend", defaultVisible: true },
   { key: "roas", label: "ROAS", defaultVisible: true },
   { key: "cpa", label: "CPA", defaultVisible: true },
@@ -42,9 +44,14 @@ const TABLE_COLUMNS: ColumnDef[] = [
   { key: "impressions", label: "Impressions", defaultVisible: false },
   { key: "clicks", label: "Clicks", defaultVisible: false },
   { key: "purchases", label: "Purchases", defaultVisible: false },
+  { key: "purchase_value", label: "Purchase Value", defaultVisible: false },
   { key: "cpm", label: "CPM", defaultVisible: false },
+  { key: "video_views", label: "Video Views", defaultVisible: false },
+  { key: "thumb_stop_rate", label: "Thumb Stop Rate", defaultVisible: false },
+  { key: "hold_rate", label: "Hold Rate", defaultVisible: false },
   { key: "campaign", label: "Campaign", defaultVisible: false },
   { key: "adset", label: "Ad Set", defaultVisible: false },
+  { key: "ad_status", label: "Ad Status", defaultVisible: false },
 ];
 
 const GROUP_BY_OPTIONS = [
@@ -60,8 +67,11 @@ const GROUP_BY_OPTIONS = [
 // Map column keys to creative data fields for sorting
 const SORT_FIELD_MAP: Record<string, string> = {
   creative: "ad_name", type: "ad_type", person: "person", style: "style", hook: "hook",
+  product: "product", theme: "theme",
   spend: "spend", roas: "roas", cpa: "cpa", ctr: "ctr", impressions: "impressions",
-  clicks: "clicks", purchases: "purchases", cpm: "cpm", campaign: "campaign_name", adset: "adset_name",
+  clicks: "clicks", purchases: "purchases", purchase_value: "purchase_value",
+  cpm: "cpm", video_views: "video_views", thumb_stop_rate: "thumb_stop_rate",
+  hold_rate: "hold_rate", campaign: "campaign_name", adset: "adset_name", ad_status: "ad_status",
 };
 
 import { useCreatives, useCreativeFilters, useBulkAnalyze } from "@/hooks/useCreatives";
@@ -182,7 +192,7 @@ const CreativesPage = () => {
 
   const renderSortableHead = (key: string, label: string, extraClass = "") => {
     if (!visibleCols.has(key)) return null;
-    const numericCols = ["spend", "roas", "cpa", "ctr", "impressions", "clicks", "purchases", "cpm"];
+    const numericCols = ["spend", "roas", "cpa", "ctr", "impressions", "clicks", "purchases", "purchase_value", "cpm", "video_views", "thumb_stop_rate", "hold_rate"];
     const isRight = numericCols.includes(key);
     return (
       <SortableTableHead
@@ -367,6 +377,8 @@ const CreativesPage = () => {
                 {renderSortableHead("person", "Person")}
                 {renderSortableHead("style", "Style")}
                 {renderSortableHead("hook", "Hook")}
+                {renderSortableHead("product", "Product")}
+                {renderSortableHead("theme", "Theme")}
                 {renderSortableHead("spend", "Spend")}
                 {renderSortableHead("roas", "ROAS")}
                 {renderSortableHead("cpa", "CPA")}
@@ -374,9 +386,14 @@ const CreativesPage = () => {
                 {renderSortableHead("impressions", "Impressions")}
                 {renderSortableHead("clicks", "Clicks")}
                 {renderSortableHead("purchases", "Purchases")}
+                {renderSortableHead("purchase_value", "Purchase Value")}
                 {renderSortableHead("cpm", "CPM")}
+                {renderSortableHead("video_views", "Video Views")}
+                {renderSortableHead("thumb_stop_rate", "TSR")}
+                {renderSortableHead("hold_rate", "Hold Rate")}
                 {renderSortableHead("campaign", "Campaign")}
                 {renderSortableHead("adset", "Ad Set")}
+                {renderSortableHead("ad_status", "Status")}
                 {visibleCols.has("tags") && <TableHead className="text-xs">Tags</TableHead>}
               </TableRow>
             </TableHeader>
@@ -411,6 +428,8 @@ const CreativesPage = () => {
                       <InlineTagSelect adId={c.ad_id} field="hook" currentValue={c.hook} />
                     </TableCell>
                   )}
+                  {visibleCols.has("product") && <TableCell className="text-xs truncate max-w-[120px]">{c.product || "—"}</TableCell>}
+                  {visibleCols.has("theme") && <TableCell className="text-xs truncate max-w-[120px]">{c.theme || "—"}</TableCell>}
                   {visibleCols.has("spend") && <TableCell className="text-xs text-right font-mono">{fmt(c.spend, "$")}</TableCell>}
                   {visibleCols.has("roas") && <TableCell className="text-xs text-right font-mono">{fmt(c.roas, "", "x")}</TableCell>}
                   {visibleCols.has("cpa") && <TableCell className="text-xs text-right font-mono">{fmt(c.cpa, "$")}</TableCell>}
@@ -418,9 +437,14 @@ const CreativesPage = () => {
                   {visibleCols.has("impressions") && <TableCell className="text-xs text-right font-mono">{fmt(c.impressions)}</TableCell>}
                   {visibleCols.has("clicks") && <TableCell className="text-xs text-right font-mono">{fmt(c.clicks)}</TableCell>}
                   {visibleCols.has("purchases") && <TableCell className="text-xs text-right font-mono">{fmt(c.purchases)}</TableCell>}
+                  {visibleCols.has("purchase_value") && <TableCell className="text-xs text-right font-mono">{fmt(c.purchase_value, "$")}</TableCell>}
                   {visibleCols.has("cpm") && <TableCell className="text-xs text-right font-mono">{fmt(c.cpm, "$")}</TableCell>}
+                  {visibleCols.has("video_views") && <TableCell className="text-xs text-right font-mono">{fmt(c.video_views)}</TableCell>}
+                  {visibleCols.has("thumb_stop_rate") && <TableCell className="text-xs text-right font-mono">{fmt(c.thumb_stop_rate, "", "%")}</TableCell>}
+                  {visibleCols.has("hold_rate") && <TableCell className="text-xs text-right font-mono">{fmt(c.hold_rate, "", "%")}</TableCell>}
                   {visibleCols.has("campaign") && <TableCell className="text-xs truncate max-w-[150px]">{c.campaign_name || "—"}</TableCell>}
                   {visibleCols.has("adset") && <TableCell className="text-xs truncate max-w-[150px]">{c.adset_name || "—"}</TableCell>}
+                  {visibleCols.has("ad_status") && <TableCell className="text-xs">{c.ad_status || "—"}</TableCell>}
                   {visibleCols.has("tags") && <TableCell><TagSourceBadge source={c.tag_source} /></TableCell>}
                 </TableRow>
               ))}
