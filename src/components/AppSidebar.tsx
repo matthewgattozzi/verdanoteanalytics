@@ -46,8 +46,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
       <div className="flex items-center gap-2.5 px-5 py-5 border-b border-border/40">
         <img src="/favicon.png" alt="Logo" className="h-8 w-8 rounded-lg shadow-sm" />
         <div className="font-serif">
-          <span className="text-sm font-semibold text-foreground tracking-tight">Creative</span>
-          <span className="text-sm font-semibold text-primary tracking-tight"> Analytics</span>
+          <span className="text-sm font-semibold text-foreground tracking-tight">Verdanote</span>
         </div>
       </div>
 
