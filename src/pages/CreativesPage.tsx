@@ -424,9 +424,18 @@ const CreativesPage = () => {
                 <TableRow key={c.ad_id} className="cursor-pointer hover:bg-accent/50" onClick={() => setSelectedCreative(c)}>
                   {visibleCols.has("creative") && (
                     <TableCell>
-                      <div className="max-w-[200px]">
-                        <div className="text-xs font-medium truncate">{c.ad_name}</div>
-                        <div className="text-[10px] font-mono text-muted-foreground">{c.unique_code}</div>
+                      <div className="flex items-center gap-2.5 max-w-[280px]">
+                        <div className="h-10 w-10 rounded bg-muted flex-shrink-0 overflow-hidden flex items-center justify-center">
+                          {c.thumbnail_url ? (
+                            <img src={c.thumbnail_url} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                          ) : (
+                            <LayoutGrid className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-medium truncate">{c.ad_name}</div>
+                          <div className="text-[10px] font-mono text-muted-foreground">{c.unique_code}</div>
+                        </div>
                       </div>
                     </TableCell>
                   )}
