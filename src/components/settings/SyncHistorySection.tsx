@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, XCircle, AlertTriangle, Clock, RefreshCw, History, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSyncHistory, useAccounts, useSync } from "@/hooks/useApi";
 
 const PAGE_SIZE = 10;
@@ -21,6 +21,71 @@ const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; c
   failed: { label: "Failed", icon: XCircle, className: "text-kill" },
   running: { label: "Running", icon: Clock, className: "text-primary" },
 };
+
+function SyncProgressBanner({ logs }: { logs: any[] }) {
+  const runningLog = logs?.find((l: any) => l.status === "running");
+  const [elapsed, setElapsed] = useState(0);
+
+  // Calculate average duration from completed syncs
+  const avgDuration = useMemo(() => {
+    const completed = (logs || []).filter((l: any) => l.status === "completed" && l.duration_ms);
+    if (completed.length === 0) return null;
+    const total = completed.reduce((sum: number, l: any) => sum + l.duration_ms, 0);
+    return total / completed.length;
+  }, [logs]);
+
+  useEffect(() => {
+    if (!runningLog) { setElapsed(0); return; }
+    const start = new Date(runningLog.started_at).getTime();
+    const tick = () => setElapsed(Date.now() - start);
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [runningLog?.id]);
+
+  if (!runningLog) return null;
+
+  const elapsedSec = Math.floor(elapsed / 1000);
+  const elapsedMin = Math.floor(elapsedSec / 60);
+  const elapsedRemSec = elapsedSec % 60;
+  const progress = avgDuration ? Math.min(95, (elapsed / avgDuration) * 100) : null;
+
+  const estRemaining = avgDuration ? Math.max(0, Math.ceil((avgDuration - elapsed) / 1000)) : null;
+  const estMin = estRemaining != null ? Math.floor(estRemaining / 60) : null;
+  const estSec = estRemaining != null ? estRemaining % 60 : null;
+
+  return (
+    <div className="glass-panel p-3 border border-primary/30 bg-primary/5 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+          <span className="text-xs font-medium">Sync in progress…</span>
+        </div>
+        <div className="flex items-center gap-3 text-[10px] text-muted-foreground font-mono">
+          <span>Elapsed: {elapsedMin}:{String(elapsedRemSec).padStart(2, "0")}</span>
+          {estMin != null && estSec != null && (
+            <span>Est. remaining: ~{estMin}:{String(estSec).padStart(2, "0")}</span>
+          )}
+        </div>
+      </div>
+      {progress != null && (
+        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-1000 ease-linear"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
+      <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+        <span>Type: <Badge variant="outline" className="text-[9px] ml-0.5">{runningLog.sync_type}</Badge></span>
+        {runningLog.creatives_fetched > 0 && (
+          <span>Fetched: {runningLog.creatives_fetched}</span>
+        )}
+        {avgDuration && <span>Avg sync: {(avgDuration / 1000).toFixed(0)}s</span>}
+      </div>
+    </div>
+  );
+}
 
 export function SyncHistorySection({ accountId }: { accountId?: string }) {
   const [selectedLog, setSelectedLog] = useState<any>(null);
@@ -58,6 +123,8 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
 
   return (
     <div className="space-y-4">
+      <SyncProgressBanner logs={logs || []} />
+
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold">Sync History</h3>
