@@ -15,8 +15,8 @@
     --popover: 36 30% 99%;
     --popover-foreground: 20 25% 12%;
 
-    --primary: 16 55% 40%;
-    --primary-foreground: 40 40% 97%;
+    --primary: 152 45% 28%;
+    --primary-foreground: 140 20% 97%;
 
     --secondary: 32 22% 91%;
     --secondary-foreground: 20 18% 32%;
@@ -32,7 +32,7 @@
 
     --border: 32 18% 84%;
     --input: 32 18% 84%;
-    --ring: 16 55% 40%;
+    --ring: 152 45% 28%;
 
     --radius: 0.5rem;
 
@@ -58,15 +58,15 @@
     /* Sidebar — warm parchment */
     --sidebar-background: 34 28% 94%;
     --sidebar-foreground: 20 16% 38%;
-    --sidebar-primary: 16 55% 40%;
-    --sidebar-primary-foreground: 40 40% 97%;
+    --sidebar-primary: 152 45% 28%;
+    --sidebar-primary-foreground: 140 20% 97%;
     --sidebar-accent: 32 24% 88%;
     --sidebar-accent-foreground: 20 25% 12%;
     --sidebar-border: 32 18% 84%;
-    --sidebar-ring: 16 55% 40%;
+    --sidebar-ring: 152 45% 28%;
 
     /* Chart palette */
-    --chart-1: 16 55% 40%;
+    --chart-1: 152 45% 28%;
     --chart-2: 155 42% 36%;
     --chart-3: 36 75% 48%;
     --chart-4: 340 35% 48%;
@@ -103,7 +103,7 @@
   /* Warm button refinements */
   .btn-primary-warm {
     @apply bg-primary text-primary-foreground shadow-sm;
-    box-shadow: 0 1px 3px 0 hsl(16 55% 40% / 0.2), 0 1px 2px -1px hsl(16 55% 40% / 0.15);
+    box-shadow: 0 1px 3px 0 hsl(152 45% 28% / 0.2), 0 1px 2px -1px hsl(152 45% 28% / 0.15);
   }
 
   .btn-primary-warm:hover {
