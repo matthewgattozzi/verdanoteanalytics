@@ -232,6 +232,44 @@ serve(async (req) => {
         });
       }
 
+      // If syncing all accounts AND this is a scheduled sync, stagger by invoking
+      // individual per-account syncs sequentially with a delay between them
+      if (account_id === "all" && accounts.length > 1 && sync_type === "scheduled") {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+        const staggerResults: any[] = [];
+        const STAGGER_DELAY_MS = 5000; // 5 seconds between accounts
+
+        for (let i = 0; i < accounts.length; i++) {
+          const acct = accounts[i];
+          console.log(`Staggered sync: triggering account ${acct.id} (${acct.name}) [${i + 1}/${accounts.length}]`);
+
+          try {
+            const resp = await fetch(`${supabaseUrl}/functions/v1/sync`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${anonKey}`,
+              },
+              body: JSON.stringify({ account_id: acct.id, sync_type: "scheduled" }),
+            });
+            const result = await resp.json();
+            staggerResults.push({ account_id: acct.id, account_name: acct.name, status: resp.ok ? "triggered" : "error", result });
+          } catch (e) {
+            staggerResults.push({ account_id: acct.id, account_name: acct.name, status: "error", error: String(e) });
+          }
+
+          // Wait between accounts (except after the last one)
+          if (i < accounts.length - 1) {
+            await new Promise((r) => setTimeout(r, STAGGER_DELAY_MS));
+          }
+        }
+
+        return new Response(JSON.stringify({ staggered: true, results: staggerResults }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const allResults = [];
 
       for (const account of accounts) {
