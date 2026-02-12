@@ -53,7 +53,7 @@ export function AccountOverviewSection({
             <TableRow>
               <TableHead>Active</TableHead>
               <TableHead>Creatives</TableHead>
-              <TableHead>Untagged</TableHead>
+              
               <TableHead>Last Synced</TableHead>
             </TableRow>
           </TableHeader>
@@ -63,15 +63,8 @@ export function AccountOverviewSection({
                 <Switch checked={account.is_active} onCheckedChange={onToggle} />
               </TableCell>
               <TableCell className="text-sm">{account.creative_count}</TableCell>
-              <TableCell>
-                {account.untagged_count > 0 ? (
-                  <Badge variant="outline" className="bg-tag-untagged/10 text-tag-untagged border-tag-untagged/30 text-xs">
-                    {account.untagged_count}
-                  </Badge>
-                ) : (
-                  <span className="text-muted-foreground text-sm">0</span>
-                )}
-              </TableCell>
+
+
               <TableCell className="text-xs text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
