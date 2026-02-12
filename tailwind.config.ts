@@ -14,7 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
+        sans: ["Source Serif 4", "Lora", "Georgia", "serif"],
+        serif: ["Lora", "Georgia", "serif"],
         mono: ["JetBrains Mono", "monospace"],
       },
       colors: {
