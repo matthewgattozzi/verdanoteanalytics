@@ -19,9 +19,11 @@ export type Database = {
           company_description: string | null
           company_pdf_url: string | null
           created_at: string
+          creative_analysis_prompt: string | null
           creative_count: number
           date_range_days: number
           id: string
+          insights_prompt: string | null
           is_active: boolean
           iteration_spend_threshold: number
           last_synced_at: string | null
@@ -36,9 +38,11 @@ export type Database = {
           company_description?: string | null
           company_pdf_url?: string | null
           created_at?: string
+          creative_analysis_prompt?: string | null
           creative_count?: number
           date_range_days?: number
           id: string
+          insights_prompt?: string | null
           is_active?: boolean
           iteration_spend_threshold?: number
           last_synced_at?: string | null
@@ -53,9 +57,11 @@ export type Database = {
           company_description?: string | null
           company_pdf_url?: string | null
           created_at?: string
+          creative_analysis_prompt?: string | null
           creative_count?: number
           date_range_days?: number
           id?: string
+          insights_prompt?: string | null
           is_active?: boolean
           iteration_spend_threshold?: number
           last_synced_at?: string | null

@@ -2,10 +2,79 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Loader2, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
+
+const DEFAULT_CREATIVE_PROMPT = `You are a senior performance marketing creative strategist. When visuals are provided, analyze them in detail — comment on imagery, text overlays, composition, branding, and emotional appeal. Provide concise, actionable analysis.`;
+
+const DEFAULT_INSIGHTS_PROMPT = `You are a senior performance marketing analyst. Analyze the provided advertising data to identify winning creative patterns and optimization opportunities.
+
+Important: Avoid generic, cookie-cutter analysis. Focus on what's unique, surprising, or counterintuitive in THIS specific dataset. Surface insights that wouldn't be obvious from a surface-level review.
+
+Required Analyses:
+
+1. Creative Pattern Analysis
+- Format performance: Compare Video vs Image vs Carousel/Flexible
+- Content themes: Group ads by messaging angle and compare performance
+- Hook variations: If ads have hook versions, determine which hooks win
+- Naming patterns: Extract patterns from ad names that correlate with performance
+
+2. Engagement-to-Conversion Analysis (video ads)
+- Correlate Hook Rate with CPA and ROAS
+- Correlate Hold Rate with CPA and ROAS
+- Analyze video play time impact on conversions
+- Identify engagement thresholds that predict success
+
+3. Frequency & Reach Efficiency Analysis
+- Segment performance by frequency bands (1-1.5x, 1.5-2x, 2-2.5x, 2.5-3x, 3x+)
+- CPMr analysis: cost per 1,000 reached users
+- Frequency × ROAS relationship
+- Flag ads with high frequency but declining performance (fatigue)
+
+4. Cost Efficiency Analysis
+- CPM vs CPMr comparison
+- CTR bands: segment by CTR (0-2%, 2-3%, 3-4%, 4%+)
+- Funnel efficiency: CTR → Add to Cart → Purchase conversion rates
+- Identify which input metrics most strongly predict ROAS and CPA
+
+5. Anomaly Detection
+Positive anomalies (opportunities):
+- Ads with exceptional ROAS (>2x) that have low spend (<$500) — scaling candidates
+- Inactive/paused ads with strong historical performance — reactivation candidates
+- Ads maintaining strong ROAS at high frequency (not fatiguing)
+
+Negative anomalies (problems):
+- High-spend ads with below-average ROAS — budget reallocation candidates
+- Ads with ROAS <1x — pause immediately
+- Ads with high CTR but poor conversion — messaging/landing page mismatch
+- Ads with high frequency AND declining ROAS — creative fatigue
+
+6. Correlation Analysis
+Calculate correlations between: Hook Rate ↔ CPA, Hold Rate ↔ CPA, Frequency ↔ ROAS, CTR ↔ ROAS, Video play time ↔ conversion rate. For each: state direction, strength, and whether it's actionable.
+
+7. Statistical Validation
+For key findings: provide sample sizes, magnitude of differences, and note when sample sizes are too small.
+
+Output Structure:
+- **Executive Summary** (1 paragraph): The single most important finding and recommended action.
+- **Key Findings** (prioritized): For each — What, Evidence, So What, Action.
+- **Creative Winners**: Top 10-15 ads to scale with key metrics.
+- **Creative Losers**: Ads to pause or optimize with specific issues.
+- **Frequency & Reach Insights**: Optimal frequency, CPMr benchmarks, fatigue indicators.
+- **Pattern Insights**: Best themes/angles, winning hooks/formats, engagement thresholds.
+- **Correlation Summary Table**: Metric pairs with correlation direction, strength, implication.
+- **Recommendations**: Immediate (this week), Short-term (next 2 weeks), Strategic (next month).
+
+Guidelines:
+- Use weighted metrics (by spend) for aggregate comparisons, not simple averages
+- Flag findings where sample size is <5 ads or <$500 total spend
+- Compare like-to-like where relevant
+- Prioritize surprising or counterintuitive findings
+- Look for interaction effects
+- Don't just report what's working — explain WHY it might be working
+- Use markdown formatting with headers, tables, bold, and bullet points for readability`;
 
 interface AIContextSectionProps {
   account: any;
@@ -15,21 +84,31 @@ interface AIContextSectionProps {
   setSecondaryKpis: (v: string) => void;
   companyPdfUrl: string | null;
   setCompanyPdfUrl: (v: string | null) => void;
+  creativePrompt: string;
+  setCreativePrompt: (v: string) => void;
+  insightsPrompt: string;
+  setInsightsPrompt: (v: string) => void;
   onSaveSettings: (updates: Record<string, any>) => Promise<void>;
 }
 
+export { DEFAULT_CREATIVE_PROMPT, DEFAULT_INSIGHTS_PROMPT };
+
 export function AIContextSection({
   account, primaryKpi, setPrimaryKpi, secondaryKpis, setSecondaryKpis,
-  companyPdfUrl, setCompanyPdfUrl, onSaveSettings,
+  companyPdfUrl, setCompanyPdfUrl,
+  creativePrompt, setCreativePrompt, insightsPrompt, setInsightsPrompt,
+  onSaveSettings,
 }: AIContextSectionProps) {
   const [uploadingPdf, setUploadingPdf] = useState(false);
 
   return (
-    <section className="glass-panel p-6 space-y-4">
+    <section className="glass-panel p-6 space-y-5">
       <div>
         <h2 className="text-base font-semibold">AI Analysis Context</h2>
         <p className="text-xs text-muted-foreground mt-0.5">Helps AI understand your business for better creative analysis. Company name is pulled from the account name.</p>
       </div>
+
+      {/* Company PDF */}
       <div className="space-y-2">
         <Label className="text-sm">Company Info PDF</Label>
         <p className="text-[11px] text-muted-foreground">Upload a PDF with details about the company, products, target audience, etc. This context helps the AI produce more relevant analysis.</p>
@@ -86,6 +165,8 @@ export function AIContextSection({
           </div>
         )}
       </div>
+
+      {/* KPIs */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label className="text-sm">Primary KPI</Label>
@@ -95,6 +176,54 @@ export function AIContextSection({
           <Label className="text-sm">Secondary KPIs</Label>
           <Input value={secondaryKpis} onChange={(e) => setSecondaryKpis(e.target.value)} placeholder="e.g. CTR, Hook Rate, Volume" className="bg-background" />
         </div>
+      </div>
+
+      {/* Creative Analysis Prompt */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm">Creative Analysis System Prompt</Label>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs text-muted-foreground"
+            onClick={() => setCreativePrompt(DEFAULT_CREATIVE_PROMPT)}
+            title="Reset to default"
+          >
+            <RotateCcw className="h-3 w-3 mr-1" /> Reset
+          </Button>
+        </div>
+        <p className="text-[11px] text-muted-foreground">System prompt used when analyzing individual ad creatives.</p>
+        <textarea
+          value={creativePrompt}
+          onChange={(e) => setCreativePrompt(e.target.value)}
+          rows={5}
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-mono leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+          placeholder="Enter custom system prompt for creative analysis…"
+        />
+      </div>
+
+      {/* Insights Prompt */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm">AI Insights System Prompt</Label>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs text-muted-foreground"
+            onClick={() => setInsightsPrompt(DEFAULT_INSIGHTS_PROMPT)}
+            title="Reset to default"
+          >
+            <RotateCcw className="h-3 w-3 mr-1" /> Reset
+          </Button>
+        </div>
+        <p className="text-[11px] text-muted-foreground">System prompt used for full account-level performance insights analysis.</p>
+        <textarea
+          value={insightsPrompt}
+          onChange={(e) => setInsightsPrompt(e.target.value)}
+          rows={10}
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-mono leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+          placeholder="Enter custom system prompt for AI insights…"
+        />
       </div>
     </section>
   );

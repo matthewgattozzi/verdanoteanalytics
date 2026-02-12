@@ -97,14 +97,17 @@ serve(async (req) => {
     // Fetch account details for business context
     let businessContext = "";
     let companyPdfContent = "";
+    let customInsightsPrompt: string | null = null;
     if (account_id && account_id !== "all") {
       const supabaseService = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       const { data: account } = await supabaseService
         .from("ad_accounts")
-        .select("name, company_description, company_pdf_url, primary_kpi, secondary_kpis, winner_roas_threshold, iteration_spend_threshold")
+        .select("name, company_description, company_pdf_url, primary_kpi, secondary_kpis, winner_roas_threshold, iteration_spend_threshold, insights_prompt")
         .eq("id", account_id)
         .single();
+      let customInsightsPrompt: string | null = null;
       if (account) {
+        customInsightsPrompt = account.insights_prompt || null;
         businessContext = `\nBusiness Context:
 - Company/Account: ${account.name}
 - Primary KPI: ${account.primary_kpi || `Purchase ROAS > ${account.winner_roas_threshold || 2.0}x`}
@@ -218,7 +221,7 @@ Please provide a comprehensive analysis following the required structure.`;
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 8192,
-        system: SYSTEM_PROMPT,
+        system: customInsightsPrompt || SYSTEM_PROMPT,
         messages: [{ role: "user", content: userContent }],
         stream: !!stream,
       }),
