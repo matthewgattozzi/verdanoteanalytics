@@ -44,9 +44,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     <aside className="flex h-screen w-56 flex-col border-r border-border/60 bg-gradient-to-b from-sidebar to-sidebar-accent">
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-5 py-5 border-b border-border/40">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
-          <Zap className="h-4 w-4 text-primary-foreground" />
-        </div>
+        <img src="/favicon.png" alt="Logo" className="h-8 w-8 rounded-lg shadow-sm" />
         <div className="font-serif">
           <span className="text-sm font-semibold text-foreground tracking-tight">Creative</span>
           <span className="text-sm font-semibold text-primary tracking-tight"> Analytics</span>
