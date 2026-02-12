@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { AccountOverviewSection } from "@/components/settings/AccountOverviewSection";
 import { AIContextSection, DEFAULT_CREATIVE_PROMPT, DEFAULT_INSIGHTS_PROMPT } from "@/components/settings/AIContextSection";
 import { SyncSettingsSection } from "@/components/settings/SyncSettingsSection";
+import { SyncHistorySection } from "@/components/settings/SyncHistorySection";
 
 const SettingsPage = () => {
   const { isBuilder } = useAuth();
@@ -247,6 +248,8 @@ const SettingsPage = () => {
           saving={updateAccountSettings.isPending}
           showApplyAll={accounts.length > 1}
         />
+
+        <SyncHistorySection accountId={account.id} />
       </div>
 
       {/* Rename Account Modal */}

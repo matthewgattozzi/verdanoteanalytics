@@ -4,7 +4,6 @@ import {
   LayoutGrid,
   BarChart3,
   FileText,
-  History,
   Zap,
   LogOut,
   UserCog,
@@ -26,7 +25,6 @@ const baseNavItems = [
   { title: "Creatives", url: "/", icon: LayoutGrid },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Reports", url: "/reports", icon: FileText },
-  { title: "Sync History", url: "/sync-history", icon: History, requiresStaff: true },
   { title: "Saved Views", url: "/saved-views", icon: Bookmark },
 ];
 
@@ -38,7 +36,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const showSwitcher = !isClient || accounts.length > 1;
   // Only builder and employee see settings
   const showSettings = !isClient;
-  const navItems = baseNavItems.filter(item => !item.requiresStaff || !isClient);
+  const navItems = baseNavItems;
 
   return (
     <aside className="flex h-screen w-56 flex-col border-r border-border/60 bg-gradient-to-b from-sidebar to-sidebar-accent">
