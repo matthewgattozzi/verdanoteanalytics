@@ -180,19 +180,41 @@ serve(async (req) => {
   }
 });
 
+async function fetchImageAsBase64(url: string): Promise<{ data: string; mediaType: string } | null> {
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const contentType = resp.headers.get("content-type") || "image/jpeg";
+    const buf = await resp.arrayBuffer();
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+    return { data: base64, mediaType: contentType.split(";")[0] };
+  } catch (e) {
+    console.error("Failed to fetch image:", e);
+    return null;
+  }
+}
+
 async function analyzeOne(creative: any, apiKey: string): Promise<any> {
   // Build Anthropic-format content
   const userContent: any[] = [];
   const imageUrl = creative.thumbnail_url || creative.preview_url;
+  
+  // Fetch image and convert to base64 (Anthropic can't access fbcdn URLs directly)
+  let hasImage = false;
   if (imageUrl) {
-    userContent.push({ type: "image", source: { type: "url", url: imageUrl } });
+    const img = await fetchImageAsBase64(imageUrl);
+    if (img) {
+      userContent.push({ type: "image", source: { type: "base64", media_type: img.mediaType, data: img.data } });
+      hasImage = true;
+    }
   }
+  
   const textPrompt = `Analyze this Meta ad creative:
 - Ad Name: ${creative.ad_name} | Type: ${creative.ad_type || "Unknown"} | Person: ${creative.person || "Unknown"}
 - Style: ${creative.style || "Unknown"} | Hook: ${creative.hook || "Unknown"} | Product: ${creative.product || "Unknown"}
 - Spend: $${creative.spend || 0} | ROAS: ${creative.roas || 0}x | CPA: $${creative.cpa || 0} | CTR: ${creative.ctr || 0}%
 - CPM: $${creative.cpm || 0} | Purchases: ${creative.purchases || 0} | Impressions: ${creative.impressions || 0}
-${imageUrl ? "I've attached the creative visual. Incorporate what you see into your analysis — comment on colors, composition, text overlays, talent, branding, and anything that stands out." : "No visual asset available — analyze based on metadata only."}
+${hasImage ? "I've attached the creative visual. Incorporate what you see into your analysis — comment on colors, composition, text overlays, talent, branding, and anything that stands out." : "No visual asset available — analyze based on metadata only."}
 
 Return your analysis as JSON with these exact keys: overview, hook_analysis, visual_notes, cta_strategy. Each should be 2-3 sentences.`;
   userContent.push({ type: "text", text: textPrompt });
