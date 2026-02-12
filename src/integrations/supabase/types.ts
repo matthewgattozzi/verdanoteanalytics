@@ -17,6 +17,7 @@ export type Database = {
       ad_accounts: {
         Row: {
           company_description: string | null
+          company_pdf_url: string | null
           created_at: string
           creative_count: number
           date_range_days: number
@@ -33,6 +34,7 @@ export type Database = {
         }
         Insert: {
           company_description?: string | null
+          company_pdf_url?: string | null
           created_at?: string
           creative_count?: number
           date_range_days?: number
@@ -49,6 +51,7 @@ export type Database = {
         }
         Update: {
           company_description?: string | null
+          company_pdf_url?: string | null
           created_at?: string
           creative_count?: number
           date_range_days?: number
