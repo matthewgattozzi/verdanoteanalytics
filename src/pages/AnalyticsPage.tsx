@@ -22,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3, TrendingUp, TrendingDown, Target, Loader2 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useCreatives } from "@/hooks/useCreatives";
-import { useSettings } from "@/hooks/useApi";
+import { useAccountContext } from "@/contexts/AccountContext";
 
 function determineFunnel(creative: any): "TOF" | "MOF" | "BOF" {
   const name = `${creative.campaign_name || ""} ${creative.adset_name || ""}`.toLowerCase();
@@ -32,12 +32,13 @@ function determineFunnel(creative: any): "TOF" | "MOF" | "BOF" {
 }
 
 const AnalyticsPage = () => {
-  const { data: creatives, isLoading } = useCreatives({});
-  const { data: settings } = useSettings();
+  const { selectedAccountId, selectedAccount } = useAccountContext();
+  const accountFilter = selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {};
+  const { data: creatives, isLoading } = useCreatives(accountFilter);
   const [sliceBy, setSliceBy] = useState("ad_type");
 
-  const roasThreshold = parseFloat(settings?.winner_roas_threshold || "2.0");
-  const spendThreshold = parseFloat(settings?.iteration_spend_threshold || "50");
+  const roasThreshold = parseFloat(selectedAccount?.winner_roas_threshold || "2.0");
+  const spendThreshold = parseFloat(selectedAccount?.iteration_spend_threshold || "50");
 
   const tagged = useMemo(() => (creatives || []).filter((c: any) => c.tag_source !== "untagged"), [creatives]);
 

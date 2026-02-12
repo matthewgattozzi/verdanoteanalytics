@@ -55,15 +55,51 @@ import {
   useToggleAccount,
   useUploadMappings,
   useSync,
+  useUpdateAccountSettings,
 } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
+
+function AccountSyncSettings({ account, onSave, isPending }: { account: any; onSave: (account: any, dateRange: string, roasThreshold: string, spendThreshold: string) => void; isPending: boolean }) {
+  const [dateRange, setDateRange] = useState(String(account.date_range_days || 30));
+  const [roasThreshold, setRoasThreshold] = useState(String(account.winner_roas_threshold || 2.0));
+  const [spendThreshold, setSpendThreshold] = useState(String(account.iteration_spend_threshold || 50));
+
+  return (
+    <section className="glass-panel p-6 space-y-4">
+      <div>
+        <h2 className="text-base font-semibold">{account.name} — Sync Settings</h2>
+        <p className="text-[11px] font-mono text-muted-foreground">{account.id}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor={`dr-${account.id}`} className="text-sm">Date Range (days)</Label>
+          <Input id={`dr-${account.id}`} type="number" value={dateRange} onChange={(e) => setDateRange(e.target.value)} min="1" max="365" className="bg-background" />
+          <p className="text-[11px] text-muted-foreground">How many days of data to pull on each sync.</p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={`roas-${account.id}`} className="text-sm">Winner ROAS Threshold</Label>
+          <Input id={`roas-${account.id}`} type="number" value={roasThreshold} onChange={(e) => setRoasThreshold(e.target.value)} step="0.1" min="0" className="bg-background" />
+          <p className="text-[11px] text-muted-foreground">Minimum ROAS to consider a creative a "winner" (BOF).</p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={`spend-${account.id}`} className="text-sm">Iteration Spend Threshold ($)</Label>
+          <Input id={`spend-${account.id}`} type="number" value={spendThreshold} onChange={(e) => setSpendThreshold(e.target.value)} min="0" className="bg-background" />
+          <p className="text-[11px] text-muted-foreground">Minimum spend to include a creative in iteration analysis.</p>
+        </div>
+      </div>
+      <div className="pt-2">
+        <Button size="sm" onClick={() => onSave(account, dateRange, roasThreshold, spendThreshold)} disabled={isPending}>
+          {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+          Save Settings
+        </Button>
+      </div>
+    </section>
+  );
+}
 
 const SettingsPage = () => {
   const [showToken, setShowToken] = useState(false);
   const [metaToken, setMetaToken] = useState("");
-  const [dateRange, setDateRange] = useState("30");
-  const [roasThreshold, setRoasThreshold] = useState("2.0");
-  const [spendThreshold, setSpendThreshold] = useState("50");
   const [metaStatus, setMetaStatus] = useState<"unknown" | "connected" | "disconnected" | "testing">("unknown");
   const [metaUser, setMetaUser] = useState<string | null>(null);
 
@@ -85,13 +121,11 @@ const SettingsPage = () => {
   const deleteAccount = useDeleteAccount();
   const toggleAccount = useToggleAccount();
   const uploadMappings = useUploadMappings();
+  const updateAccountSettings = useUpdateAccountSettings();
   const sync = useSync();
 
   useEffect(() => {
     if (settings) {
-      setDateRange(settings.date_range_days || "30");
-      setRoasThreshold(settings.winner_roas_threshold || "2.0");
-      setSpendThreshold(settings.iteration_spend_threshold || "50");
       setMetaStatus(settings.meta_access_token_set === "true" ? "connected" : "disconnected");
     }
   }, [settings]);
@@ -120,11 +154,12 @@ const SettingsPage = () => {
     setMetaToken("");
   };
 
-  const handleSaveSettings = () => {
-    saveSettings.mutate({
-      date_range_days: dateRange,
-      winner_roas_threshold: roasThreshold,
-      iteration_spend_threshold: spendThreshold,
+  const handleSaveAccountSettings = (account: any, dateRange: string, roasThreshold: string, spendThreshold: string) => {
+    updateAccountSettings.mutate({
+      id: account.id,
+      date_range_days: parseInt(dateRange) || 30,
+      winner_roas_threshold: parseFloat(roasThreshold) || 2.0,
+      iteration_spend_threshold: parseFloat(spendThreshold) || 50,
     });
   };
 
@@ -359,38 +394,10 @@ const SettingsPage = () => {
           )}
         </section>
 
-        {/* Sync Settings */}
-        <section className="glass-panel p-6 space-y-4">
-          <div>
-            <h2 className="text-base font-semibold">Sync Settings</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Configure how data is pulled from Meta and how creatives are evaluated.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="dateRange" className="text-sm">Date Range (days)</Label>
-              <Input id="dateRange" type="number" value={dateRange} onChange={(e) => setDateRange(e.target.value)} min="1" max="365" className="bg-background" />
-              <p className="text-[11px] text-muted-foreground">How many days of data to pull on each sync.</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="roasThreshold" className="text-sm">Winner ROAS Threshold</Label>
-              <Input id="roasThreshold" type="number" value={roasThreshold} onChange={(e) => setRoasThreshold(e.target.value)} step="0.1" min="0" className="bg-background" />
-              <p className="text-[11px] text-muted-foreground">Minimum ROAS to consider a creative a "winner" (BOF).</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="spendThreshold" className="text-sm">Iteration Spend Threshold ($)</Label>
-              <Input id="spendThreshold" type="number" value={spendThreshold} onChange={(e) => setSpendThreshold(e.target.value)} min="0" className="bg-background" />
-              <p className="text-[11px] text-muted-foreground">Minimum spend to include a creative in iteration analysis.</p>
-            </div>
-          </div>
-          <div className="pt-2">
-            <Button size="sm" onClick={handleSaveSettings} disabled={saveSettings.isPending}>
-              {saveSettings.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-              Save Settings
-            </Button>
-          </div>
-        </section>
+        {/* Per-Account Sync Settings */}
+        {accounts?.map((account: any) => (
+          <AccountSyncSettings key={account.id} account={account} onSave={handleSaveAccountSettings} isPending={updateAccountSettings.isPending} />
+        ))}
 
         {/* AI Analysis Info */}
         <section className="glass-panel p-6 space-y-2">

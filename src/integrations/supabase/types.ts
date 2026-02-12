@@ -18,32 +18,41 @@ export type Database = {
         Row: {
           created_at: string
           creative_count: number
+          date_range_days: number
           id: string
           is_active: boolean
+          iteration_spend_threshold: number
           last_synced_at: string | null
           name: string
           untagged_count: number
           updated_at: string
+          winner_roas_threshold: number
         }
         Insert: {
           created_at?: string
           creative_count?: number
+          date_range_days?: number
           id: string
           is_active?: boolean
+          iteration_spend_threshold?: number
           last_synced_at?: string | null
           name: string
           untagged_count?: number
           updated_at?: string
+          winner_roas_threshold?: number
         }
         Update: {
           created_at?: string
           creative_count?: number
+          date_range_days?: number
           id?: string
           is_active?: boolean
+          iteration_spend_threshold?: number
           last_synced_at?: string | null
           name?: string
           untagged_count?: number
           updated_at?: string
+          winner_roas_threshold?: number
         }
         Relationships: []
       }

@@ -55,12 +55,18 @@ serve(async (req) => {
       });
     }
 
-    // PUT /accounts/:id — update account (toggle active)
-    if (req.method === "PUT" && path) {
+    // PUT /accounts/:id — update account (toggle active, sync settings)
+    if (req.method === "PUT" && path && !path.includes("/")) {
       const body = await req.json();
+      const updateFields: Record<string, any> = {};
+      if (body.is_active !== undefined) updateFields.is_active = body.is_active;
+      if (body.date_range_days !== undefined) updateFields.date_range_days = body.date_range_days;
+      if (body.winner_roas_threshold !== undefined) updateFields.winner_roas_threshold = body.winner_roas_threshold;
+      if (body.iteration_spend_threshold !== undefined) updateFields.iteration_spend_threshold = body.iteration_spend_threshold;
+
       const { data, error } = await supabase
         .from("ad_accounts")
-        .update({ is_active: body.is_active })
+        .update(updateFields)
         .eq("id", path)
         .select()
         .single();

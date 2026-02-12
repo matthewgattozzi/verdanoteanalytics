@@ -64,6 +64,21 @@ export function useToggleAccount() {
   });
 }
 
+export function useUpdateAccountSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...settings }: { id: string; date_range_days?: number; winner_roas_threshold?: number; iteration_spend_threshold?: number }) =>
+      apiFetch("accounts", id, { method: "PUT", body: JSON.stringify(settings) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["accounts"] });
+      toast.success("Account settings saved");
+    },
+    onError: (e: Error) => {
+      toast.error("Error saving account settings", { description: e.message });
+    },
+  });
+}
+
 export function useDeleteAccount() {
   const qc = useQueryClient();
   return useMutation({
