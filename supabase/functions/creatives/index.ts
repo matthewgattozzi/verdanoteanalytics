@@ -94,9 +94,35 @@ serve(async (req) => {
         const { data: dailyData, error: dmErr } = await dmQuery;
         if (dmErr) throw dmErr;
 
-        // If no daily metrics exist at all, fall back to lifetime data from creatives table
+        // If no daily metrics exist at all for this date range, return creatives with zeroed metrics
         if (!dailyData || dailyData.length === 0) {
-          // Fall through to the non-date-filter path below
+          // Fetch creatives but with zero metrics since we have no daily data for this range
+          let cQuery = supabase.from("creatives").select("*").order("spend", { ascending: false });
+          if (accountId) cQuery = cQuery.eq("account_id", accountId);
+          if (adType) cQuery = cQuery.eq("ad_type", adType);
+          if (person) cQuery = cQuery.eq("person", person);
+          if (style) cQuery = cQuery.eq("style", style);
+          if (hook) cQuery = cQuery.eq("hook", hook);
+          if (product) cQuery = cQuery.eq("product", product);
+          if (theme) cQuery = cQuery.eq("theme", theme);
+          if (tagSource) cQuery = cQuery.eq("tag_source", tagSource);
+          if (adStatus) cQuery = cQuery.eq("ad_status", adStatus);
+          if (search) cQuery = cQuery.or(`ad_name.ilike.%${search}%,unique_code.ilike.%${search}%,campaign_name.ilike.%${search}%`);
+
+          const { data: allC, error: cErr } = await cQuery;
+          if (cErr) throw cErr;
+
+          const zeroedResult = (allC || []).map((c: any) => ({
+            ...c,
+            spend: 0, impressions: 0, clicks: 0, ctr: 0, cpm: 0, cpc: 0, cpa: 0, roas: 0,
+            purchases: 0, purchase_value: 0, adds_to_cart: 0, cost_per_add_to_cart: 0,
+            video_views: 0, thumb_stop_rate: 0, hold_rate: 0, frequency: 0, video_avg_play_time: 0,
+          }));
+
+          // If delivery filter is "had_delivery", none will match since all zeroed
+          const filtered = delivery === "had_delivery" ? zeroedResult.filter((c: any) => c.spend > 0) : zeroedResult;
+          const total = filtered.length;
+          return new Response(JSON.stringify({ data: filtered.slice(offset, offset + limit), total }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         } else {
           // Aggregate by ad_id
           const aggMap: Record<string, any> = {};
