@@ -10,8 +10,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, XCircle, AlertTriangle, Clock, RefreshCw, History, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useSyncHistory, useAccounts, useSync } from "@/hooks/useApi";
+import { toast } from "sonner";
 
 const PAGE_SIZE = 10;
 
@@ -94,6 +95,40 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
   const { data: accounts } = useAccounts();
   const { data: logs, isLoading } = useSyncHistory(accountId);
   const syncMut = useSync();
+  const prevRunningIdsRef = useRef<Set<number>>(new Set());
+
+  // Notify when a running sync completes or fails
+  useEffect(() => {
+    if (!logs) return;
+    const currentRunning = new Set(
+      logs.filter((l: any) => l.status === "running").map((l: any) => l.id)
+    );
+    const prev = prevRunningIdsRef.current;
+
+    // Check if any previously-running sync has finished
+    for (const id of prev) {
+      if (!currentRunning.has(id)) {
+        const log = logs.find((l: any) => l.id === id);
+        if (log) {
+          if (log.status === "completed") {
+            toast.success("Sync completed", {
+              description: `${log.creatives_upserted ?? 0} creatives synced in ${log.duration_ms ? (log.duration_ms / 1000).toFixed(1) + "s" : "—"}`,
+            });
+          } else if (log.status === "completed_with_errors") {
+            toast.warning("Sync completed with errors", {
+              description: `${log.creatives_upserted ?? 0} creatives synced — check details for errors.`,
+            });
+          } else if (log.status === "failed") {
+            toast.error("Sync failed", {
+              description: "Open sync details for more information.",
+            });
+          }
+        }
+      }
+    }
+
+    prevRunningIdsRef.current = currentRunning as Set<number>;
+  }, [logs]);
 
   const filteredLogs = useMemo(() => {
     if (!logs) return [];
