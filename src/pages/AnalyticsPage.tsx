@@ -23,7 +23,7 @@ import { BarChart3, TrendingUp, TrendingDown, Target, Loader2, LineChart, Sparkl
 import { SaveViewButton } from "@/components/SaveViewButton";
 import { useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useCreatives } from "@/hooks/useCreatives";
+import { useAllCreatives } from "@/hooks/useAllCreatives";
 import { useDailyTrends } from "@/hooks/useDailyTrends";
 import { TrendChart } from "@/components/TrendChart";
 import { useAccountContext } from "@/contexts/AccountContext";
@@ -40,9 +40,8 @@ const AnalyticsPage = () => {
   const { selectedAccountId, selectedAccount } = useAccountContext();
   const [searchParams] = useSearchParams();
   const accountFilter = selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {};
-  const { data: creativesResult, isLoading } = useCreatives(accountFilter);
+  const { data: creatives = [], isLoading } = useAllCreatives(accountFilter);
   const { data: trendData, isLoading: trendsLoading } = useDailyTrends(selectedAccountId || undefined);
-  const creatives = creativesResult?.data || [];
   const defaultTab = searchParams.get("tab") || "trends";
   const defaultSlice = searchParams.get("slice") || "ad_type";
   const [sliceBy, setSliceBy] = useState(defaultSlice);
