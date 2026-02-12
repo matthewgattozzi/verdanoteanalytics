@@ -227,7 +227,7 @@ const AnalyticsPage = () => {
                       <span className="text-xs font-semibold">{stage}</span>
                       <Badge variant="outline" className="text-[10px]">{labels[stage]}</Badge>
                     </div>
-                    <div className="text-2xl font-bold font-mono">{rate}%</div>
+                    <div className="text-2xl font-semibold font-mono">{rate}%</div>
                     <div className="text-[10px] text-muted-foreground mt-1">
                       {f.winners} / {f.total} creatives
                     </div>
