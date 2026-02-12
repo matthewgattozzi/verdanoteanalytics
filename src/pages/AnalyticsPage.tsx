@@ -21,6 +21,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3, TrendingUp, TrendingDown, Target, Loader2, LineChart } from "lucide-react";
 import { useState, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useCreatives } from "@/hooks/useCreatives";
 import { useDailyTrends } from "@/hooks/useDailyTrends";
 import { TrendChart } from "@/components/TrendChart";
@@ -35,11 +36,14 @@ function determineFunnel(creative: any): "TOF" | "MOF" | "BOF" {
 
 const AnalyticsPage = () => {
   const { selectedAccountId, selectedAccount } = useAccountContext();
+  const [searchParams] = useSearchParams();
   const accountFilter = selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {};
   const { data: creativesResult, isLoading } = useCreatives(accountFilter);
   const { data: trendData, isLoading: trendsLoading } = useDailyTrends(selectedAccountId || undefined);
   const creatives = creativesResult?.data || [];
-  const [sliceBy, setSliceBy] = useState("ad_type");
+  const defaultTab = searchParams.get("tab") || "trends";
+  const defaultSlice = searchParams.get("slice") || "ad_type";
+  const [sliceBy, setSliceBy] = useState(defaultSlice);
 
   const roasThreshold = parseFloat(selectedAccount?.winner_roas_threshold || "2.0");
   const spendThreshold = parseFloat(selectedAccount?.iteration_spend_threshold || "50");
@@ -202,7 +206,7 @@ const AnalyticsPage = () => {
         ) : undefined}
       />
 
-      <Tabs defaultValue="trends" className="space-y-6">
+      <Tabs defaultValue={defaultTab} className="space-y-6">
         <TabsList className="bg-muted/50">
           <TabsTrigger value="trends">Trends</TabsTrigger>
           <TabsTrigger value="winrate">Win Rate</TabsTrigger>
