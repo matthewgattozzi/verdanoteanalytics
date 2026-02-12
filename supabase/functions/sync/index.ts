@@ -254,6 +254,7 @@ serve(async (req) => {
           let nextUrl: string | null =
             `https://graph.facebook.com/v21.0/${account.id}/ads?` +
             `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,video_id,effective_object_story_id},` +
+            `preview_shareable_link,` +
             `insights.time_range(${timeRange}){spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,video_avg_time_watched_actions,cpm,actions,action_values,frequency,cpc}` +
             `&limit=100&access_token=${encodeURIComponent(token)}`;
 
@@ -287,7 +288,7 @@ serve(async (req) => {
 
           creativesFetched = fetchedAds.length;
 
-          // Phase 1a: Batch-fetch video source URLs for ads with video_id
+          // Phase 1a: Fetch video source URLs individually per creative's video_id
           const videoIdMap = new Map<string, string>(); // video_id -> source URL
           const videoIds = [...new Set(
             fetchedAds
@@ -295,28 +296,28 @@ serve(async (req) => {
               .filter(Boolean)
           )] as string[];
 
-          // Fetch video source URLs in batches of 50
-          for (let i = 0; i < videoIds.length; i += 50) {
-            const batch = videoIds.slice(i, i + 50);
-            const ids = batch.join(",");
+          for (const vid of videoIds) {
             metaApiCalls++;
             try {
               const resp = await fetch(
-                `https://graph.facebook.com/v21.0/?ids=${ids}&fields=source&access_token=${encodeURIComponent(token)}`
+                `https://graph.facebook.com/v21.0/${vid}?fields=source&access_token=${encodeURIComponent(token)}`
               );
               const data = await resp.json();
-              if (!data.error) {
-                for (const [vid, info] of Object.entries(data as Record<string, any>)) {
-                  if (info.source) videoIdMap.set(vid, info.source);
+              if (data.source) {
+                videoIdMap.set(vid, data.source);
+              } else if (data.error) {
+                // Log once and stop trying if permission error
+                if (data.error.code === 10 || data.error.code === 100) {
+                  console.error(`Video source permission denied, skipping remaining videos. Error: ${data.error.message}`);
+                  apiErrors.push({ timestamp: new Date().toISOString(), message: `Video URLs: ${data.error.message}` });
+                  break;
                 }
-              } else {
-                console.error("Video batch fetch error:", data.error);
-                apiErrors.push({ timestamp: new Date().toISOString(), message: `Video URLs: ${data.error.message}` });
               }
             } catch (e) {
-              console.error("Video fetch error:", e);
+              console.error(`Video fetch error for ${vid}:`, e);
             }
-            if (i + 50 < videoIds.length) await new Promise((r) => setTimeout(r, 200));
+            // Rate limit
+            if (videoIdMap.size % 10 === 0) await new Promise((r) => setTimeout(r, 200));
           }
           console.log(`Resolved ${videoIdMap.size} video source URLs out of ${videoIds.length} video IDs`);
 
@@ -359,7 +360,9 @@ serve(async (req) => {
 
             // Resolve video preview URL
             const videoId = ad.creative?.video_id;
-            const previewUrl = videoId ? (videoIdMap.get(videoId) || null) : null;
+            const videoSourceUrl = videoId ? (videoIdMap.get(videoId) || null) : null;
+            const shareableLink = ad.preview_shareable_link || null;
+            const previewUrl = videoSourceUrl || shareableLink;
 
             const creativeData = {
               ad_id: ad.id,
