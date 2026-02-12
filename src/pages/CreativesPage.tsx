@@ -56,7 +56,7 @@ const CreativesPage = () => {
   });
   const [dateFrom, setDateFrom] = useState<string | undefined>(() => searchParams.get("from") || undefined);
   const [dateTo, setDateTo] = useState<string | undefined>(() => searchParams.get("to") || undefined);
-  const [selectedCreative, setSelectedCreative] = useState<any>(null);
+  const [selectedCreativeId, setSelectedCreativeId] = useState<string | null>(null);
   const [groupBy, setGroupBy] = useState(() => searchParams.get("group") || "__none__");
   const [sort, setSort] = useState<SortConfig>({ key: "", direction: null });
   const [page, setPage] = useState(0);
@@ -221,15 +221,15 @@ const CreativesPage = () => {
       ) : viewMode === "table" ? (
         <CreativesTable
           creatives={sortedCreatives} visibleCols={visibleCols} columnOrder={columnOrder}
-          sort={sort} onSort={handleSort} onReorder={handleReorder} onSelect={setSelectedCreative}
+          sort={sort} onSort={handleSort} onReorder={handleReorder} onSelect={(c: any) => setSelectedCreativeId(c.ad_id)}
         />
       ) : (
-        <CreativesCardGrid creatives={sortedCreatives} onSelect={setSelectedCreative} />
+        <CreativesCardGrid creatives={sortedCreatives} onSelect={(c: any) => setSelectedCreativeId(c.ad_id)} />
       )}
 
       <CreativesPagination page={page} totalPages={totalPages} totalItems={totalCreatives} pageSize={CREATIVES_PAGE_SIZE} onPageChange={setPage} />
 
-      <CreativeDetailModal creative={selectedCreative} open={!!selectedCreative} onClose={() => setSelectedCreative(null)} />
+      <CreativeDetailModal creative={creatives.find((c: any) => c.ad_id === selectedCreativeId) || null} open={!!selectedCreativeId} onClose={() => setSelectedCreativeId(null)} />
     </AppLayout>
   );
 };
