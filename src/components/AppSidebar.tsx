@@ -4,9 +4,18 @@ import {
   LayoutGrid,
   BarChart3,
   FileText,
-  Zap,
   History,
+  Zap,
+  ChevronsUpDown,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useAccountContext } from "@/contexts/AccountContext";
 
 const navItems = [
   { title: "Creatives", url: "/", icon: LayoutGrid },
@@ -17,6 +26,8 @@ const navItems = [
 ];
 
 export function AppSidebar() {
+  const { accounts, selectedAccountId, setSelectedAccountId, isLoading } = useAccountContext();
+
   return (
     <aside className="flex h-screen w-56 flex-col border-r border-border/60 bg-gradient-to-b from-[hsl(34,28%,95%)] to-[hsl(30,22%,92%)]">
       {/* Logo */}
@@ -29,6 +40,26 @@ export function AppSidebar() {
           <span className="text-sm font-semibold text-primary tracking-tight"> Analytics</span>
         </div>
       </div>
+
+      {/* Account Switcher */}
+      {accounts.length > 0 && (
+        <div className="px-3 pt-4 pb-2">
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2 mb-1.5">Account</p>
+          <Select value={selectedAccountId || ""} onValueChange={setSelectedAccountId}>
+            <SelectTrigger className="w-full h-9 text-xs bg-background/60 border-border/50">
+              <SelectValue placeholder="Select account" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">All Accounts</SelectItem>
+              {accounts.map((acc: any) => (
+                <SelectItem key={acc.id} value={acc.id} className="text-xs">
+                  {acc.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-0.5">
@@ -46,10 +77,8 @@ export function AppSidebar() {
         ))}
       </nav>
 
-      {/* Decorative divider */}
-      <div className="mx-5 border-t border-border/30" />
-
       {/* Footer */}
+      <div className="mx-5 border-t border-border/30" />
       <div className="px-5 py-4">
         <p className="text-[10px] text-muted-foreground/70 font-mono tracking-wide">Meta Ads Creative Analytics</p>
       </div>

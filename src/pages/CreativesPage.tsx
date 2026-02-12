@@ -27,6 +27,7 @@ import { useState, useMemo } from "react";
 import { useCreatives, useCreativeFilters, useBulkAnalyze } from "@/hooks/useCreatives";
 import { useSync } from "@/hooks/useApi";
 import { exportCreativesCSV } from "@/lib/csv";
+import { useAccountContext } from "@/contexts/AccountContext";
 
 const CreativesPage = () => {
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
@@ -35,8 +36,10 @@ const CreativesPage = () => {
   const [dateFrom, setDateFrom] = useState<string | undefined>();
   const [dateTo, setDateTo] = useState<string | undefined>();
   const [selectedCreative, setSelectedCreative] = useState<any>(null);
+  const { selectedAccountId } = useAccountContext();
 
-  const allFilters = { ...filters, delivery, ...(dateFrom ? { date_from: dateFrom } : {}), ...(dateTo ? { date_to: dateTo } : {}) };
+  const accountFilter = selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {};
+  const allFilters = { ...accountFilter, ...filters, delivery, ...(dateFrom ? { date_from: dateFrom } : {}), ...(dateTo ? { date_to: dateTo } : {}) };
   const { data: creatives, isLoading } = useCreatives(allFilters);
   const { data: filterOptions } = useCreativeFilters();
   const syncMut = useSync();
