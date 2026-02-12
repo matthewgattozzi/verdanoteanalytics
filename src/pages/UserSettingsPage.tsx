@@ -54,7 +54,6 @@ import {
   Building2,
   Users,
   UserPlus,
-  CalendarClock,
   Shield,
   Pencil,
 } from "lucide-react";
@@ -73,8 +72,6 @@ import {
   useUsers,
   useCreateUser,
   useDeleteUser,
-  useSyncSchedule,
-  useUpdateSyncSchedule,
 } from "@/hooks/useApi";
 
 const UserSettingsPage = () => {
@@ -102,8 +99,6 @@ const UserSettingsPage = () => {
   const [newUserRole, setNewUserRole] = useState<string>("client");
   const [newUserAccountIds, setNewUserAccountIds] = useState<string[]>([]);
   const [showDeleteUserConfirm, setShowDeleteUserConfirm] = useState<string | null>(null);
-  const [scheduleEnabled, setScheduleEnabled] = useState(true);
-  const [scheduleHour, setScheduleHour] = useState("11");
 
   const { data: settings } = useSettings();
   const testMeta = useTestMeta();
@@ -116,19 +111,8 @@ const UserSettingsPage = () => {
   const { data: users } = useUsers();
   const createUser = useCreateUser();
   const deleteUser = useDeleteUser();
-  const { data: syncSchedule } = useSyncSchedule();
-  const updateSchedule = useUpdateSyncSchedule();
 
   const existingIds = new Set((accounts || []).map((a: any) => a.id));
-
-  useEffect(() => {
-    if (syncSchedule) {
-      setScheduleEnabled(syncSchedule.enabled !== false);
-      if (syncSchedule.hour_utc !== undefined && syncSchedule.hour_utc !== null) {
-        setScheduleHour(String(syncSchedule.hour_utc));
-      }
-    }
-  }, [syncSchedule]);
 
   useEffect(() => {
     if (settings) {
@@ -425,63 +409,6 @@ const UserSettingsPage = () => {
                 )}
               </section>
 
-              {/* Sync Schedule */}
-              <section className="glass-panel p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-base font-semibold flex items-center gap-2">
-                      <CalendarClock className="h-4 w-4" />
-                      Automated Sync Schedule
-                    </h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">Configure when data syncs automatically from Meta.</p>
-                  </div>
-                  <Switch
-                    checked={scheduleEnabled}
-                    onCheckedChange={(checked) => {
-                      setScheduleEnabled(checked);
-                      updateSchedule.mutate({ enabled: checked, hour_utc: parseInt(scheduleHour) });
-                    }}
-                  />
-                </div>
-                {scheduleEnabled && (
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Label className="text-sm">Sync Time (EST)</Label>
-                      <Select
-                        value={scheduleHour}
-                        onValueChange={(val) => {
-                          setScheduleHour(val);
-                          updateSchedule.mutate({ enabled: true, hour_utc: parseInt(val) });
-                        }}
-                      >
-                        <SelectTrigger className="bg-background w-48">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 24 }, (_, utcH) => {
-                            const estH = ((utcH - 5) + 24) % 24;
-                            const label = `${estH > 12 ? estH - 12 : estH || 12}:00 ${estH >= 12 ? "PM" : "AM"} EST`;
-                            return <SelectItem key={utcH} value={String(utcH)}>{label}</SelectItem>;
-                          })}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      {syncSchedule?.description || "Daily at 6:00 AM EST"}
-                    </div>
-                    {updateSchedule.isPending && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        Updating schedule...
-                      </div>
-                    )}
-                  </div>
-                )}
-                {!scheduleEnabled && (
-                  <p className="text-xs text-muted-foreground">Automatic sync is disabled. You can still sync manually.</p>
-                )}
-              </section>
 
               {/* User Management */}
               <section className="glass-panel p-6 space-y-4">

@@ -251,25 +251,3 @@ export function useDeleteUser() {
   });
 }
 
-// Schedule management hooks
-export function useSyncSchedule() {
-  return useQuery({
-    queryKey: ["sync-schedule"],
-    queryFn: () => apiFetch("schedule"),
-  });
-}
-
-export function useUpdateSyncSchedule() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (params: { enabled: boolean; hour_utc?: number }) =>
-      apiFetch("schedule", "", { method: "PUT", body: JSON.stringify(params) }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["sync-schedule"] });
-      toast.success("Sync schedule updated");
-    },
-    onError: (e: Error) => {
-      toast.error("Error updating schedule", { description: e.message });
-    },
-  });
-}
