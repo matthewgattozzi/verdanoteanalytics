@@ -135,7 +135,7 @@ const SettingsPage = () => {
                   >
                     <div>
                       <div className="text-sm font-medium">{acc.name}</div>
-                      <div className="text-xs text-muted-foreground">{acc.creative_count} creatives · {acc.untagged_count} untagged</div>
+                      <div className="text-xs text-muted-foreground">{acc.creative_count} creatives</div>
                     </div>
                   </button>
                 ))}
