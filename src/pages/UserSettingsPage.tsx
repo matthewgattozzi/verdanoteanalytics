@@ -610,8 +610,10 @@ const UserSettingsPage = () => {
             <Button
               onClick={() => {
                 if (renamingAccount && renamingAccount.name.trim()) {
-                  renameAccount.mutate({ id: renamingAccount.id, name: renamingAccount.name.trim() });
-                  setRenamingAccount(null);
+                  renameAccount.mutate(
+                    { id: renamingAccount.id, name: renamingAccount.name.trim() },
+                    { onSuccess: () => setRenamingAccount(null) }
+                  );
                 }
               }}
               disabled={!renamingAccount?.name.trim() || renameAccount.isPending}
