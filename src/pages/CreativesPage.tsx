@@ -98,13 +98,20 @@ import { useAccountContext } from "@/contexts/AccountContext";
 
 const CreativesPage = () => {
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
-  const [visibleCols, setVisibleCols] = useState<Set<string>>(
-    () => new Set(TABLE_COLUMNS.filter(c => c.defaultVisible !== false).map(c => c.key))
-  );
+  const [visibleCols, setVisibleCols] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem("creatives_visible_columns");
+    if (saved) {
+      try {
+        return new Set(JSON.parse(saved) as string[]);
+      } catch { /* fall through */ }
+    }
+    return new Set(TABLE_COLUMNS.filter(c => c.defaultVisible !== false).map(c => c.key));
+  });
   const toggleCol = useCallback((key: string) => {
     setVisibleCols(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
+      localStorage.setItem("creatives_visible_columns", JSON.stringify([...next]));
       return next;
     });
   }, []);
