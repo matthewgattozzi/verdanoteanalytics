@@ -151,9 +151,6 @@ const CreativesPage = () => {
       <PageHeader
         title="Creatives"
         description="View and manage your ad creatives with performance data and tags."
-        badge={untaggedCount > 0 ? (
-          <Badge variant="outline" className="bg-tag-untagged/10 text-tag-untagged border-tag-untagged/30 text-xs">{untaggedCount} untagged</Badge>
-        ) : undefined}
         actions={
           <div className="flex items-center gap-2">
             <div className="flex border border-border rounded-md">
@@ -210,12 +207,6 @@ const CreativesPage = () => {
         groupBy={groupBy} setGroupBy={setGroupBy} viewMode={viewMode}
       />
 
-      {untaggedCount > 0 && untaggedCount / (creatives.length || 1) > 0.2 && (
-        <div className="flex items-center gap-2 p-3 rounded-md bg-tag-untagged/10 border border-tag-untagged/20 mb-4 text-xs">
-          <AlertTriangle className="h-4 w-4 text-tag-untagged flex-shrink-0" />
-          <span>{untaggedCount} creatives are untagged ({Math.round((untaggedCount / (creatives.length || 1)) * 100)}%). Upload CSV mappings in Accounts or edit tags manually.</span>
-        </div>
-      )}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
