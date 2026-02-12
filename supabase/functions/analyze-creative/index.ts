@@ -25,13 +25,27 @@ const AI_TOOL = {
   },
 };
 
-function buildPrompt(creative: any): string {
-  return `Analyze this Meta ad creative:
+function buildMessages(creative: any): any[] {
+  const textPrompt = `Analyze this Meta ad creative:
 - Ad Name: ${creative.ad_name} | Type: ${creative.ad_type || "Unknown"} | Person: ${creative.person || "Unknown"}
 - Style: ${creative.style || "Unknown"} | Hook: ${creative.hook || "Unknown"} | Product: ${creative.product || "Unknown"}
 - Spend: $${creative.spend || 0} | ROAS: ${creative.roas || 0}x | CPA: $${creative.cpa || 0} | CTR: ${creative.ctr || 0}%
 - CPM: $${creative.cpm || 0} | Purchases: ${creative.purchases || 0} | Impressions: ${creative.impressions || 0}
+${creative.thumbnail_url || creative.preview_url ? "I've attached the creative visual. Incorporate what you see into your analysis — comment on colors, composition, text overlays, talent, branding, and anything that stands out." : "No visual asset available — analyze based on metadata only."}
 Provide analysis using the tool.`;
+
+  const content: any[] = [{ type: "text", text: textPrompt }];
+
+  // Attach thumbnail or preview image for visual analysis
+  const imageUrl = creative.thumbnail_url || creative.preview_url;
+  if (imageUrl) {
+    content.push({ type: "image_url", image_url: { url: imageUrl } });
+  }
+
+  return [
+    { role: "system", content: "You are a senior performance marketing creative strategist. When visuals are provided, analyze them in detail — comment on imagery, text overlays, composition, branding, and emotional appeal. Provide concise, actionable analysis." },
+    { role: "user", content },
+  ];
 }
 
 serve(async (req) => {
@@ -172,10 +186,7 @@ async function analyzeOne(creative: any, apiKey: string): Promise<any> {
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "google/gemini-3-flash-preview",
-      messages: [
-        { role: "system", content: "You are a senior performance marketing creative strategist. Provide concise, actionable analysis." },
-        { role: "user", content: buildPrompt(creative) },
-      ],
+      messages: buildMessages(creative),
       tools: [AI_TOOL],
       tool_choice: { type: "function", function: { name: "creative_analysis" } },
     }),
