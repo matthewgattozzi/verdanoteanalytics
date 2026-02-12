@@ -115,6 +115,17 @@ const CreativesPage = () => {
       return next;
     });
   }, []);
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem("creatives_column_order");
+    if (saved) {
+      try { return JSON.parse(saved) as string[]; } catch { /* fall through */ }
+    }
+    return TABLE_COLUMNS.map(c => c.key);
+  });
+  const handleReorder = useCallback((newOrder: string[]) => {
+    setColumnOrder(newOrder);
+    localStorage.setItem("creatives_column_order", JSON.stringify(newOrder));
+  }, []);
   const [delivery, setDelivery] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [dateFrom, setDateFrom] = useState<string | undefined>();
@@ -256,7 +267,7 @@ const CreativesPage = () => {
                 <List className="h-3.5 w-3.5" />
               </Button>
             </div>
-            <ColumnPicker columns={TABLE_COLUMNS} visibleColumns={visibleCols} onToggle={toggleCol} />
+            <ColumnPicker columns={TABLE_COLUMNS} visibleColumns={visibleCols} onToggle={toggleCol} columnOrder={columnOrder} onReorder={handleReorder} />
             <Button size="sm" onClick={() => syncMut.mutate({ account_id: "all" })} disabled={syncMut.isPending}>
               {syncMut.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
               Sync
@@ -399,103 +410,80 @@ const CreativesPage = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                {renderSortableHead("creative", "Creative")}
-                {renderSortableHead("ad_status", "Status")}
-                {renderSortableHead("result_type", "Result Type")}
-                {renderSortableHead("type", "Type")}
-                {renderSortableHead("person", "Person")}
-                {renderSortableHead("style", "Style")}
-                {renderSortableHead("hook", "Hook")}
-                {renderSortableHead("product", "Product")}
-                {renderSortableHead("theme", "Theme")}
-                {renderSortableHead("spend", "Spent")}
-                {renderSortableHead("roas", "ROAS")}
-                {renderSortableHead("cpa", "Cost/Result")}
-                {renderSortableHead("cpm", "CPM")}
-                {renderSortableHead("cpc", "CPC")}
-                {renderSortableHead("frequency", "Frequency")}
-                {renderSortableHead("cpmr", "CPMr")}
-                {renderSortableHead("ctr", "Unique CTR")}
-                {renderSortableHead("impressions", "Impressions")}
-                {renderSortableHead("clicks", "Clicks")}
-                {renderSortableHead("hook_rate", "Hook Rate")}
-                {renderSortableHead("hold_rate", "Hold Rate")}
-                {renderSortableHead("video_views", "Video Views")}
-                {renderSortableHead("video_avg_play_time", "Avg Play Time")}
-                {renderSortableHead("purchases", "Purchases")}
-                {renderSortableHead("purchase_value", "Purchase Value")}
-                {renderSortableHead("adds_to_cart", "Adds to Cart")}
-                {renderSortableHead("cost_per_atc", "Cost/ATC")}
-                {renderSortableHead("campaign", "Campaign")}
-                {renderSortableHead("adset", "Ad Set")}
-                {visibleCols.has("tags") && <TableHead className="text-xs">Tags</TableHead>}
+                {columnOrder.filter(k => visibleCols.has(k)).map(key => {
+                  const headLabels: Record<string, string> = {
+                    creative: "Creative", ad_status: "Status", result_type: "Result Type",
+                    type: "Type", person: "Person", style: "Style", hook: "Hook",
+                    product: "Product", theme: "Theme", tags: "Tags",
+                    spend: "Spent", roas: "ROAS", cpa: "Cost/Result", cpm: "CPM",
+                    cpc: "CPC", frequency: "Frequency", cpmr: "CPMr",
+                    ctr: "Unique CTR", impressions: "Impressions", clicks: "Clicks",
+                    hook_rate: "Hook Rate", hold_rate: "Hold Rate",
+                    video_views: "Video Views", video_avg_play_time: "Avg Play Time",
+                    purchases: "Purchases", purchase_value: "Purchase Value",
+                    adds_to_cart: "Adds to Cart", cost_per_atc: "Cost/ATC",
+                    campaign: "Campaign", adset: "Ad Set",
+                  };
+                  if (key === "tags") return <TableHead key={key} className="text-xs">Tags</TableHead>;
+                  return renderSortableHead(key, headLabels[key] || key);
+                })}
               </TableRow>
             </TableHeader>
             <TableBody>
               {sortedCreatives.map((c: any) => (
                 <TableRow key={c.ad_id} className="cursor-pointer hover:bg-accent/50" onClick={() => setSelectedCreative(c)}>
-                  {visibleCols.has("creative") && (
-                    <TableCell>
-                      <div className="flex items-center gap-2.5 max-w-[280px]">
-                        <div className="h-10 w-10 rounded bg-muted flex-shrink-0 overflow-hidden flex items-center justify-center">
-                          {c.thumbnail_url ? (
-                            <img src={c.thumbnail_url} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                          ) : (
-                            <LayoutGrid className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-medium truncate">{c.ad_name}</div>
-                          <div className="text-[10px] font-mono text-muted-foreground">{c.unique_code}</div>
-                        </div>
-                      </div>
-                    </TableCell>
-                  )}
-                  {visibleCols.has("ad_status") && <TableCell className="text-xs">{c.ad_status || "—"}</TableCell>}
-                  {visibleCols.has("result_type") && <TableCell className="text-xs">{c.result_type || "—"}</TableCell>}
-                  {visibleCols.has("type") && (
-                    <TableCell>
-                      <InlineTagSelect adId={c.ad_id} field="ad_type" currentValue={c.ad_type} />
-                    </TableCell>
-                  )}
-                  {visibleCols.has("person") && (
-                    <TableCell>
-                      <InlineTagSelect adId={c.ad_id} field="person" currentValue={c.person} />
-                    </TableCell>
-                  )}
-                  {visibleCols.has("style") && (
-                    <TableCell>
-                      <InlineTagSelect adId={c.ad_id} field="style" currentValue={c.style} />
-                    </TableCell>
-                  )}
-                  {visibleCols.has("hook") && (
-                    <TableCell>
-                      <InlineTagSelect adId={c.ad_id} field="hook" currentValue={c.hook} />
-                    </TableCell>
-                  )}
-                  {visibleCols.has("product") && <TableCell className="text-xs truncate max-w-[120px]">{c.product || "—"}</TableCell>}
-                  {visibleCols.has("theme") && <TableCell className="text-xs truncate max-w-[120px]">{c.theme || "—"}</TableCell>}
-                  {visibleCols.has("spend") && <TableCell className="text-xs text-right font-mono">{fmt(c.spend, "$")}</TableCell>}
-                  {visibleCols.has("roas") && <TableCell className="text-xs text-right font-mono">{fmt(c.roas, "", "x")}</TableCell>}
-                  {visibleCols.has("cpa") && <TableCell className="text-xs text-right font-mono">{fmt(c.cpa, "$")}</TableCell>}
-                  {visibleCols.has("cpm") && <TableCell className="text-xs text-right font-mono">{fmt(c.cpm, "$")}</TableCell>}
-                  {visibleCols.has("cpc") && <TableCell className="text-xs text-right font-mono">{fmt(c.cpc, "$")}</TableCell>}
-                  {visibleCols.has("frequency") && <TableCell className="text-xs text-right font-mono">{fmt(c.frequency)}</TableCell>}
-                  {visibleCols.has("cpmr") && <TableCell className="text-xs text-right font-mono">{fmt(c._cpmr, "$")}</TableCell>}
-                  {visibleCols.has("ctr") && <TableCell className="text-xs text-right font-mono">{fmt(c.ctr, "", "%")}</TableCell>}
-                  {visibleCols.has("impressions") && <TableCell className="text-xs text-right font-mono">{fmt(c.impressions)}</TableCell>}
-                  {visibleCols.has("clicks") && <TableCell className="text-xs text-right font-mono">{fmt(c.clicks)}</TableCell>}
-                  {visibleCols.has("hook_rate") && <TableCell className="text-xs text-right font-mono">{fmt(c.thumb_stop_rate, "", "%")}</TableCell>}
-                  {visibleCols.has("hold_rate") && <TableCell className="text-xs text-right font-mono">{fmt(c.hold_rate, "", "%")}</TableCell>}
-                  {visibleCols.has("video_views") && <TableCell className="text-xs text-right font-mono">{fmt(c.video_views)}</TableCell>}
-                  {visibleCols.has("video_avg_play_time") && <TableCell className="text-xs text-right font-mono">{fmt(c.video_avg_play_time, "", "s")}</TableCell>}
-                  {visibleCols.has("purchases") && <TableCell className="text-xs text-right font-mono">{fmt(c.purchases)}</TableCell>}
-                  {visibleCols.has("purchase_value") && <TableCell className="text-xs text-right font-mono">{fmt(c.purchase_value, "$")}</TableCell>}
-                  {visibleCols.has("adds_to_cart") && <TableCell className="text-xs text-right font-mono">{fmt(c.adds_to_cart)}</TableCell>}
-                  {visibleCols.has("cost_per_atc") && <TableCell className="text-xs text-right font-mono">{fmt(c.cost_per_add_to_cart, "$")}</TableCell>}
-                  {visibleCols.has("campaign") && <TableCell className="text-xs truncate max-w-[150px]">{c.campaign_name || "—"}</TableCell>}
-                  {visibleCols.has("adset") && <TableCell className="text-xs truncate max-w-[150px]">{c.adset_name || "—"}</TableCell>}
-                  {visibleCols.has("tags") && <TableCell><TagSourceBadge source={c.tag_source} /></TableCell>}
+                  {columnOrder.filter(k => visibleCols.has(k)).map(key => {
+                    const cellRenderers: Record<string, () => React.ReactNode> = {
+                      creative: () => (
+                        <TableCell key={key}>
+                          <div className="flex items-center gap-2.5 max-w-[280px]">
+                            <div className="h-10 w-10 rounded bg-muted flex-shrink-0 overflow-hidden flex items-center justify-center">
+                              {c.thumbnail_url ? (
+                                <img src={c.thumbnail_url} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                              ) : (
+                                <LayoutGrid className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-xs font-medium truncate">{c.ad_name}</div>
+                              <div className="text-[10px] font-mono text-muted-foreground">{c.unique_code}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                      ),
+                      ad_status: () => <TableCell key={key} className="text-xs">{c.ad_status || "—"}</TableCell>,
+                      result_type: () => <TableCell key={key} className="text-xs">{c.result_type || "—"}</TableCell>,
+                      type: () => <TableCell key={key}><InlineTagSelect adId={c.ad_id} field="ad_type" currentValue={c.ad_type} /></TableCell>,
+                      person: () => <TableCell key={key}><InlineTagSelect adId={c.ad_id} field="person" currentValue={c.person} /></TableCell>,
+                      style: () => <TableCell key={key}><InlineTagSelect adId={c.ad_id} field="style" currentValue={c.style} /></TableCell>,
+                      hook: () => <TableCell key={key}><InlineTagSelect adId={c.ad_id} field="hook" currentValue={c.hook} /></TableCell>,
+                      product: () => <TableCell key={key} className="text-xs truncate max-w-[120px]">{c.product || "—"}</TableCell>,
+                      theme: () => <TableCell key={key} className="text-xs truncate max-w-[120px]">{c.theme || "—"}</TableCell>,
+                      spend: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.spend, "$")}</TableCell>,
+                      roas: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.roas, "", "x")}</TableCell>,
+                      cpa: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.cpa, "$")}</TableCell>,
+                      cpm: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.cpm, "$")}</TableCell>,
+                      cpc: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.cpc, "$")}</TableCell>,
+                      frequency: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.frequency)}</TableCell>,
+                      cpmr: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c._cpmr, "$")}</TableCell>,
+                      ctr: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.ctr, "", "%")}</TableCell>,
+                      impressions: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.impressions)}</TableCell>,
+                      clicks: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.clicks)}</TableCell>,
+                      hook_rate: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.thumb_stop_rate, "", "%")}</TableCell>,
+                      hold_rate: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.hold_rate, "", "%")}</TableCell>,
+                      video_views: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.video_views)}</TableCell>,
+                      video_avg_play_time: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.video_avg_play_time, "", "s")}</TableCell>,
+                      purchases: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.purchases)}</TableCell>,
+                      purchase_value: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.purchase_value, "$")}</TableCell>,
+                      adds_to_cart: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.adds_to_cart)}</TableCell>,
+                      cost_per_atc: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.cost_per_add_to_cart, "$")}</TableCell>,
+                      campaign: () => <TableCell key={key} className="text-xs truncate max-w-[150px]">{c.campaign_name || "—"}</TableCell>,
+                      adset: () => <TableCell key={key} className="text-xs truncate max-w-[150px]">{c.adset_name || "—"}</TableCell>,
+                      tags: () => <TableCell key={key}><TagSourceBadge source={c.tag_source} /></TableCell>,
+                    };
+                    const renderer = cellRenderers[key];
+                    return renderer ? renderer() : null;
+                  })}
                 </TableRow>
               ))}
             </TableBody>
