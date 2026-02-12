@@ -61,7 +61,7 @@ import {
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   useSettings,
   useTestMeta,
@@ -164,9 +164,9 @@ const UserSettingsPage = () => {
         .update({ display_name: displayName })
         .eq("user_id", user.id);
       if (error) throw error;
-      toast({ title: "Profile updated", description: "Your display name has been saved." });
+      toast.success("Your display name has been saved.");
     } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+      toast.error(e.message);
     } finally {
       setSavingProfile(false);
     }
@@ -174,22 +174,22 @@ const UserSettingsPage = () => {
 
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
-      toast({ title: "Passwords don't match", variant: "destructive" });
+      toast.error("Passwords don't match");
       return;
     }
     if (newPassword.length < 6) {
-      toast({ title: "Password too short", description: "At least 6 characters.", variant: "destructive" });
+      toast.error("Password too short — at least 6 characters.");
       return;
     }
     setSavingPassword(true);
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      toast({ title: "Password updated" });
+      toast.success("Password updated");
       setNewPassword("");
       setConfirmPassword("");
     } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+      toast.error(e.message);
     } finally {
       setSavingPassword(false);
     }
@@ -202,15 +202,15 @@ const UserSettingsPage = () => {
       if (result.connected) {
         setMetaStatus("connected");
         setMetaUser(result.user?.name || null);
-        toast({ title: "Connected to Meta", description: `Logged in as ${result.user?.name}. ${result.accounts?.length || 0} ad accounts found.` });
-        if (result.tokenWarning) toast({ title: "Token warning", description: result.tokenWarning, variant: "destructive" });
+        toast.success(`Connected to Meta as ${result.user?.name}. ${result.accounts?.length || 0} ad accounts found.`);
+        if (result.tokenWarning) toast.warning(result.tokenWarning);
       } else {
         setMetaStatus("disconnected");
-        toast({ title: "Connection failed", description: result.error, variant: "destructive" });
+        toast.error(`Connection failed: ${result.error}`);
       }
     } catch (e: any) {
       setMetaStatus("disconnected");
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+      toast.error(e.message);
     }
   };
 
@@ -222,11 +222,11 @@ const UserSettingsPage = () => {
       if (result.connected) {
         setAvailableAccounts(result.accounts || []);
       } else {
-        toast({ title: "Not connected", description: "Meta token not configured.", variant: "destructive" });
+        toast.error("Meta token not configured.");
         setShowAddModal(false);
       }
     } catch {
-      toast({ title: "Error", description: "Failed to fetch accounts.", variant: "destructive" });
+      toast.error("Failed to fetch accounts.");
       setShowAddModal(false);
     } finally {
       setLoadingAccounts(false);

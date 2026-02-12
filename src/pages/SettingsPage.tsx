@@ -15,14 +15,14 @@ import {
 } from "@/hooks/useApi";
 import { useAccountContext } from "@/contexts/AccountContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { AccountOverviewSection } from "@/components/settings/AccountOverviewSection";
 import { AIContextSection } from "@/components/settings/AIContextSection";
 import { SyncSettingsSection } from "@/components/settings/SyncSettingsSection";
 
 const SettingsPage = () => {
   const { isBuilder } = useAuth();
-  const { selectedAccountId, selectedAccount } = useAccountContext();
+  const { selectedAccountId, selectedAccount, setSelectedAccountId } = useAccountContext();
   const { data: rawAccounts } = useAccounts();
   const accounts = [...(rawAccounts || [])].sort((a: any, b: any) => a.name.localeCompare(b.name));
 
@@ -90,11 +90,11 @@ const SettingsPage = () => {
     reader.onload = (event) => {
       const text = event.target?.result as string;
       const lines = text.split("\n").filter((l) => l.trim());
-      if (lines.length < 2) { toast({ title: "Invalid CSV", description: "File must have headers and at least one row.", variant: "destructive" }); return; }
+      if (lines.length < 2) { toast.error("Invalid CSV — file must have headers and at least one row."); return; }
       const headers = lines[0].split(",").map((h) => h.trim());
       const required = ["UniqueCode", "Type", "Person", "Style", "Product", "Hook", "Theme"];
       const missing = required.filter((r) => !headers.includes(r));
-      if (missing.length > 0) { toast({ title: "Missing columns", description: `Required: ${missing.join(", ")}`, variant: "destructive" }); return; }
+      if (missing.length > 0) { toast.error(`Missing columns: ${missing.join(", ")}`); return; }
       const rows = lines.slice(1).map((line) => {
         const values = line.split(",").map((v) => v.trim());
         const row: Record<string, string> = {};
@@ -116,13 +116,43 @@ const SettingsPage = () => {
   };
 
   if (!account) {
+    // Auto-select first account if available
+    if (accounts.length > 0) {
+      return (
+        <AppLayout>
+          <PageHeader title="Account Settings" description="Select a specific ad account from the sidebar to view its settings." />
+          <div className="max-w-2xl">
+            <div className="glass-panel p-6 space-y-4">
+              <p className="text-sm text-muted-foreground mb-3">
+                Select an account to configure its settings:
+              </p>
+              <div className="space-y-2">
+                {accounts.map((acc: any) => (
+                  <button
+                    key={acc.id}
+                    onClick={() => setSelectedAccountId(acc.id)}
+                    className="w-full flex items-center justify-between p-3 rounded-md border border-border hover:bg-accent transition-colors text-left"
+                  >
+                    <div>
+                      <div className="text-sm font-medium">{acc.name}</div>
+                      <div className="text-xs text-muted-foreground">{acc.creative_count} creatives · {acc.untagged_count} untagged</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </AppLayout>
+      );
+    }
+
     return (
       <AppLayout>
-        <PageHeader title="Account Settings" description="Select a specific ad account from the sidebar to view its settings." />
+        <PageHeader title="Account Settings" description="No ad accounts configured yet." />
         <div className="max-w-2xl">
           <div className="glass-panel p-8 flex flex-col items-center justify-center text-center">
             <p className="text-sm text-muted-foreground">
-              Please select a specific ad account from the sidebar switcher to configure its settings.
+              Add ad accounts in User Settings → Admin to get started.
             </p>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { useSettings, useAccounts } from "@/hooks/useApi";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CheckCircle2, Circle, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -31,39 +31,27 @@ export function OnboardingBanner() {
   const hasToken = settings?.meta_access_token_set === "true";
   const hasAccount = (accounts || []).length > 0;
   const hasTaggedCreatives = (accounts || []).some((a: any) => a.creative_count > 0 && a.untagged_count < a.creative_count);
-  const hasGeminiKey = settings?.gemini_api_key_set === "true";
 
   const steps = [
     {
       done: hasToken,
       label: "Add Meta access token",
-      description: "Save & Connect in Settings",
-      action: () => navigate("/settings"),
+      description: "Go to User Settings → Admin → Meta Connection to verify.",
+      action: () => navigate("/user-settings"),
     },
     {
       done: hasAccount,
       label: "Add an ad account",
-      description: "Select from connected accounts",
-      action: () => navigate("/accounts"),
+      description: "Go to User Settings → Admin → Ad Accounts to add.",
+      action: () => navigate("/user-settings"),
     },
     {
       done: hasTaggedCreatives,
       label: "Tag your creatives",
-      description: "Ads following the naming convention are tagged automatically. Otherwise, upload a CSV mapping.",
-      action: () => navigate("/accounts"),
+      description: "Ads following the naming convention are tagged automatically. Otherwise, select an account in Settings to upload a CSV mapping.",
+      action: () => navigate("/settings"),
     },
   ];
-
-  // Only show Gemini step if not already configured
-  if (!hasGeminiKey) {
-    steps.push({
-      done: false,
-      label: "Add AI analysis (optional)",
-      description: "Enables AI breakdown of each creative's approach. Not required for tags.",
-      action: () => navigate("/settings"),
-      optional: true,
-    } as any);
-  }
 
   // Check if all steps are done (auto or manual)
   const allDone = steps.every((step, i) => step.done || manualChecks.has(i));
@@ -82,7 +70,7 @@ export function OnboardingBanner() {
       <p className="text-xs text-muted-foreground mb-4">Complete these steps to start analyzing your Meta ad creatives.</p>
 
       <div className="space-y-3">
-        {steps.map((step: any, i) => {
+        {steps.map((step, i) => {
           const isDone = step.done || manualChecks.has(i);
           return (
             <div key={i} className="flex items-start gap-3">
@@ -95,19 +83,14 @@ export function OnboardingBanner() {
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className={`text-sm font-medium ${isDone ? "text-muted-foreground line-through" : ""}`}>
-                    {step.label}
-                  </span>
-                  {step.optional && (
-                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Optional</span>
-                  )}
-                </div>
+                <span className={`text-sm font-medium ${isDone ? "text-muted-foreground line-through" : ""}`}>
+                  {step.label}
+                </span>
                 <p className="text-xs text-muted-foreground">{step.description}</p>
               </div>
               {!isDone && (
                 <Button size="sm" variant="outline" className="text-xs h-7" onClick={step.action}>
-                  {step.optional ? "Configure" : "Set up"}
+                  Set up
                 </Button>
               )}
             </div>

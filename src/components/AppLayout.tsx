@@ -1,16 +1,50 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
+import { Button } from "@/components/ui/button";
+import { Menu } from "lucide-react";
 
 interface AppLayoutProps {
   children: ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   return (
     <div className="flex min-h-screen w-full bg-background">
-      <AppSidebar />
-      <main className="flex-1 overflow-auto">
-        <div className="p-6 max-w-[1400px] mx-auto">
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar — always visible on md+, slide-in on mobile */}
+      <div
+        className={`
+          fixed inset-y-0 left-0 z-50 transition-transform duration-200 md:relative md:translate-x-0
+          ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
+        `}
+      >
+        <AppSidebar onNavigate={() => setMobileOpen(false)} />
+      </div>
+
+      {/* Main content */}
+      <main className="flex-1 overflow-auto min-w-0">
+        {/* Mobile header with hamburger */}
+        <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 border-b border-border/60 bg-background md:hidden">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => setMobileOpen(true)}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          <span className="text-sm font-semibold">Creative Analytics</span>
+        </div>
+        <div className="p-4 md:p-6 max-w-[1400px] mx-auto">
           {children}
         </div>
       </main>

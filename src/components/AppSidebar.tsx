@@ -22,15 +22,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-const navItems = [
+const baseNavItems = [
   { title: "Creatives", url: "/", icon: LayoutGrid },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Reports", url: "/reports", icon: FileText },
-  { title: "Sync History", url: "/sync-history", icon: History },
+  { title: "Sync History", url: "/sync-history", icon: History, requiresStaff: true },
   { title: "Saved Views", url: "/saved-views", icon: Bookmark },
 ];
 
-export function AppSidebar() {
+export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { accounts, selectedAccountId, setSelectedAccountId, isLoading } = useAccountContext();
   const { role, isClient, user, signOut } = useAuth();
 
@@ -38,6 +38,7 @@ export function AppSidebar() {
   const showSwitcher = !isClient || accounts.length > 1;
   // Only builder and employee see settings
   const showSettings = !isClient;
+  const navItems = baseNavItems.filter(item => !item.requiresStaff || !isClient);
 
   return (
     <aside className="flex h-screen w-56 flex-col border-r border-border/60 bg-gradient-to-b from-sidebar to-sidebar-accent">
@@ -87,6 +88,7 @@ export function AppSidebar() {
             end={item.url === "/"}
             className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-all duration-150 hover:bg-sidebar-accent hover:text-foreground"
             activeClassName="bg-sidebar-accent text-foreground shadow-sm border border-border/30"
+            onClick={onNavigate}
           >
             <item.icon className="h-4 w-4 flex-shrink-0" />
             {item.title}
@@ -97,6 +99,7 @@ export function AppSidebar() {
             to="/settings"
             className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-all duration-150 hover:bg-sidebar-accent hover:text-foreground"
             activeClassName="bg-sidebar-accent text-foreground shadow-sm border border-border/30"
+            onClick={onNavigate}
           >
             <Settings className="h-4 w-4 flex-shrink-0" />
             Settings
@@ -111,6 +114,7 @@ export function AppSidebar() {
           to="/user-settings"
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground transition-all duration-150 hover:bg-sidebar-accent hover:text-foreground"
           activeClassName="bg-sidebar-accent text-foreground shadow-sm border border-border/30"
+          onClick={onNavigate}
         >
           <UserCog className="h-4 w-4 flex-shrink-0" />
           User Settings
