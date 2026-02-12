@@ -122,8 +122,7 @@
   }
 
   .metric-value {
-    @apply text-2xl font-semibold tracking-tight font-mono;
-    color: hsl(20 25% 18%);
+    @apply text-2xl font-semibold tracking-tight font-mono text-foreground;
   }
 
   .metric-label {
