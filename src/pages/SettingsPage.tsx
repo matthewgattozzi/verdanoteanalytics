@@ -17,7 +17,7 @@ import { useAccountContext } from "@/contexts/AccountContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { AccountOverviewSection } from "@/components/settings/AccountOverviewSection";
-import { AIContextSection } from "@/components/settings/AIContextSection";
+import { AIContextSection, DEFAULT_CREATIVE_PROMPT, DEFAULT_INSIGHTS_PROMPT } from "@/components/settings/AIContextSection";
 import { SyncSettingsSection } from "@/components/settings/SyncSettingsSection";
 
 const SettingsPage = () => {
@@ -48,6 +48,8 @@ const SettingsPage = () => {
   const [primaryKpi, setPrimaryKpi] = useState("");
   const [secondaryKpis, setSecondaryKpis] = useState("");
   const [companyPdfUrl, setCompanyPdfUrl] = useState<string | null>(null);
+  const [creativePrompt, setCreativePrompt] = useState("");
+  const [insightsPrompt, setInsightsPrompt] = useState("");
   const [initialized, setInitialized] = useState<string | null>(null);
 
   if (account && initialized !== account.id) {
@@ -57,6 +59,8 @@ const SettingsPage = () => {
     setPrimaryKpi(account.primary_kpi || "Purchase ROAS > 1.5x");
     setSecondaryKpis(account.secondary_kpis || "CTR, Hook Rate, Volume");
     setCompanyPdfUrl((account as any).company_pdf_url || null);
+    setCreativePrompt((account as any).creative_analysis_prompt || DEFAULT_CREATIVE_PROMPT);
+    setInsightsPrompt((account as any).insights_prompt || DEFAULT_INSIGHTS_PROMPT);
     setInitialized(account.id);
   }
 
@@ -69,6 +73,8 @@ const SettingsPage = () => {
       iteration_spend_threshold: parseFloat(spendThreshold) || 50,
       primary_kpi: primaryKpi || null,
       secondary_kpis: secondaryKpis || null,
+      creative_analysis_prompt: creativePrompt === DEFAULT_CREATIVE_PROMPT ? null : creativePrompt || null,
+      insights_prompt: insightsPrompt === DEFAULT_INSIGHTS_PROMPT ? null : insightsPrompt || null,
     });
   };
 
@@ -185,6 +191,10 @@ const SettingsPage = () => {
           setSecondaryKpis={setSecondaryKpis}
           companyPdfUrl={companyPdfUrl}
           setCompanyPdfUrl={setCompanyPdfUrl}
+          creativePrompt={creativePrompt}
+          setCreativePrompt={setCreativePrompt}
+          insightsPrompt={insightsPrompt}
+          setInsightsPrompt={setInsightsPrompt}
           onSaveSettings={async (updates) => {
             await updateAccountSettings.mutateAsync({ id: account.id, ...updates });
           }}

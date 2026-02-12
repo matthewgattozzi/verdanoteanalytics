@@ -68,9 +68,14 @@ serve(async (req) => {
         });
       }
 
+      // Fetch account-level custom prompt
+      const { data: account } = await supabase
+        .from("ad_accounts").select("creative_analysis_prompt").eq("id", creative.account_id).single();
+      const customSystemPrompt = account?.creative_analysis_prompt || null;
+
       await supabase.from("creatives").update({ analysis_status: "analyzing" }).eq("ad_id", ad_id);
 
-      const result = await analyzeOne(creative, LOVABLE_API_KEY);
+      const result = await analyzeOne(creative, LOVABLE_API_KEY, customSystemPrompt);
       if (result.error) {
         await supabase.from("creatives").update({ analysis_status: "pending" }).eq("ad_id", ad_id);
         return new Response(JSON.stringify({ error: result.error }), {
@@ -94,6 +99,7 @@ serve(async (req) => {
     // Bulk analysis
     if (bulk) {
       const limit = Math.min(body.limit || 20, 50);
+      const accountId = body.account_id;
       const { data: creatives, error: fetchErr } = await supabase
         .from("creatives").select("*")
         .in("analysis_status", ["pending", null as any])
@@ -108,6 +114,13 @@ serve(async (req) => {
         });
       }
 
+      // Fetch custom prompts per account (batch)
+      const accountIds = [...new Set(creatives.map((c: any) => c.account_id))];
+      const { data: accounts } = await supabase
+        .from("ad_accounts").select("id, creative_analysis_prompt").in("id", accountIds);
+      const promptMap: Record<string, string | null> = {};
+      (accounts || []).forEach((a: any) => { promptMap[a.id] = a.creative_analysis_prompt || null; });
+
       const ids = creatives.map((c: any) => c.ad_id);
       await supabase.from("creatives").update({ analysis_status: "analyzing" }).in("ad_id", ids);
 
@@ -116,7 +129,7 @@ serve(async (req) => {
 
       for (const creative of creatives) {
         try {
-          const result = await analyzeOne(creative, LOVABLE_API_KEY);
+          const result = await analyzeOne(creative, LOVABLE_API_KEY, promptMap[creative.account_id] || null);
           if (result.error) {
             errors++;
             await supabase.from("creatives").update({ analysis_status: "pending" }).eq("ad_id", creative.ad_id);
@@ -157,7 +170,7 @@ serve(async (req) => {
   }
 });
 
-async function analyzeOne(creative: any, apiKey: string): Promise<any> {
+async function analyzeOne(creative: any, apiKey: string, customSystemPrompt: string | null): Promise<any> {
   const imageUrl = creative.thumbnail_url || creative.preview_url;
 
   const userContent: any[] = [];
@@ -185,7 +198,7 @@ Provide analysis using the tool.`;
     body: JSON.stringify({
       model: "google/gemini-2.5-flash",
       messages: [
-        { role: "system", content: "You are a senior performance marketing creative strategist. When visuals are provided, analyze them in detail — comment on imagery, text overlays, composition, branding, and emotional appeal. Provide concise, actionable analysis." },
+        { role: "system", content: customSystemPrompt || "You are a senior performance marketing creative strategist. When visuals are provided, analyze them in detail — comment on imagery, text overlays, composition, branding, and emotional appeal. Provide concise, actionable analysis." },
         { role: "user", content: userContent },
       ],
       tools: [AI_TOOL],

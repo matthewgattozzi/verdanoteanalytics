@@ -88,7 +88,7 @@ export function useRenameAccount() {
 export function useUpdateAccountSettings() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...settings }: { id: string; date_range_days?: number; winner_roas_threshold?: number; iteration_spend_threshold?: number; company_description?: string | null; primary_kpi?: string | null; secondary_kpis?: string | null; company_pdf_url?: string | null }) =>
+    mutationFn: ({ id, ...settings }: { id: string; date_range_days?: number; winner_roas_threshold?: number; iteration_spend_threshold?: number; company_description?: string | null; primary_kpi?: string | null; secondary_kpis?: string | null; company_pdf_url?: string | null; creative_analysis_prompt?: string | null; insights_prompt?: string | null }) =>
       apiFetch("accounts", id, { method: "PUT", body: JSON.stringify(settings) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["accounts"] });

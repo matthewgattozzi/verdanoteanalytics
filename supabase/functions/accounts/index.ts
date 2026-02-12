@@ -89,6 +89,8 @@ serve(async (req) => {
       if (body.primary_kpi !== undefined) updateFields.primary_kpi = body.primary_kpi;
       if (body.secondary_kpis !== undefined) updateFields.secondary_kpis = body.secondary_kpis;
       if (body.company_pdf_url !== undefined) updateFields.company_pdf_url = body.company_pdf_url;
+      if (body.creative_analysis_prompt !== undefined) updateFields.creative_analysis_prompt = body.creative_analysis_prompt;
+      if (body.insights_prompt !== undefined) updateFields.insights_prompt = body.insights_prompt;
 
       const { data, error } = await supabase
         .from("ad_accounts")
