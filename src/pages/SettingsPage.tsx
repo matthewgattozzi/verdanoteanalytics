@@ -317,7 +317,7 @@ const SettingsPage = () => {
             <div className="space-y-2">
               <Label className="text-sm">Date Range (days)</Label>
               <Input type="number" value={dateRange} onChange={(e) => setDateRange(e.target.value)} min="1" max="365" className="bg-background" />
-              <p className="text-[11px] text-muted-foreground">How many days of data to pull on each sync.</p>
+              <p className="text-[11px] text-muted-foreground">How many days of data to pull on each sync. This does not affect the date picker filter on the Creatives page.</p>
             </div>
             <div className="space-y-2">
               <Label className="text-sm">Winner ROAS Threshold</Label>
