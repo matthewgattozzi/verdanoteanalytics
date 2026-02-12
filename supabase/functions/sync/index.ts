@@ -246,22 +246,21 @@ serve(async (req) => {
         const apiErrors: { timestamp: string; message: string }[] = [];
 
         try {
-          // Phase 1: Fetch ads from Meta
-          const timeRange = JSON.stringify({
-            since: startDate.toISOString().split("T")[0],
-            until: endDate.toISOString().split("T")[0],
-          });
+          // Phase 1: Fetch ads from Meta (aggregated)
+          const sinceStr = startDate.toISOString().split("T")[0];
+          const untilStr = endDate.toISOString().split("T")[0];
+          const timeRange = JSON.stringify({ since: sinceStr, until: untilStr });
 
           let nextUrl: string | null =
             `https://graph.facebook.com/v21.0/${account.id}/ads?` +
             `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,effective_object_story_id},` +
-            `insights.time_range(${timeRange}){spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,video_avg_time_watched_actions,cpm,actions,action_values}` +
+            `insights.time_range(${timeRange}){spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,video_avg_time_watched_actions,cpm,actions,action_values,frequency,cpc}` +
             `&limit=100&access_token=${encodeURIComponent(token)}`;
 
           const fetchedAds: any[] = [];
 
           console.log(`Fetching ads for account ${account.id} (${account.name})`);
-          console.log(`Date range: ${startDate.toISOString().split("T")[0]} to ${endDate.toISOString().split("T")[0]}`);
+          console.log(`Date range: ${sinceStr} to ${untilStr}`);
 
           while (nextUrl) {
             metaApiCalls++;
@@ -308,6 +307,8 @@ serve(async (req) => {
             const clicks = parseInt(insights.clicks || "0");
             const impressions = parseInt(insights.impressions || "0");
             const cpm = parseFloat(insights.cpm || "0");
+            const cpc = parseFloat(insights.cpc || "0");
+            const frequency = parseFloat(insights.frequency || "0");
             let purchases = 0, purchaseValue = 0, cpa = 0;
             if (insights.actions) {
               const pa = insights.actions.find((a: any) => a.action_type === "purchase");
@@ -333,7 +334,7 @@ serve(async (req) => {
               thumbnail_url: ad.creative?.thumbnail_url || null,
               spend, roas, cpa, ctr, clicks, impressions,
               video_views: 0, thumb_stop_rate: thumbStopRate, hold_rate: 0,
-              cpm, purchases, purchase_value: purchaseValue,
+              cpm, cpc, frequency, purchases, purchase_value: purchaseValue,
             };
 
             if (manualAdIds.has(ad.id)) {
@@ -362,6 +363,81 @@ serve(async (req) => {
           }
 
           console.log(`Upserted ${creativesUpserted} creatives`);
+
+          // Phase 1c: Fetch daily breakdowns for daily_metrics table
+          console.log(`Fetching daily breakdowns...`);
+          let dailyNextUrl: string | null =
+            `https://graph.facebook.com/v21.0/${account.id}/insights?` +
+            `time_range=${encodeURIComponent(timeRange)}&time_increment=1` +
+            `&level=ad` +
+            `&fields=ad_id,spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values` +
+            `&limit=500&access_token=${encodeURIComponent(token)}`;
+
+          const dailyRows: any[] = [];
+
+          while (dailyNextUrl) {
+            metaApiCalls++;
+            const resp = await fetch(dailyNextUrl);
+            const data = await resp.json();
+
+            if (data.error) {
+              console.error(`Daily breakdown API error:`, data.error);
+              apiErrors.push({ timestamp: new Date().toISOString(), message: `Daily: ${data.error.message}` });
+              break;
+            }
+
+            if (data.data) {
+              for (const row of data.data) {
+                const spend = parseFloat(row.spend || "0");
+                const roas = row.purchase_roas?.[0]?.value ? parseFloat(row.purchase_roas[0].value) : 0;
+                const ctr = parseFloat(row.ctr || "0");
+                const clicks = parseInt(row.clicks || "0");
+                const impressions = parseInt(row.impressions || "0");
+                const cpm = parseFloat(row.cpm || "0");
+                const cpc = parseFloat(row.cpc || "0");
+                const frequency = parseFloat(row.frequency || "0");
+                let purchases = 0, purchaseValue = 0, cpa = 0;
+                if (row.actions) {
+                  const pa = row.actions.find((a: any) => a.action_type === "purchase");
+                  if (pa) purchases = parseInt(pa.value || "0");
+                }
+                if (row.action_values) {
+                  const pv = row.action_values.find((a: any) => a.action_type === "purchase");
+                  if (pv) purchaseValue = parseFloat(pv.value || "0");
+                }
+                if (row.cost_per_action_type) {
+                  const cp = row.cost_per_action_type.find((a: any) => a.action_type === "purchase");
+                  if (cp) cpa = parseFloat(cp.value || "0");
+                }
+                const thumbStopRate = impressions > 0 ? (clicks / impressions) * 100 : 0;
+
+                dailyRows.push({
+                  ad_id: row.ad_id,
+                  account_id: account.id,
+                  date: row.date_start,
+                  spend, roas, cpa, ctr, clicks, impressions,
+                  cpm, cpc, frequency, purchases, purchase_value: purchaseValue,
+                  thumb_stop_rate: thumbStopRate,
+                  video_views: 0, hold_rate: 0, video_avg_play_time: 0,
+                  adds_to_cart: 0, cost_per_add_to_cart: 0,
+                });
+              }
+              console.log(`Daily rows fetched: ${dailyRows.length}`);
+            }
+
+            dailyNextUrl = data.paging?.next || null;
+            if (dailyNextUrl) await new Promise((r) => setTimeout(r, 200));
+          }
+
+          // Upsert daily metrics in chunks
+          for (let i = 0; i < dailyRows.length; i += 100) {
+            const chunk = dailyRows.slice(i, i + 100);
+            const { error } = await supabase
+              .from("creative_daily_metrics")
+              .upsert(chunk, { onConflict: "ad_id,date" });
+            if (error) console.error("Daily metrics upsert error:", error);
+          }
+          console.log(`Upserted ${dailyRows.length} daily metric rows`);
 
           // Phase 2: Tag resolution for non-manual creatives (batch)
           const { data: unresolved } = await supabase
