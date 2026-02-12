@@ -72,13 +72,38 @@ export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailM
     return `${prefix}${Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${suffix}`;
   };
 
-  const metrics = [
+  const fmtInt = (v: number | null) => {
+    if (v === null || v === undefined || v === 0) return "—";
+    return Number(v).toLocaleString("en-US");
+  };
+
+  const cpmr = (creative.cpm && creative.frequency) ? creative.cpm * creative.frequency : null;
+
+  const spendMetrics = [
     { label: "Spend", value: fmt(creative.spend, "$") },
-    { label: "ROAS", value: fmt(creative.roas, "", "x") },
     { label: "CPA", value: fmt(creative.cpa, "$") },
-    { label: "CTR", value: fmt(creative.ctr, "", "%") },
     { label: "CPM", value: fmt(creative.cpm, "$") },
-    { label: "Purchases", value: creative.purchases || "—" },
+    { label: "CPC", value: fmt(creative.cpc, "$") },
+    { label: "Frequency", value: fmt(creative.frequency) },
+    { label: "CPMr", value: fmt(cpmr, "$") },
+  ];
+
+  const performanceMetrics = [
+    { label: "ROAS", value: fmt(creative.roas, "", "x") },
+    { label: "Purchases", value: fmtInt(creative.purchases) },
+    { label: "Purchase Value", value: fmt(creative.purchase_value, "$") },
+    { label: "Adds to Cart", value: fmtInt(creative.adds_to_cart) },
+    { label: "Cost / ATC", value: fmt(creative.cost_per_add_to_cart, "$") },
+  ];
+
+  const engagementMetrics = [
+    { label: "Unique CTR", value: fmt(creative.ctr, "", "%") },
+    { label: "Hook Rate", value: fmt(creative.thumb_stop_rate, "", "%") },
+    { label: "Hold Rate", value: fmt(creative.hold_rate, "", "%") },
+    { label: "Impressions", value: fmtInt(creative.impressions) },
+    { label: "Clicks", value: fmtInt(creative.clicks) },
+    { label: "Video Views", value: fmtInt(creative.video_views) },
+    { label: "Avg Play Time", value: fmt(creative.video_avg_play_time, "", "s") },
   ];
 
   return (
@@ -133,13 +158,40 @@ export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailM
         </div>
 
         {/* Metrics */}
-        <div className="grid grid-cols-6 gap-2">
-          {metrics.map((m) => (
-            <div key={m.label} className="glass-panel p-2.5 text-center">
-              <div className="metric-label text-[10px]">{m.label}</div>
-              <div className="text-sm font-semibold font-mono mt-0.5">{m.value}</div>
+        <div className="space-y-3">
+          <div>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1.5">Spend & Efficiency</p>
+            <div className="grid grid-cols-6 gap-2">
+              {spendMetrics.map((m) => (
+                <div key={m.label} className="glass-panel p-2.5 text-center">
+                  <div className="metric-label text-[10px]">{m.label}</div>
+                  <div className="text-sm font-semibold font-mono mt-0.5">{m.value}</div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+          <div>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1.5">Performance & Commerce</p>
+            <div className="grid grid-cols-5 gap-2">
+              {performanceMetrics.map((m) => (
+                <div key={m.label} className="glass-panel p-2.5 text-center">
+                  <div className="metric-label text-[10px]">{m.label}</div>
+                  <div className="text-sm font-semibold font-mono mt-0.5">{m.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1.5">Engagement</p>
+            <div className="grid grid-cols-7 gap-2">
+              {engagementMetrics.map((m) => (
+                <div key={m.label} className="glass-panel p-2.5 text-center">
+                  <div className="metric-label text-[10px]">{m.label}</div>
+                  <div className="text-sm font-semibold font-mono mt-0.5">{m.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Context */}
