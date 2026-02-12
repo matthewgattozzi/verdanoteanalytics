@@ -492,11 +492,11 @@ serve(async (req) => {
           console.log(`Fetching daily breakdowns...`);
           const dailyRows: any[] = [];
 
-          // Split date range into 7-day windows to avoid Meta API "reduce data" errors
+          // Split date range into 14-day windows to reduce API calls
           const chunkStart = new Date(startDate);
           while (chunkStart < endDate) {
             const chunkEnd = new Date(chunkStart);
-            chunkEnd.setDate(chunkEnd.getDate() + 6); // 7-day chunks
+            chunkEnd.setDate(chunkEnd.getDate() + 13); // 14-day chunks
             if (chunkEnd > endDate) chunkEnd.setTime(endDate.getTime());
 
             const chunkSince = chunkStart.toISOString().split("T")[0];
@@ -576,7 +576,7 @@ serve(async (req) => {
             }
 
             // Move to next chunk
-            chunkStart.setDate(chunkStart.getDate() + 7);
+            chunkStart.setDate(chunkStart.getDate() + 14);
             // Delay between chunks
             await new Promise((r) => setTimeout(r, 500));
           }
