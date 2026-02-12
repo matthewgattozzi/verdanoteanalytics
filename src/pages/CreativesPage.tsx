@@ -133,6 +133,8 @@ const CreativesPage = () => {
   const [selectedCreative, setSelectedCreative] = useState<any>(null);
   const [groupBy, setGroupBy] = useState("__none__");
   const [sort, setSort] = useState<SortConfig>({ key: "", direction: null });
+  const [dragSourceKey, setDragSourceKey] = useState<string | null>(null);
+  const [dragTargetKey, setDragTargetKey] = useState<string | null>(null);
   const { selectedAccountId } = useAccountContext();
 
   const accountFilter = selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {};
@@ -230,6 +232,29 @@ const CreativesPage = () => {
     });
   };
 
+  const handleColumnDragStart = useCallback((key: string) => {
+    setDragSourceKey(key);
+  }, []);
+
+  const handleColumnDragOver = useCallback((_e: React.DragEvent, key: string) => {
+    setDragTargetKey(key);
+  }, []);
+
+  const handleColumnDrop = useCallback((targetKey: string) => {
+    if (dragSourceKey && dragSourceKey !== targetKey) {
+      const newOrder = [...columnOrder];
+      const fromIdx = newOrder.indexOf(dragSourceKey);
+      const toIdx = newOrder.indexOf(targetKey);
+      if (fromIdx !== -1 && toIdx !== -1) {
+        newOrder.splice(fromIdx, 1);
+        newOrder.splice(toIdx, 0, dragSourceKey);
+        handleReorder(newOrder);
+      }
+    }
+    setDragSourceKey(null);
+    setDragTargetKey(null);
+  }, [dragSourceKey, columnOrder, handleReorder]);
+
   const renderSortableHead = (key: string, label: string, extraClass = "") => {
     if (!visibleCols.has(key)) return null;
     const numericCols = ["spend", "roas", "cpa", "ctr", "impressions", "clicks", "purchases", "purchase_value", "cpm", "cpc", "frequency", "cpmr", "video_views", "hook_rate", "hold_rate", "video_avg_play_time", "adds_to_cart", "cost_per_atc"];
@@ -242,6 +267,11 @@ const CreativesPage = () => {
         currentSort={sort}
         onSort={handleSort}
         className={isRight ? "text-right" : extraClass}
+        draggable
+        onDragStart={handleColumnDragStart}
+        onDragOver={handleColumnDragOver}
+        onDrop={handleColumnDrop}
+        isDragTarget={dragTargetKey === key && dragSourceKey !== key}
       />
     );
   };
