@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.user-management]
 verify_jwt = false
+
+[functions.bootstrap-builder]
+verify_jwt = false
