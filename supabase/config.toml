@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.creatives]
 verify_jwt = false
+
+[functions.analyze-creative]
+verify_jwt = false

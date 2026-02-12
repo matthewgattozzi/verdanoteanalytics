@@ -24,7 +24,7 @@ import {
 import { RefreshCw, LayoutGrid, List, Loader2, AlertTriangle } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useCreatives, useCreativeFilters } from "@/hooks/useCreatives";
-import { useSync, useSettings } from "@/hooks/useApi";
+import { useSync } from "@/hooks/useApi";
 
 const CreativesPage = () => {
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
@@ -35,10 +35,7 @@ const CreativesPage = () => {
   const allFilters = { ...filters, delivery };
   const { data: creatives, isLoading } = useCreatives(allFilters);
   const { data: filterOptions } = useCreativeFilters();
-  const { data: settings } = useSettings();
   const syncMut = useSync();
-
-  const hasGeminiKey = settings?.gemini_api_key_set === "true";
 
   const untaggedCount = useMemo(() =>
     (creatives || []).filter((c: any) => c.tag_source === "untagged").length,
@@ -234,7 +231,6 @@ const CreativesPage = () => {
         creative={selectedCreative}
         open={!!selectedCreative}
         onClose={() => setSelectedCreative(null)}
-        hasGeminiKey={hasGeminiKey}
       />
     </AppLayout>
   );
