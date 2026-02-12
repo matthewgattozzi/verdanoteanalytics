@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useState } from "react";
 
 interface AIContextSectionProps {
@@ -41,7 +41,7 @@ export function AIContextSection({
               const file = e.target.files?.[0];
               if (!file) return;
               if (file.size > 10 * 1024 * 1024) {
-                toast({ title: "File too large", description: "Max 10MB.", variant: "destructive" });
+                toast.error("File too large — max 10MB.");
                 return;
               }
               setUploadingPdf(true);
@@ -52,9 +52,9 @@ export function AIContextSection({
                 const pdfUrl = `company-docs/${uploadData.path}`;
                 await onSaveSettings({ company_pdf_url: pdfUrl });
                 setCompanyPdfUrl(pdfUrl);
-                toast({ title: "PDF uploaded", description: "Company info PDF saved successfully." });
+                toast.success("Company info PDF saved successfully.");
               } catch (err: any) {
-                toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+                toast.error(`Upload failed: ${err.message}`);
               } finally {
                 setUploadingPdf(false);
                 e.target.value = "";
@@ -78,7 +78,7 @@ export function AIContextSection({
                 await supabase.storage.from("company-docs").remove([path]);
                 await onSaveSettings({ company_pdf_url: null });
                 setCompanyPdfUrl(null);
-                toast({ title: "PDF removed" });
+                toast.success("PDF removed");
               }}
             >
               Remove
