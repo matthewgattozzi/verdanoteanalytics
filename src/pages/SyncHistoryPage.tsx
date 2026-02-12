@@ -22,9 +22,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { History, Loader2, CheckCircle2, XCircle, AlertTriangle, Clock, Timer } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { History, Loader2, CheckCircle2, XCircle, AlertTriangle, Clock, Timer, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useSyncHistory, useAccounts, useSyncSchedule } from "@/hooks/useApi";
+import { useSyncHistory, useAccounts, useSyncSchedule, useSync } from "@/hooks/useApi";
 
 const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; className: string }> = {
   completed: { label: "Completed", icon: CheckCircle2, className: "text-scale" },
@@ -77,6 +78,7 @@ const SyncHistoryPage = () => {
 
   const { data: accounts } = useAccounts();
   const { data: logs, isLoading } = useSyncHistory(accountFilter || undefined);
+  const syncMut = useSync();
 
   const getAccountName = (id: string) => {
     const a = (accounts || []).find((a: any) => a.id === id);
@@ -97,6 +99,14 @@ const SyncHistoryPage = () => {
         actions={
           <div className="flex items-center gap-3">
             <NextSyncCountdown />
+            <Button
+              size="sm"
+              onClick={() => syncMut.mutate({ account_id: accountFilter || "all" })}
+              disabled={syncMut.isPending}
+            >
+              {syncMut.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+              {syncMut.isPending ? "Syncing…" : "Resync"}
+            </Button>
             <Select value={accountFilter} onValueChange={(v) => setAccountFilter(v === "__all__" ? "" : v)}>
               <SelectTrigger className="w-44 h-8 text-xs bg-background"><SelectValue placeholder="All accounts" /></SelectTrigger>
               <SelectContent>
