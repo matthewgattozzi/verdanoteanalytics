@@ -7,9 +7,10 @@ interface KillScaleTabProps {
   creatives: any[];
   roasThreshold: number;
   spendThreshold: number;
+  onCreativeClick?: (creative: any) => void;
 }
 
-export function KillScaleTab({ creatives, roasThreshold, spendThreshold }: KillScaleTabProps) {
+export function KillScaleTab({ creatives, roasThreshold, spendThreshold, onCreativeClick }: KillScaleTabProps) {
   const recommendations = useMemo(() => {
     if (creatives.length === 0) return { scale: [], watch: [], kill: [] };
 
@@ -69,7 +70,7 @@ export function KillScaleTab({ creatives, roasThreshold, spendThreshold }: KillS
             <h3 className="text-sm font-semibold mb-2">{label} ({items.length})</h3>
             <div className="space-y-2">
               {items.map((c: any) => (
-                <div key={c.ad_id} className={`glass-panel p-3 border-l-2 ${color}`}>
+                <div key={c.ad_id} className={`glass-panel p-3 border-l-2 ${color} cursor-pointer hover:bg-muted/40 transition-colors`} onClick={() => onCreativeClick?.(c)}>
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-mono text-muted-foreground">{c.unique_code}</span>

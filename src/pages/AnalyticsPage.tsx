@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Sparkles } from "lucide-react";
 import { SaveViewButton } from "@/components/SaveViewButton";
+import { CreativeDetailModal } from "@/components/CreativeDetailModal";
 import { useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAllCreatives } from "@/hooks/useAllCreatives";
@@ -24,6 +25,7 @@ const AnalyticsPage = () => {
   const defaultTab = searchParams.get("tab") || "trends";
   const defaultSlice = searchParams.get("slice") || "ad_type";
   const [activeTab, setActiveTab] = useState(defaultTab);
+  const [selectedCreative, setSelectedCreative] = useState<any>(null);
 
   const roasThreshold = parseFloat(selectedAccount?.winner_roas_threshold || "2.0");
   const spendThreshold = parseFloat(selectedAccount?.iteration_spend_threshold || "50");
@@ -72,7 +74,7 @@ const AnalyticsPage = () => {
         </TabsContent>
 
         <TabsContent value="killscale" className="animate-fade-in space-y-4">
-          <KillScaleTab creatives={creatives} roasThreshold={roasThreshold} spendThreshold={spendThreshold} />
+          <KillScaleTab creatives={creatives} roasThreshold={roasThreshold} spendThreshold={spendThreshold} onCreativeClick={setSelectedCreative} />
         </TabsContent>
 
         <TabsContent value="iterations" className="animate-fade-in space-y-4">
@@ -83,6 +85,8 @@ const AnalyticsPage = () => {
           <AIInsightsTab />
         </TabsContent>
       </Tabs>
+
+      <CreativeDetailModal creative={selectedCreative} open={!!selectedCreative} onClose={() => setSelectedCreative(null)} />
     </AppLayout>
   );
 };
