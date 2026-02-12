@@ -306,8 +306,19 @@ serve(async (req) => {
       }
 
       const allResults = [];
+      const HARD_DEADLINE_MS = 8 * 60 * 1000; // 8 minutes max
+      const syncStartGlobal = Date.now();
+
+      function isTimedOut() {
+        return (Date.now() - syncStartGlobal) > HARD_DEADLINE_MS;
+      }
 
       for (const account of accounts) {
+        if (isTimedOut()) {
+          console.log("Global timeout reached, skipping remaining accounts");
+          break;
+        }
+
         const startedAt = new Date();
 
         // Use per-account date_range_days, fallback to global settings
@@ -350,7 +361,7 @@ serve(async (req) => {
           const untilStr = endDate.toISOString().split("T")[0];
           const timeRange = JSON.stringify({ since: sinceStr, until: untilStr });
 
-          let adsPageLimit = 50; // Start with 50 to avoid "reduce data" errors
+          let adsPageLimit = 200; // Start larger — Meta will return what it can
           let nextUrl: string | null =
             `https://graph.facebook.com/v21.0/${account.id}/ads?` +
             `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,video_id},` +
@@ -364,6 +375,12 @@ serve(async (req) => {
           console.log(`Date range: ${sinceStr} to ${untilStr}`);
 
           while (nextUrl) {
+            if (isTimedOut()) {
+              console.log(`Timeout approaching during ad fetch (${fetchedAds.length} ads so far)`);
+              apiErrors.push({ timestamp: new Date().toISOString(), message: `Timeout: stopped ad fetch at ${fetchedAds.length} ads` });
+              break;
+            }
+
             metaApiCalls++;
             console.log(`Meta API call #${metaApiCalls}...`);
             const resp = await fetch(nextUrl);
@@ -393,14 +410,14 @@ serve(async (req) => {
             nextUrl = data.paging?.next || null;
 
             // Rate limiting — more aggressive with larger datasets
-            if (nextUrl) await new Promise((r) => setTimeout(r, 500));
+            if (nextUrl) await new Promise((r) => setTimeout(r, 300));
           }
 
           creativesFetched = fetchedAds.length;
 
           // Phase 1a: Skip video source URL fetching for speed — use shareable links instead
           const videoIdMap = new Map<string, string>();
-          console.log(`Skipping video source URL fetching (${[...new Set(fetchedAds.map((ad: any) => ad.creative?.video_id).filter(Boolean))].length} videos) for faster sync`);
+          console.log(`Skipping video source URL fetching for faster sync`);
 
           // Phase 1b: Get existing manual-tagged ad_ids
           const { data: manualAds } = await supabase
@@ -488,13 +505,18 @@ serve(async (req) => {
 
           console.log(`Upserted ${creativesUpserted} creatives`);
 
-          // Phase 1c: Fetch daily breakdowns in 7-day chunks to avoid Meta API timeouts
-          console.log(`Fetching daily breakdowns...`);
+          // Phase 1c: Fetch daily breakdowns (skip if running low on time)
           const dailyRows: any[] = [];
+
+          if (isTimedOut()) {
+            console.log("Skipping daily breakdowns due to timeout");
+            apiErrors.push({ timestamp: new Date().toISOString(), message: "Skipped daily breakdowns due to timeout" });
+          } else {
+          console.log(`Fetching daily breakdowns...`);
 
           // Split date range into 14-day windows to reduce API calls
           const chunkStart = new Date(startDate);
-          while (chunkStart < endDate) {
+          while (chunkStart < endDate && !isTimedOut()) {
             const chunkEnd = new Date(chunkStart);
             chunkEnd.setDate(chunkEnd.getDate() + 13); // 14-day chunks
             if (chunkEnd > endDate) chunkEnd.setTime(endDate.getTime());
@@ -513,7 +535,7 @@ serve(async (req) => {
               `&fields=ad_id,spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values` +
               `&limit=${dailyPageLimit}&access_token=${encodeURIComponent(token)}`;
 
-            while (dailyNextUrl) {
+            while (dailyNextUrl && !isTimedOut()) {
               metaApiCalls++;
               const resp = await fetch(dailyNextUrl);
               const data = await resp.json();
@@ -580,6 +602,7 @@ serve(async (req) => {
             // Delay between chunks
             await new Promise((r) => setTimeout(r, 500));
           }
+          } // end else (daily breakdowns)
 
           // Upsert daily metrics in chunks
           for (let i = 0; i < dailyRows.length; i += 100) {
