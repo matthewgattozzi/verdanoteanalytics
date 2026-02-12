@@ -250,11 +250,6 @@ serve(async (req) => {
       const settings: Record<string, string> = {};
       for (const row of settingsRows || []) settings[row.key] = row.value;
 
-      const dateRangeDays = sync_type === "initial" ? 90 : parseInt(settings.date_range_days || "30");
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - dateRangeDays);
-
       // Get accounts to sync
       let accounts: any[] = [];
       if (account_id && account_id !== "all") {
@@ -315,6 +310,12 @@ serve(async (req) => {
       for (const account of accounts) {
         const startedAt = new Date();
 
+        // Use per-account date_range_days, fallback to global settings
+        const dateRangeDays = sync_type === "initial" ? 90 : (account.date_range_days || parseInt(settings.date_range_days || "30"));
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - dateRangeDays);
+
         // Create sync log entry
         const { data: logEntry, error: logError } = await supabase
           .from("sync_logs")
@@ -349,12 +350,13 @@ serve(async (req) => {
           const untilStr = endDate.toISOString().split("T")[0];
           const timeRange = JSON.stringify({ since: sinceStr, until: untilStr });
 
+          let adsPageLimit = 50; // Start with 50 to avoid "reduce data" errors
           let nextUrl: string | null =
             `https://graph.facebook.com/v21.0/${account.id}/ads?` +
-            `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,video_id,effective_object_story_id},` +
+            `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,video_id},` +
             `preview_shareable_link,` +
-            `insights.time_range(${timeRange}){spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,video_avg_time_watched_actions,cpm,actions,action_values,frequency,cpc}` +
-            `&limit=100&access_token=${encodeURIComponent(token)}`;
+            `insights.time_range(${timeRange}){spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values}` +
+            `&limit=${adsPageLimit}&access_token=${encodeURIComponent(token)}`;
 
           const fetchedAds: any[] = [];
 
@@ -368,6 +370,16 @@ serve(async (req) => {
             const data = await resp.json();
 
             if (data.error) {
+              // If "reduce data" error, retry with smaller limit
+              if (data.error.message?.includes("reduce the amount of data") && adsPageLimit > 10) {
+                adsPageLimit = Math.max(10, Math.floor(adsPageLimit / 2));
+                console.log(`Reducing page size to ${adsPageLimit} and retrying...`);
+                apiErrors.push({ timestamp: new Date().toISOString(), message: `Reduced page size to ${adsPageLimit}: ${data.error.message}` });
+                // Rebuild URL with smaller limit
+                nextUrl = nextUrl.replace(/&limit=\d+/, `&limit=${adsPageLimit}`);
+                await new Promise((r) => setTimeout(r, 2000)); // Back off before retry
+                continue;
+              }
               console.error(`Meta API error:`, data.error);
               apiErrors.push({ timestamp: new Date().toISOString(), message: data.error.message });
               break;
@@ -380,8 +392,8 @@ serve(async (req) => {
 
             nextUrl = data.paging?.next || null;
 
-            // Basic rate limiting
-            if (nextUrl) await new Promise((r) => setTimeout(r, 200));
+            // Rate limiting — more aggressive with larger datasets
+            if (nextUrl) await new Promise((r) => setTimeout(r, 500));
           }
 
           creativesFetched = fetchedAds.length;
@@ -513,11 +525,11 @@ serve(async (req) => {
           console.log(`Fetching daily breakdowns...`);
           const dailyRows: any[] = [];
 
-          // Split date range into 14-day windows for faster processing
+          // Split date range into 7-day windows to avoid Meta API "reduce data" errors
           const chunkStart = new Date(startDate);
           while (chunkStart < endDate) {
             const chunkEnd = new Date(chunkStart);
-            chunkEnd.setDate(chunkEnd.getDate() + 13);
+            chunkEnd.setDate(chunkEnd.getDate() + 6); // 7-day chunks
             if (chunkEnd > endDate) chunkEnd.setTime(endDate.getTime());
 
             const chunkSince = chunkStart.toISOString().split("T")[0];
@@ -526,12 +538,13 @@ serve(async (req) => {
 
             console.log(`Daily chunk: ${chunkSince} to ${chunkUntil}`);
 
+            let dailyPageLimit = 200;
             let dailyNextUrl: string | null =
               `https://graph.facebook.com/v21.0/${account.id}/insights?` +
               `time_range=${encodeURIComponent(chunkRange)}&time_increment=1` +
               `&level=ad` +
               `&fields=ad_id,spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values` +
-              `&limit=500&access_token=${encodeURIComponent(token)}`;
+              `&limit=${dailyPageLimit}&access_token=${encodeURIComponent(token)}`;
 
             while (dailyNextUrl) {
               metaApiCalls++;
@@ -539,6 +552,14 @@ serve(async (req) => {
               const data = await resp.json();
 
               if (data.error) {
+                // Retry with smaller limit on "reduce data" errors
+                if (data.error.message?.includes("reduce the amount of data") && dailyPageLimit > 25) {
+                  dailyPageLimit = Math.max(25, Math.floor(dailyPageLimit / 2));
+                  console.log(`Daily: reducing page size to ${dailyPageLimit}`);
+                  dailyNextUrl = dailyNextUrl.replace(/&limit=\d+/, `&limit=${dailyPageLimit}`);
+                  await new Promise((r) => setTimeout(r, 2000));
+                  continue;
+                }
                 console.error(`Daily breakdown API error:`, data.error);
                 apiErrors.push({ timestamp: new Date().toISOString(), message: `Daily: ${data.error.message}` });
                 break;
@@ -584,13 +605,13 @@ serve(async (req) => {
               }
 
               dailyNextUrl = data.paging?.next || null;
-              if (dailyNextUrl) await new Promise((r) => setTimeout(r, 100));
+              if (dailyNextUrl) await new Promise((r) => setTimeout(r, 300));
             }
 
             // Move to next chunk
-            chunkStart.setDate(chunkStart.getDate() + 14);
-            // Small delay between chunks
-            await new Promise((r) => setTimeout(r, 200));
+            chunkStart.setDate(chunkStart.getDate() + 7);
+            // Delay between chunks
+            await new Promise((r) => setTimeout(r, 500));
           }
 
           // Upsert daily metrics in chunks
