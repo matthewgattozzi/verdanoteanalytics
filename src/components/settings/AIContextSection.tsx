@@ -2,6 +2,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Loader2, RotateCcw, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -233,16 +237,31 @@ export function AIContextSection({
       {/* Apply to all accounts */}
       {showApplyAll && onApplyPromptsToAll && (
         <div className="pt-2 border-t border-border">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onApplyPromptsToAll}
-            disabled={applyingToAll}
-            className="w-full"
-          >
-            {applyingToAll ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
-            {applyingToAll && applyProgress ? `Updating ${applyProgress.current}/${applyProgress.total} accounts…` : "Copy prompts to all accounts"}
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={applyingToAll}
+                className="w-full"
+              >
+                {applyingToAll ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
+                {applyingToAll && applyProgress ? `Updating ${applyProgress.current}/${applyProgress.total} accounts…` : "Copy prompts to all accounts"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Apply prompts to all accounts?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will overwrite the Creative Analysis and AI Insights system prompts for all {applyProgress?.total || "your"} accounts. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={onApplyPromptsToAll}>Apply to all</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           {applyingToAll && applyProgress && applyProgress.total > 0 && (
             <div className="w-full mt-2">
               <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
