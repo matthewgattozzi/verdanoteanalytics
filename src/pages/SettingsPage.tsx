@@ -89,19 +89,27 @@ const SettingsPage = () => {
     });
   };
 
+  const [applyingPrompts, setApplyingPrompts] = useState(false);
+
   const handleApplyPromptsToAll = async () => {
     const promptValues = {
       creative_analysis_prompt: creativePrompt === DEFAULT_CREATIVE_PROMPT ? null : creativePrompt || null,
       insights_prompt: insightsPrompt === DEFAULT_INSIGHTS_PROMPT ? null : insightsPrompt || null,
     };
+    setApplyingPrompts(true);
+    let success = 0;
     for (const acc of (accounts || []) as any[]) {
       try {
         await updateAccountSettings.mutateAsync({ id: acc.id, ...promptValues });
+        success++;
+        // Small delay to avoid overwhelming the backend
+        await new Promise(r => setTimeout(r, 300));
       } catch (e) {
-        // error toast already shown by mutation
+        // continue to next account
       }
     }
-    toast.success("Prompts applied to all accounts");
+    setApplyingPrompts(false);
+    toast.success(`Prompts applied to ${success}/${(accounts || []).length} accounts`);
   };
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -214,7 +222,7 @@ const SettingsPage = () => {
             await updateAccountSettings.mutateAsync({ id: account.id, ...updates });
           }}
           onApplyPromptsToAll={handleApplyPromptsToAll}
-          applyingToAll={updateAccountSettings.isPending}
+          applyingToAll={applyingPrompts}
           showApplyAll={accounts.length > 1}
         />
 
