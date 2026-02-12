@@ -1,1 +1,10 @@
 project_id = "vjjlulifovsdjwphmdsh"
+
+[functions.settings]
+verify_jwt = false
+
+[functions.accounts]
+verify_jwt = false
+
+[functions.sync]
+verify_jwt = false
