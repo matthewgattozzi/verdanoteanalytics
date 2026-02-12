@@ -86,7 +86,7 @@ serve(async (req) => {
 
       if (hasDateFilter) {
         // Query daily metrics first, then merge with creative details
-        let dmQuery = supabase.from("creative_daily_metrics").select("ad_id, spend, impressions, clicks, purchases, purchase_value, adds_to_cart, video_views");
+        let dmQuery = supabase.from("creative_daily_metrics").select("ad_id, spend, impressions, clicks, purchases, purchase_value, adds_to_cart, video_views, frequency, thumb_stop_rate, hold_rate, video_avg_play_time");
         if (accountId) dmQuery = dmQuery.eq("account_id", accountId);
         if (dateFrom) dmQuery = dmQuery.gte("date", dateFrom);
         if (dateTo) dmQuery = dmQuery.lte("date", dateTo);
@@ -102,7 +102,7 @@ serve(async (req) => {
           const aggMap: Record<string, any> = {};
           for (const row of dailyData) {
             if (!aggMap[row.ad_id]) {
-              aggMap[row.ad_id] = { spend: 0, impressions: 0, clicks: 0, purchases: 0, purchase_value: 0, adds_to_cart: 0, video_views: 0 };
+              aggMap[row.ad_id] = { spend: 0, impressions: 0, clicks: 0, purchases: 0, purchase_value: 0, adds_to_cart: 0, video_views: 0, _freq_sum: 0, _tsr_sum: 0, _hr_sum: 0, _vpt_sum: 0, _days: 0 };
             }
             const a = aggMap[row.ad_id];
             a.spend += Number(row.spend) || 0;
@@ -112,6 +112,11 @@ serve(async (req) => {
             a.purchase_value += Number(row.purchase_value) || 0;
             a.adds_to_cart += Number(row.adds_to_cart) || 0;
             a.video_views += Number(row.video_views) || 0;
+            a._freq_sum += Number(row.frequency) || 0;
+            a._tsr_sum += Number(row.thumb_stop_rate) || 0;
+            a._hr_sum += Number(row.hold_rate) || 0;
+            a._vpt_sum += Number(row.video_avg_play_time) || 0;
+            a._days += 1;
           }
 
           // Filter to ads with delivery if needed
@@ -144,7 +149,8 @@ serve(async (req) => {
 
           // Merge aggregated metrics
           const result = allCreatives.map((c: any) => {
-            const a = aggMap[c.ad_id] || { spend: 0, impressions: 0, clicks: 0, purchases: 0, purchase_value: 0, adds_to_cart: 0, video_views: 0 };
+            const a = aggMap[c.ad_id] || { spend: 0, impressions: 0, clicks: 0, purchases: 0, purchase_value: 0, adds_to_cart: 0, video_views: 0, _freq_sum: 0, _tsr_sum: 0, _hr_sum: 0, _vpt_sum: 0, _days: 1 };
+            const days = a._days || 1;
             return {
               ...c,
               spend: a.spend,
@@ -160,8 +166,10 @@ serve(async (req) => {
               adds_to_cart: a.adds_to_cart,
               cost_per_add_to_cart: a.adds_to_cart > 0 ? a.spend / a.adds_to_cart : 0,
               video_views: a.video_views,
-              thumb_stop_rate: a.impressions > 0 ? (a.clicks / a.impressions) * 100 : 0,
-              hold_rate: 0, frequency: 0, video_avg_play_time: 0,
+              thumb_stop_rate: a._tsr_sum / days,
+              hold_rate: a._hr_sum / days,
+              frequency: a._freq_sum / days,
+              video_avg_play_time: a._vpt_sum / days,
             };
           });
 
