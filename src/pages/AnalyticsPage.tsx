@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3, TrendingUp, TrendingDown, Target, Loader2, LineChart } from "lucide-react";
+import { SaveViewButton } from "@/components/SaveViewButton";
 import { useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useCreatives } from "@/hooks/useCreatives";
@@ -44,6 +45,7 @@ const AnalyticsPage = () => {
   const defaultTab = searchParams.get("tab") || "trends";
   const defaultSlice = searchParams.get("slice") || "ad_type";
   const [sliceBy, setSliceBy] = useState(defaultSlice);
+  const [activeTab, setActiveTab] = useState(defaultTab);
 
   const roasThreshold = parseFloat(selectedAccount?.winner_roas_threshold || "2.0");
   const spendThreshold = parseFloat(selectedAccount?.iteration_spend_threshold || "50");
@@ -204,9 +206,17 @@ const AnalyticsPage = () => {
         badge={excludedCount > 0 ? (
           <Badge variant="outline" className="text-xs text-muted-foreground">{excludedCount} untagged excluded</Badge>
         ) : undefined}
+        actions={
+          <SaveViewButton getConfig={() => ({
+            page: "/analytics",
+            ...(selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {}),
+            analytics_tab: activeTab,
+            ...(activeTab === "winrate" ? { slice_by: sliceBy } : {}),
+          })} />
+        }
       />
 
-      <Tabs defaultValue={defaultTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-muted/50">
           <TabsTrigger value="trends">Trends</TabsTrigger>
           <TabsTrigger value="winrate">Win Rate</TabsTrigger>
