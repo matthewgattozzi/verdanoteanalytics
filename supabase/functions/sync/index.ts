@@ -253,7 +253,7 @@ serve(async (req) => {
 
           let nextUrl: string | null =
             `https://graph.facebook.com/v21.0/${account.id}/ads?` +
-            `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,effective_object_story_id},` +
+            `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,video_id,effective_object_story_id},` +
             `insights.time_range(${timeRange}){spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,video_avg_time_watched_actions,cpm,actions,action_values,frequency,cpc}` +
             `&limit=100&access_token=${encodeURIComponent(token)}`;
 
@@ -286,6 +286,39 @@ serve(async (req) => {
           }
 
           creativesFetched = fetchedAds.length;
+
+          // Phase 1a: Batch-fetch video source URLs for ads with video_id
+          const videoIdMap = new Map<string, string>(); // video_id -> source URL
+          const videoIds = [...new Set(
+            fetchedAds
+              .map((ad: any) => ad.creative?.video_id)
+              .filter(Boolean)
+          )] as string[];
+
+          // Fetch video source URLs in batches of 50
+          for (let i = 0; i < videoIds.length; i += 50) {
+            const batch = videoIds.slice(i, i + 50);
+            const ids = batch.join(",");
+            metaApiCalls++;
+            try {
+              const resp = await fetch(
+                `https://graph.facebook.com/v21.0/?ids=${ids}&fields=source&access_token=${encodeURIComponent(token)}`
+              );
+              const data = await resp.json();
+              if (!data.error) {
+                for (const [vid, info] of Object.entries(data as Record<string, any>)) {
+                  if (info.source) videoIdMap.set(vid, info.source);
+                }
+              } else {
+                console.error("Video batch fetch error:", data.error);
+                apiErrors.push({ timestamp: new Date().toISOString(), message: `Video URLs: ${data.error.message}` });
+              }
+            } catch (e) {
+              console.error("Video fetch error:", e);
+            }
+            if (i + 50 < videoIds.length) await new Promise((r) => setTimeout(r, 200));
+          }
+          console.log(`Resolved ${videoIdMap.size} video source URLs out of ${videoIds.length} video IDs`);
 
           // Phase 1b: Get existing manual-tagged ad_ids
           const { data: manualAds } = await supabase
@@ -324,6 +357,10 @@ serve(async (req) => {
             }
             const thumbStopRate = impressions > 0 ? (clicks / impressions) * 100 : 0;
 
+            // Resolve video preview URL
+            const videoId = ad.creative?.video_id;
+            const previewUrl = videoId ? (videoIdMap.get(videoId) || null) : null;
+
             const creativeData = {
               ad_id: ad.id,
               account_id: account.id,
@@ -332,6 +369,7 @@ serve(async (req) => {
               campaign_name: ad.campaign?.name || null,
               adset_name: ad.adset?.name || null,
               thumbnail_url: ad.creative?.thumbnail_url || null,
+              preview_url: previewUrl,
               spend, roas, cpa, ctr, clicks, impressions,
               video_views: 0, thumb_stop_rate: thumbStopRate, hold_rate: 0,
               cpm, cpc, frequency, purchases, purchase_value: purchaseValue,
