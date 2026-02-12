@@ -6,7 +6,7 @@ import {
   FileText,
   History,
   Zap,
-  ChevronsUpDown,
+  LogOut,
 } from "lucide-react";
 import {
   Select,
@@ -16,17 +16,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAccountContext } from "@/contexts/AccountContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 const navItems = [
   { title: "Creatives", url: "/", icon: LayoutGrid },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Reports", url: "/reports", icon: FileText },
   { title: "Sync History", url: "/sync-history", icon: History },
-  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
   const { accounts, selectedAccountId, setSelectedAccountId, isLoading } = useAccountContext();
+  const { role, isClient, user, signOut } = useAuth();
+
+  // Clients with 1 account don't need switcher
+  const showSwitcher = !isClient || accounts.length > 1;
+  // Only builder and employee see settings
+  const showSettings = !isClient;
 
   return (
     <aside className="flex h-screen w-56 flex-col border-r border-border/60 bg-gradient-to-b from-[hsl(34,28%,95%)] to-[hsl(30,22%,92%)]">
@@ -41,16 +49,19 @@ export function AppSidebar() {
         </div>
       </div>
 
-      {/* Account Switcher */}
-      {accounts.length > 0 && (
-        <div className="px-3 pt-4 pb-2">
-          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2 mb-1.5">Account</p>
+      {/* Role badge + Account Switcher */}
+      <div className="px-3 pt-4 pb-2 space-y-2">
+        <div className="flex items-center justify-between px-2">
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Account</p>
+          <Badge variant="outline" className="text-[9px] capitalize h-4 px-1.5">{role}</Badge>
+        </div>
+        {showSwitcher && accounts.length > 0 && (
           <Select value={selectedAccountId || ""} onValueChange={setSelectedAccountId}>
             <SelectTrigger className="w-full h-9 text-xs bg-background/60 border-border/50">
               <SelectValue placeholder="Select account" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all" className="text-xs">All Accounts</SelectItem>
+              {!isClient && <SelectItem value="all" className="text-xs">All Accounts</SelectItem>}
               {accounts.map((acc: any) => (
                 <SelectItem key={acc.id} value={acc.id} className="text-xs">
                   {acc.name}
@@ -58,8 +69,11 @@ export function AppSidebar() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-      )}
+        )}
+        {isClient && accounts.length === 1 && (
+          <p className="text-xs font-medium px-2 truncate">{accounts[0].name}</p>
+        )}
+      </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-0.5">
@@ -75,12 +89,27 @@ export function AppSidebar() {
             {item.title}
           </NavLink>
         ))}
+        {showSettings && (
+          <NavLink
+            to="/settings"
+            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-all duration-150 hover:bg-[hsl(30,20%,88%)] hover:text-foreground"
+            activeClassName="bg-[hsl(30,22%,87%)] text-foreground shadow-[inset_0_1px_2px_hsl(30_20%_70%/0.15)] border border-border/30"
+          >
+            <Settings className="h-4 w-4 flex-shrink-0" />
+            Settings
+          </NavLink>
+        )}
       </nav>
 
       {/* Footer */}
       <div className="mx-5 border-t border-border/30" />
-      <div className="px-5 py-4">
-        <p className="text-[10px] text-muted-foreground/70 font-mono tracking-wide">Meta Ads Creative Analytics</p>
+      <div className="px-5 py-4 flex items-center justify-between">
+        <div className="min-w-0">
+          <p className="text-[10px] text-muted-foreground/70 truncate">{user?.email}</p>
+        </div>
+        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" onClick={signOut} title="Sign out">
+          <LogOut className="h-3.5 w-3.5" />
+        </Button>
       </div>
     </aside>
   );

@@ -24,6 +24,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -31,6 +38,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   CheckCircle2,
   XCircle,
@@ -43,6 +51,8 @@ import {
   RefreshCw,
   Clock,
   Building2,
+  Users,
+  UserPlus,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import {
@@ -56,7 +66,12 @@ import {
   useUploadMappings,
   useSync,
   useUpdateAccountSettings,
+  useUsers,
+  useCreateUser,
+  useUpdateUser,
+  useDeleteUser,
 } from "@/hooks/useApi";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
 function AccountSyncSettings({ account, onSave, isPending }: { account: any; onSave: (account: any, dateRange: string, roasThreshold: string, spendThreshold: string) => void; isPending: boolean }) {
@@ -98,6 +113,7 @@ function AccountSyncSettings({ account, onSave, isPending }: { account: any; onS
 }
 
 const SettingsPage = () => {
+  const { isBuilder } = useAuth();
   const [showToken, setShowToken] = useState(false);
   const [metaToken, setMetaToken] = useState("");
   const [metaStatus, setMetaStatus] = useState<"unknown" | "connected" | "disconnected" | "testing">("unknown");
@@ -113,6 +129,15 @@ const SettingsPage = () => {
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // User management state
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserRole, setNewUserRole] = useState<string>("client");
+  const [newUserAccountIds, setNewUserAccountIds] = useState<string[]>([]);
+  const [showDeleteUserConfirm, setShowDeleteUserConfirm] = useState<string | null>(null);
+
   const { data: settings, isLoading: settingsLoading } = useSettings();
   const saveSettings = useSaveSettings();
   const testMeta = useTestMeta();
@@ -123,6 +148,10 @@ const SettingsPage = () => {
   const uploadMappings = useUploadMappings();
   const updateAccountSettings = useUpdateAccountSettings();
   const sync = useSync();
+  const { data: users } = useUsers();
+  const createUser = useCreateUser();
+  const updateUser = useUpdateUser();
+  const deleteUser = useDeleteUser();
 
   useEffect(() => {
     if (settings) {
@@ -130,12 +159,10 @@ const SettingsPage = () => {
     }
   }, [settings]);
 
-  const handleSaveToken = async () => {
-    if (!metaToken) return;
+  const handleTestConnection = async () => {
     setMetaStatus("testing");
     try {
-      await saveSettings.mutateAsync({ meta_access_token: metaToken });
-      const result = await testMeta.mutateAsync(metaToken);
+      const result = await testMeta.mutateAsync(undefined);
       if (result.connected) {
         setMetaStatus("connected");
         setMetaUser(result.user?.name || null);
@@ -151,7 +178,6 @@ const SettingsPage = () => {
       setMetaStatus("disconnected");
       toast({ title: "Error", description: e.message, variant: "destructive" });
     }
-    setMetaToken("");
   };
 
   const handleSaveAccountSettings = (account: any, dateRange: string, roasThreshold: string, spendThreshold: string) => {
@@ -163,7 +189,6 @@ const SettingsPage = () => {
     });
   };
 
-  // Account handlers
   const handleOpenAddModal = async () => {
     setShowAddModal(true);
     setLoadingAccounts(true);
@@ -172,11 +197,11 @@ const SettingsPage = () => {
       if (result.connected) {
         setAvailableAccounts(result.accounts || []);
       } else {
-        toast({ title: "Not connected", description: "Add your Meta token first.", variant: "destructive" });
+        toast({ title: "Not connected", description: "Meta token not configured.", variant: "destructive" });
         setShowAddModal(false);
       }
     } catch {
-      toast({ title: "Error", description: "Failed to fetch accounts. Check your Meta token.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to fetch accounts.", variant: "destructive" });
       setShowAddModal(false);
     } finally {
       setLoadingAccounts(false);
@@ -196,17 +221,11 @@ const SettingsPage = () => {
     reader.onload = (event) => {
       const text = event.target?.result as string;
       const lines = text.split("\n").filter((l) => l.trim());
-      if (lines.length < 2) {
-        toast({ title: "Invalid CSV", description: "File must have headers and at least one row.", variant: "destructive" });
-        return;
-      }
+      if (lines.length < 2) { toast({ title: "Invalid CSV", description: "File must have headers and at least one row.", variant: "destructive" }); return; }
       const headers = lines[0].split(",").map((h) => h.trim());
       const required = ["UniqueCode", "Type", "Person", "Style", "Product", "Hook", "Theme"];
       const missing = required.filter((r) => !headers.includes(r));
-      if (missing.length > 0) {
-        toast({ title: "Missing columns", description: `Required: ${missing.join(", ")}`, variant: "destructive" });
-        return;
-      }
+      if (missing.length > 0) { toast({ title: "Missing columns", description: `Required: ${missing.join(", ")}`, variant: "destructive" }); return; }
       const rows = lines.slice(1).map((line) => {
         const values = line.split(",").map((v) => v.trim());
         const row: Record<string, string> = {};
@@ -225,6 +244,23 @@ const SettingsPage = () => {
     setShowCsvModal(null);
     setCsvPreview([]);
     setCsvMappings([]);
+  };
+
+  const handleCreateUser = async () => {
+    if (!newUserEmail || !newUserPassword) return;
+    await createUser.mutateAsync({
+      email: newUserEmail,
+      password: newUserPassword,
+      role: newUserRole,
+      display_name: newUserName || undefined,
+      account_ids: newUserRole === "client" ? newUserAccountIds : undefined,
+    });
+    setShowCreateUser(false);
+    setNewUserEmail("");
+    setNewUserPassword("");
+    setNewUserName("");
+    setNewUserRole("client");
+    setNewUserAccountIds([]);
   };
 
   const formatDate = (d: string | null) => {
@@ -249,51 +285,36 @@ const SettingsPage = () => {
     <AppLayout>
       <PageHeader
         title="Settings"
-        description="Configure your Meta connection, ad accounts, and sync preferences."
+        description="Configure your accounts, users, and sync preferences."
       />
 
       <div className="max-w-2xl space-y-8">
-        {/* Meta Access Token */}
-        <section className="glass-panel p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold">Meta Access Token</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Use a long-lived token (60 days). Short-lived tokens expire in ~1 hour.
-              </p>
+        {/* Meta Connection Status — builder only */}
+        {isBuilder && (
+          <section className="glass-panel p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold">Meta Connection</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Token is managed securely. Test your connection below.
+                </p>
+              </div>
+              <Badge variant="outline" className="gap-1.5">
+                {metaStatus === "testing" ? (
+                  <><Loader2 className="h-3 w-3 animate-spin" /> Testing</>
+                ) : metaStatus === "connected" ? (
+                  <><CheckCircle2 className="h-3 w-3 text-success" /> {metaUser || "Connected"}</>
+                ) : (
+                  <><XCircle className="h-3 w-3 text-destructive" /> Not Connected</>
+                )}
+              </Badge>
             </div>
-            <Badge variant="outline" className="gap-1.5">
-              {metaStatus === "testing" ? (
-                <><Loader2 className="h-3 w-3 animate-spin" /> Testing</>
-              ) : metaStatus === "connected" ? (
-                <><CheckCircle2 className="h-3 w-3 text-success" /> {metaUser || "Connected"}</>
-              ) : (
-                <><XCircle className="h-3 w-3 text-destructive" /> Not Connected</>
-              )}
-            </Badge>
-          </div>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Input
-                type={showToken ? "text" : "password"}
-                placeholder={settings?.meta_access_token_set === "true" ? "Token saved (enter new to replace)" : "Enter your Meta access token..."}
-                value={metaToken}
-                onChange={(e) => setMetaToken(e.target.value)}
-                className="pr-10 bg-background"
-              />
-              <button
-                type="button"
-                onClick={() => setShowToken(!showToken)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-            <Button onClick={handleSaveToken} disabled={!metaToken || metaStatus === "testing"}>
-              {metaStatus === "testing" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save & Connect"}
+            <Button onClick={handleTestConnection} disabled={metaStatus === "testing"} size="sm">
+              {metaStatus === "testing" ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+              Test Connection
             </Button>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* Ad Accounts */}
         <section className="glass-panel p-6 space-y-4">
@@ -301,7 +322,7 @@ const SettingsPage = () => {
             <div>
               <h2 className="text-base font-semibold">Ad Accounts</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Connect and manage your Meta ad accounts. Toggle accounts on/off to control which ones sync.
+                Connect and manage your Meta ad accounts.
               </p>
             </div>
             <div className="flex gap-2">
@@ -311,10 +332,12 @@ const SettingsPage = () => {
                   Sync All
                 </Button>
               )}
-              <Button size="sm" onClick={handleOpenAddModal}>
-                <Plus className="h-3.5 w-3.5 mr-1.5" />
-                Add
-              </Button>
+              {isBuilder && (
+                <Button size="sm" onClick={handleOpenAddModal}>
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  Add
+                </Button>
+              )}
             </div>
           </div>
 
@@ -324,9 +347,7 @@ const SettingsPage = () => {
                 <Building2 className="h-5 w-5 text-muted-foreground" />
               </div>
               <p className="text-sm text-muted-foreground">
-                {settings?.meta_access_token_set === "true"
-                  ? "Click 'Add' to connect an ad account from your Meta Business."
-                  : "Save your Meta access token above first."}
+                {isBuilder ? "Click 'Add' to connect an ad account from your Meta Business." : "No accounts configured yet."}
               </p>
             </div>
           ) : (
@@ -381,9 +402,11 @@ const SettingsPage = () => {
                           <Button size="sm" variant="ghost" onClick={() => { setShowCsvModal(account.id); setCsvPreview([]); setCsvMappings([]); }} title="Upload CSV">
                             <Upload className="h-3.5 w-3.5" />
                           </Button>
-                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setShowDeleteConfirm(account.id)} title="Remove">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          {isBuilder && (
+                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setShowDeleteConfirm(account.id)} title="Remove">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -399,22 +422,91 @@ const SettingsPage = () => {
           <AccountSyncSettings key={account.id} account={account} onSave={handleSaveAccountSettings} isPending={updateAccountSettings.isPending} />
         ))}
 
+        {/* User Management — builder only */}
+        {isBuilder && (
+          <section className="glass-panel p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold">User Management</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Create and manage users. Assign roles and link clients to accounts.
+                </p>
+              </div>
+              <Button size="sm" onClick={() => setShowCreateUser(true)}>
+                <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+                Create User
+              </Button>
+            </div>
+
+            {!users?.length ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
+                  <Users className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">No users yet. Create your first user above.</p>
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-md border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Linked Accounts</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((u: any) => (
+                      <TableRow key={u.user_id}>
+                        <TableCell>
+                          <div>
+                            <div className="text-sm font-medium">{u.display_name || u.email}</div>
+                            {u.display_name && <div className="text-[11px] text-muted-foreground">{u.email}</div>}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs capitalize">{u.role || "none"}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {u.account_ids?.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {u.account_ids.map((id: string) => {
+                                const acc = (accounts || []).find((a: any) => a.id === id);
+                                return <Badge key={id} variant="secondary" className="text-[10px]">{acc?.name || id}</Badge>;
+                              })}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">{u.role === "client" ? "None" : "All"}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setShowDeleteUserConfirm(u.user_id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </section>
+        )}
+
         {/* AI Analysis Info */}
         <section className="glass-panel p-6 space-y-2">
           <div className="flex items-center gap-2">
             <div>
               <h2 className="text-base font-semibold">AI Creative Analysis</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                AI-powered creative breakdowns are built in — no API key needed. Analysis runs automatically when you click "Analyze" on any creative or use bulk analysis.
+                AI-powered creative breakdowns are built in — no API key needed.
               </p>
             </div>
             <Badge variant="outline" className="gap-1.5 flex-shrink-0">
               <CheckCircle2 className="h-3 w-3 text-success" /> Built-in
             </Badge>
           </div>
-          <p className="text-[11px] text-muted-foreground">
-            AI analysis generates qualitative breakdowns of each ad's hook, visuals, and CTA strategy. This does NOT affect tags — tags come from your naming convention.
-          </p>
         </section>
       </div>
 
@@ -430,7 +522,7 @@ const SettingsPage = () => {
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : availableAccounts.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">No ad accounts found for this token.</p>
+            <p className="text-sm text-muted-foreground py-4">No ad accounts found.</p>
           ) : (
             <div className="space-y-2 max-h-80 overflow-auto">
               {availableAccounts.map((acc) => (
@@ -456,7 +548,7 @@ const SettingsPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* Delete Account Confirmation */}
       <AlertDialog open={!!showDeleteConfirm} onOpenChange={() => setShowDeleteConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -539,6 +631,91 @@ const SettingsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create User Modal */}
+      <Dialog open={showCreateUser} onOpenChange={setShowCreateUser}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create User</DialogTitle>
+            <DialogDescription>Create a new user account with a role assignment.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm">Email</Label>
+              <Input value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} placeholder="user@example.com" className="bg-background" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">Password</Label>
+              <Input type="password" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} placeholder="Strong password" className="bg-background" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">Display Name (optional)</Label>
+              <Input value={newUserName} onChange={(e) => setNewUserName(e.target.value)} placeholder="John Doe" className="bg-background" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">Role</Label>
+              <Select value={newUserRole} onValueChange={setNewUserRole}>
+                <SelectTrigger className="bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="client">Client</SelectItem>
+                  <SelectItem value="employee">Employee</SelectItem>
+                  <SelectItem value="builder">Builder</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {newUserRole === "client" && accounts?.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm">Linked Accounts</Label>
+                <div className="space-y-2 max-h-40 overflow-auto">
+                  {accounts.map((acc: any) => (
+                    <label key={acc.id} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={newUserAccountIds.includes(acc.id)}
+                        onCheckedChange={(checked) => {
+                          setNewUserAccountIds(prev =>
+                            checked ? [...prev, acc.id] : prev.filter(id => id !== acc.id)
+                          );
+                        }}
+                      />
+                      {acc.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateUser(false)}>Cancel</Button>
+            <Button onClick={handleCreateUser} disabled={!newUserEmail || !newUserPassword || createUser.isPending}>
+              {createUser.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+              Create User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Confirmation */}
+      <AlertDialog open={!!showDeleteUserConfirm} onOpenChange={() => setShowDeleteUserConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this user account. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (showDeleteUserConfirm) deleteUser.mutate(showDeleteUserConfirm); setShowDeleteUserConfirm(null); }}
+            >
+              Delete User
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };

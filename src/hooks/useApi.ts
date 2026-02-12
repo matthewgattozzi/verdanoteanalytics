@@ -168,3 +168,56 @@ export function useDeleteReport() {
     },
   });
 }
+
+// User management hooks (builder only)
+export function useUsers() {
+  return useQuery({
+    queryKey: ["users"],
+    queryFn: () => apiFetch("user-management"),
+  });
+}
+
+export function useCreateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (user: { email: string; password: string; role: string; display_name?: string; account_ids?: string[] }) =>
+      apiFetch("user-management", "", { method: "POST", body: JSON.stringify(user) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      toast.success("User created");
+    },
+    onError: (e: Error) => {
+      toast.error("Error creating user", { description: e.message });
+    },
+  });
+}
+
+export function useUpdateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, ...data }: { userId: string; role?: string; account_ids?: string[]; display_name?: string }) =>
+      apiFetch("user-management", userId, { method: "PUT", body: JSON.stringify(data) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      toast.success("User updated");
+    },
+    onError: (e: Error) => {
+      toast.error("Error updating user", { description: e.message });
+    },
+  });
+}
+
+export function useDeleteUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) =>
+      apiFetch("user-management", userId, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      toast.success("User deleted");
+    },
+    onError: (e: Error) => {
+      toast.error("Error deleting user", { description: e.message });
+    },
+  });
+}

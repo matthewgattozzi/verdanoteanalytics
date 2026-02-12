@@ -27,27 +27,35 @@ serve(async (req) => {
       for (const row of data || []) {
         const key = row.key;
         const val = row.value || "";
-        if (key === "meta_access_token" || key === "gemini_api_key" || key === "app_password") {
+        if (key === "meta_access_token" || key === "app_password") {
           settings[key] = val ? `****${val.slice(-4)}` : "";
           settings[`${key}_set`] = val ? "true" : "false";
         } else {
           settings[key] = val;
         }
       }
+
+      // Check if META_ACCESS_TOKEN secret is set
+      const metaSecret = Deno.env.get("META_ACCESS_TOKEN");
+      if (metaSecret) {
+        settings["meta_access_token_set"] = "true";
+        settings["meta_access_token"] = `****${metaSecret.slice(-4)}`;
+      }
+
       return new Response(JSON.stringify(settings), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // PUT /settings — save settings
+    // PUT /settings — save settings (no longer saves meta token to DB)
     if (req.method === "PUT" && !path) {
       const body = await req.json();
       const updates: { key: string; value: string }[] = [];
 
       for (const [key, value] of Object.entries(body)) {
         if (typeof value === "string") {
-          // Skip masked values
           if (value.startsWith("****")) continue;
+          if (key === "meta_access_token") continue; // Token is managed via secrets
           updates.push({ key, value });
         }
       }
@@ -55,8 +63,7 @@ serve(async (req) => {
       for (const { key, value } of updates) {
         const { error } = await supabase
           .from("settings")
-          .update({ value })
-          .eq("key", key);
+          .upsert({ key, value }, { onConflict: "key" });
         if (error) throw error;
       }
 
@@ -70,8 +77,12 @@ serve(async (req) => {
       const body = await req.json();
       let token = body.token;
 
-      // If no token provided, read from DB
+      // Use secret if no token provided
       if (!token) {
+        token = Deno.env.get("META_ACCESS_TOKEN");
+      }
+      if (!token) {
+        // Fallback to DB
         const { data } = await supabase
           .from("settings")
           .select("value")
@@ -87,7 +98,6 @@ serve(async (req) => {
         });
       }
 
-      // Test token by fetching user info
       const meResp = await fetch(`https://graph.facebook.com/v21.0/me?access_token=${encodeURIComponent(token)}`);
       const meData = await meResp.json();
 
@@ -100,13 +110,11 @@ serve(async (req) => {
         });
       }
 
-      // Fetch ad accounts
       const accountsResp = await fetch(
         `https://graph.facebook.com/v21.0/me/adaccounts?fields=id,name,account_status&limit=100&access_token=${encodeURIComponent(token)}`
       );
       const accountsData = await accountsResp.json();
 
-      // Check token expiration
       const debugResp = await fetch(
         `https://graph.facebook.com/v21.0/debug_token?input_token=${encodeURIComponent(token)}&access_token=${encodeURIComponent(token)}`
       );
