@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, TrendingUp, TrendingDown, Target, Loader2, LineChart } from "lucide-react";
+import { BarChart3, TrendingUp, TrendingDown, Target, Loader2, LineChart, Sparkles } from "lucide-react";
 import { SaveViewButton } from "@/components/SaveViewButton";
 import { useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -27,6 +27,7 @@ import { useCreatives } from "@/hooks/useCreatives";
 import { useDailyTrends } from "@/hooks/useDailyTrends";
 import { TrendChart } from "@/components/TrendChart";
 import { useAccountContext } from "@/contexts/AccountContext";
+import { AIInsightsTab } from "@/components/AIInsightsTab";
 
 function determineFunnel(creative: any): "TOF" | "MOF" | "BOF" {
   const name = `${creative.campaign_name || ""} ${creative.adset_name || ""}`.toLowerCase();
@@ -222,6 +223,10 @@ const AnalyticsPage = () => {
           <TabsTrigger value="winrate">Win Rate</TabsTrigger>
           <TabsTrigger value="killscale">Kill / Scale</TabsTrigger>
           <TabsTrigger value="iterations">Iteration Priorities</TabsTrigger>
+          <TabsTrigger value="ai-insights" className="gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" />
+            AI Insights
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="trends" className="animate-fade-in space-y-4">
@@ -463,6 +468,10 @@ const AnalyticsPage = () => {
               <p className="text-sm text-muted-foreground max-w-md">Sync tagged creatives with enough spend data to surface opportunities.</p>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="ai-insights" className="animate-fade-in">
+          <AIInsightsTab />
         </TabsContent>
       </Tabs>
     </AppLayout>
