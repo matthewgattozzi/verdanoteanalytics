@@ -28,8 +28,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Bookmark, Plus, Trash2, ExternalLink, Loader2, Pencil, Check, X as XIcon, Copy } from "lucide-react";
-import { useState } from "react";
+import { Bookmark, Plus, Trash2, ExternalLink, Loader2, Pencil, Check, X as XIcon, Copy, GripVertical } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -55,6 +55,7 @@ interface SavedView {
   name: string;
   description: string | null;
   config: ViewConfig;
+  sort_order: number;
   created_at: string;
   updated_at: string;
 }
@@ -103,7 +104,7 @@ const SavedViewsPage = () => {
       const { data, error } = await supabase
         .from("saved_views")
         .select("*")
-        .order("updated_at", { ascending: false });
+        .order("sort_order", { ascending: true });
       if (error) throw error;
       return (data as unknown as SavedView[]) || [];
     },
@@ -190,6 +191,55 @@ const SavedViewsPage = () => {
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  // Drag-and-drop reorder state
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
+
+  const reorderMutation = useMutation({
+    mutationFn: async (newOrder: { id: string; sort_order: number }[]) => {
+      // Update all sort_orders in parallel
+      const promises = newOrder.map(({ id, sort_order }) =>
+        supabase.from("saved_views").update({ sort_order }).eq("id", id)
+      );
+      const results = await Promise.all(promises);
+      const err = results.find(r => r.error);
+      if (err?.error) throw err.error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["saved-views"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const handleDragStart = useCallback((idx: number) => {
+    setDragIdx(idx);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    setOverIdx(idx);
+  }, []);
+
+  const handleDrop = useCallback((targetIdx: number) => {
+    if (dragIdx === null || dragIdx === targetIdx) {
+      setDragIdx(null);
+      setOverIdx(null);
+      return;
+    }
+    const reordered = [...views];
+    const [moved] = reordered.splice(dragIdx, 1);
+    reordered.splice(targetIdx, 0, moved);
+    const newOrder = reordered.map((v, i) => ({ id: v.id, sort_order: i }));
+    reorderMutation.mutate(newOrder);
+    setDragIdx(null);
+    setOverIdx(null);
+  }, [dragIdx, views, reorderMutation]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragIdx(null);
+    setOverIdx(null);
+  }, []);
 
   const resetForm = () => {
     setName("");
@@ -341,51 +391,64 @@ const SavedViewsPage = () => {
           <p className="text-sm text-muted-foreground max-w-md">Create views to quickly jump between different analysis configurations across Creatives and Analytics.</p>
         </div>
       ) : (
-        <div className="grid gap-3">
-          {views.map((view) => (
-            <div key={view.id} className="glass-panel p-4 flex items-center justify-between group">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <Bookmark className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                  {editingId === view.id ? (
-                    <div className="flex items-center gap-1">
-                      <Input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") confirmRename();
-                          if (e.key === "Escape") setEditingId(null);
-                        }}
-                        className="h-6 text-sm font-medium w-48 px-1.5"
-                        autoFocus
-                      />
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={confirmRename} disabled={!editName.trim() || renameMutation.isPending}>
-                        <Check className="h-3 w-3" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setEditingId(null)}>
-                        <XIcon className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <span className="text-sm font-medium truncate cursor-pointer hover:underline" onDoubleClick={() => startEditing(view)}>{view.name}</span>
-                  )}
-                  <Badge variant="outline" className="text-[10px] flex-shrink-0">{getPageLabel(view.config.page)}</Badge>
-                  {view.config.account_id && (
-                    <Badge variant="outline" className="text-[10px] flex-shrink-0">{getAccountName(view.config.account_id)}</Badge>
-                  )}
-                  {view.config.analytics_tab && (
-                    <Badge variant="outline" className="text-[10px] flex-shrink-0 capitalize">{view.config.analytics_tab}</Badge>
-                  )}
-                  {view.config.slice_by && (
-                    <Badge variant="outline" className="text-[10px] flex-shrink-0">Slice: {view.config.slice_by}</Badge>
-                  )}
-                  {view.config.group_by && (
-                    <Badge variant="outline" className="text-[10px] flex-shrink-0">Group: {view.config.group_by}</Badge>
+        <div className="grid gap-1">
+          {views.map((view, idx) => (
+            <div
+              key={view.id}
+              draggable
+              onDragStart={() => handleDragStart(idx)}
+              onDragOver={(e) => handleDragOver(e, idx)}
+              onDrop={() => handleDrop(idx)}
+              onDragEnd={handleDragEnd}
+              className={`glass-panel p-4 flex items-center justify-between group transition-all ${
+                dragIdx === idx ? "opacity-50" : ""
+              } ${overIdx === idx && dragIdx !== idx ? "border-t-2 border-primary" : ""}`}
+            >
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <GripVertical className="h-4 w-4 text-muted-foreground/50 cursor-grab flex-shrink-0 hover:text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Bookmark className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                    {editingId === view.id ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") confirmRename();
+                            if (e.key === "Escape") setEditingId(null);
+                          }}
+                          className="h-6 text-sm font-medium w-48 px-1.5"
+                          autoFocus
+                        />
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={confirmRename} disabled={!editName.trim() || renameMutation.isPending}>
+                          <Check className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setEditingId(null)}>
+                          <XIcon className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-medium truncate cursor-pointer hover:underline" onDoubleClick={() => startEditing(view)}>{view.name}</span>
+                    )}
+                    <Badge variant="outline" className="text-[10px] flex-shrink-0">{getPageLabel(view.config.page)}</Badge>
+                    {view.config.account_id && (
+                      <Badge variant="outline" className="text-[10px] flex-shrink-0">{getAccountName(view.config.account_id)}</Badge>
+                    )}
+                    {view.config.analytics_tab && (
+                      <Badge variant="outline" className="text-[10px] flex-shrink-0 capitalize">{view.config.analytics_tab}</Badge>
+                    )}
+                    {view.config.slice_by && (
+                      <Badge variant="outline" className="text-[10px] flex-shrink-0">Slice: {view.config.slice_by}</Badge>
+                    )}
+                    {view.config.group_by && (
+                      <Badge variant="outline" className="text-[10px] flex-shrink-0">Group: {view.config.group_by}</Badge>
+                    )}
+                  </div>
+                  {view.description && (
+                    <p className="text-xs text-muted-foreground ml-5.5 truncate">{view.description}</p>
                   )}
                 </div>
-                {view.description && (
-                  <p className="text-xs text-muted-foreground ml-5.5 truncate">{view.description}</p>
-                )}
               </div>
               <div className="flex items-center gap-1.5 ml-4">
                 <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => applyView(view)}>
