@@ -56,6 +56,86 @@ export type Database = {
         }
         Relationships: []
       }
+      creative_daily_metrics: {
+        Row: {
+          account_id: string
+          ad_id: string
+          adds_to_cart: number | null
+          clicks: number | null
+          cost_per_add_to_cart: number | null
+          cpa: number | null
+          cpc: number | null
+          cpm: number | null
+          created_at: string
+          ctr: number | null
+          date: string
+          frequency: number | null
+          hold_rate: number | null
+          impressions: number | null
+          purchase_value: number | null
+          purchases: number | null
+          roas: number | null
+          spend: number | null
+          thumb_stop_rate: number | null
+          video_avg_play_time: number | null
+          video_views: number | null
+        }
+        Insert: {
+          account_id: string
+          ad_id: string
+          adds_to_cart?: number | null
+          clicks?: number | null
+          cost_per_add_to_cart?: number | null
+          cpa?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          date: string
+          frequency?: number | null
+          hold_rate?: number | null
+          impressions?: number | null
+          purchase_value?: number | null
+          purchases?: number | null
+          roas?: number | null
+          spend?: number | null
+          thumb_stop_rate?: number | null
+          video_avg_play_time?: number | null
+          video_views?: number | null
+        }
+        Update: {
+          account_id?: string
+          ad_id?: string
+          adds_to_cart?: number | null
+          clicks?: number | null
+          cost_per_add_to_cart?: number | null
+          cpa?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          date?: string
+          frequency?: number | null
+          hold_rate?: number | null
+          impressions?: number | null
+          purchase_value?: number | null
+          purchases?: number | null
+          roas?: number | null
+          spend?: number | null
+          thumb_stop_rate?: number | null
+          video_avg_play_time?: number | null
+          video_views?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creative_daily_metrics_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "creatives"
+            referencedColumns: ["ad_id"]
+          },
+        ]
+      }
       creatives: {
         Row: {
           account_id: string
