@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       ad_accounts: {
         Row: {
+          company_description: string | null
           created_at: string
           creative_count: number
           date_range_days: number
@@ -24,11 +25,14 @@ export type Database = {
           iteration_spend_threshold: number
           last_synced_at: string | null
           name: string
+          primary_kpi: string | null
+          secondary_kpis: string | null
           untagged_count: number
           updated_at: string
           winner_roas_threshold: number
         }
         Insert: {
+          company_description?: string | null
           created_at?: string
           creative_count?: number
           date_range_days?: number
@@ -37,11 +41,14 @@ export type Database = {
           iteration_spend_threshold?: number
           last_synced_at?: string | null
           name: string
+          primary_kpi?: string | null
+          secondary_kpis?: string | null
           untagged_count?: number
           updated_at?: string
           winner_roas_threshold?: number
         }
         Update: {
+          company_description?: string | null
           created_at?: string
           creative_count?: number
           date_range_days?: number
@@ -50,11 +57,60 @@ export type Database = {
           iteration_spend_threshold?: number
           last_synced_at?: string | null
           name?: string
+          primary_kpi?: string | null
+          secondary_kpis?: string | null
           untagged_count?: number
           updated_at?: string
           winner_roas_threshold?: number
         }
         Relationships: []
+      }
+      ai_insights: {
+        Row: {
+          account_id: string | null
+          analysis: string
+          created_at: string
+          creative_count: number
+          date_range_end: string | null
+          date_range_start: string | null
+          id: string
+          title: string
+          total_spend: number
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          analysis: string
+          created_at?: string
+          creative_count?: number
+          date_range_end?: string | null
+          date_range_start?: string | null
+          id?: string
+          title?: string
+          total_spend?: number
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          analysis?: string
+          created_at?: string
+          creative_count?: number
+          date_range_end?: string | null
+          date_range_start?: string | null
+          id?: string
+          title?: string
+          total_spend?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_insights_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ad_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       creative_daily_metrics: {
         Row: {

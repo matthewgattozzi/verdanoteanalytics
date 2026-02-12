@@ -79,17 +79,42 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
-function AccountSyncSettings({ account, allAccounts, onSave, onApplyToAll, isPending }: { account: any; allAccounts: any[]; onSave: (account: any, dateRange: string, roasThreshold: string, spendThreshold: string) => void; onApplyToAll: (dateRange: string, roasThreshold: string, spendThreshold: string) => void; isPending: boolean }) {
+function AccountSyncSettings({ account, allAccounts, onSave, onApplyToAll, isPending }: { account: any; allAccounts: any[]; onSave: (account: any, dateRange: string, roasThreshold: string, spendThreshold: string, companyDescription: string, primaryKpi: string, secondaryKpis: string) => void; onApplyToAll: (dateRange: string, roasThreshold: string, spendThreshold: string) => void; isPending: boolean }) {
   const [dateRange, setDateRange] = useState(String(account.date_range_days || 30));
   const [roasThreshold, setRoasThreshold] = useState(String(account.winner_roas_threshold || 2.0));
   const [spendThreshold, setSpendThreshold] = useState(String(account.iteration_spend_threshold || 50));
+  const [companyDescription, setCompanyDescription] = useState(account.company_description || "");
+  const [primaryKpi, setPrimaryKpi] = useState(account.primary_kpi || "Purchase ROAS > 1.5x");
+  const [secondaryKpis, setSecondaryKpis] = useState(account.secondary_kpis || "CTR, Hook Rate, Volume");
 
   return (
     <section className="glass-panel p-6 space-y-4">
       <div>
-        <h2 className="text-base font-semibold">{account.name} — Sync Settings</h2>
+        <h2 className="text-base font-semibold">{account.name} — Settings</h2>
         <p className="text-[11px] font-mono text-muted-foreground">{account.id}</p>
       </div>
+
+      {/* AI Business Context */}
+      <div className="space-y-3 border-b border-border pb-4">
+        <h3 className="text-sm font-medium text-muted-foreground">AI Analysis Context</h3>
+        <div className="space-y-2">
+          <Label htmlFor={`desc-${account.id}`} className="text-sm">Company / Product Description</Label>
+          <Input id={`desc-${account.id}`} value={companyDescription} onChange={(e) => setCompanyDescription(e.target.value)} placeholder="e.g. DTC supplement brand" className="bg-background" />
+          <p className="text-[11px] text-muted-foreground">Helps AI understand your business context for better analysis.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor={`kpi1-${account.id}`} className="text-sm">Primary KPI</Label>
+            <Input id={`kpi1-${account.id}`} value={primaryKpi} onChange={(e) => setPrimaryKpi(e.target.value)} placeholder="e.g. Purchase ROAS > 1.5x" className="bg-background" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`kpi2-${account.id}`} className="text-sm">Secondary KPIs</Label>
+            <Input id={`kpi2-${account.id}`} value={secondaryKpis} onChange={(e) => setSecondaryKpis(e.target.value)} placeholder="e.g. CTR, Hook Rate, Volume" className="bg-background" />
+          </div>
+        </div>
+      </div>
+
+      {/* Sync Settings */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor={`dr-${account.id}`} className="text-sm">Date Range (days)</Label>
@@ -108,7 +133,7 @@ function AccountSyncSettings({ account, allAccounts, onSave, onApplyToAll, isPen
         </div>
       </div>
       <div className="pt-2 flex items-center gap-2">
-        <Button size="sm" onClick={() => onSave(account, dateRange, roasThreshold, spendThreshold)} disabled={isPending}>
+        <Button size="sm" onClick={() => onSave(account, dateRange, roasThreshold, spendThreshold, companyDescription, primaryKpi, secondaryKpis)} disabled={isPending}>
           {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
           Save Settings
         </Button>
@@ -206,12 +231,15 @@ const SettingsPage = () => {
     }
   };
 
-  const handleSaveAccountSettings = (account: any, dateRange: string, roasThreshold: string, spendThreshold: string) => {
+  const handleSaveAccountSettings = (account: any, dateRange: string, roasThreshold: string, spendThreshold: string, companyDescription: string, primaryKpi: string, secondaryKpis: string) => {
     updateAccountSettings.mutate({
       id: account.id,
       date_range_days: parseInt(dateRange) || 30,
       winner_roas_threshold: parseFloat(roasThreshold) || 2.0,
       iteration_spend_threshold: parseFloat(spendThreshold) || 50,
+      company_description: companyDescription || null,
+      primary_kpi: primaryKpi || null,
+      secondary_kpis: secondaryKpis || null,
     });
   };
 

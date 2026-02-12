@@ -64,6 +64,9 @@ serve(async (req) => {
       if (body.date_range_days !== undefined) updateFields.date_range_days = body.date_range_days;
       if (body.winner_roas_threshold !== undefined) updateFields.winner_roas_threshold = body.winner_roas_threshold;
       if (body.iteration_spend_threshold !== undefined) updateFields.iteration_spend_threshold = body.iteration_spend_threshold;
+      if (body.company_description !== undefined) updateFields.company_description = body.company_description;
+      if (body.primary_kpi !== undefined) updateFields.primary_kpi = body.primary_kpi;
+      if (body.secondary_kpis !== undefined) updateFields.secondary_kpis = body.secondary_kpis;
 
       const { data, error } = await supabase
         .from("ad_accounts")
