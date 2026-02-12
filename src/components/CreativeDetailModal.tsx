@@ -19,8 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useUpdateCreative, useAnalyzeCreative } from "@/hooks/useCreatives";
 import { useState, useEffect } from "react";
-import { Loader2, RotateCcw, Save, Image as ImageIcon, Sparkles, Wand2, Maximize, Minimize, ExternalLink } from "lucide-react";
-import { useRef, useCallback } from "react";
+import { Loader2, RotateCcw, Save, Image as ImageIcon, Sparkles, Wand2, ExternalLink } from "lucide-react";
 
 const TYPE_OPTIONS = ["Video", "Static", "GIF", "Carousel"];
 const PERSON_OPTIONS = ["Creator", "Customer", "Founder", "Actor", "No Talent"];
@@ -34,20 +33,8 @@ interface CreativeDetailModalProps {
 }
 
 export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailModalProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const updateCreative = useUpdateCreative();
   const analyzeCreative = useAnalyzeCreative();
-
-  const toggleFullscreen = useCallback(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (!document.fullscreenElement) {
-      video.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
-    } else {
-      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
-    }
-  }, []);
   const [tags, setTags] = useState({
     ad_type: "",
     person: "",
@@ -107,31 +94,8 @@ export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailM
 
         {/* Media preview */}
         <div className="bg-muted rounded-lg flex items-center justify-center overflow-hidden relative group">
-          {creative.preview_url && !creative.preview_url.startsWith("http://facebook.com") && !creative.preview_url.includes("facebook.com/ads/") ? (
-            <>
-              <video
-                ref={videoRef}
-                src={creative.preview_url}
-                controls
-                poster={creative.thumbnail_url || undefined}
-                className="w-full max-h-[400px] object-contain rounded-lg"
-                preload="metadata"
-                onError={() => {
-                  // If video fails to load, it might be a shareable link - open externally
-                  if (creative.preview_url) window.open(creative.preview_url, "_blank");
-                }}
-              />
-              <Button
-                size="icon"
-                variant="secondary"
-                className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={toggleFullscreen}
-              >
-                {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
-              </Button>
-            </>
-          ) : creative.thumbnail_url ? (
-            <div className="relative">
+          {creative.thumbnail_url ? (
+            <div className="relative w-full">
               <img
                 src={creative.thumbnail_url}
                 alt={creative.ad_name}
@@ -157,8 +121,11 @@ export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailM
               <ImageIcon className="h-8 w-8" />
               <span className="text-xs">No preview available</span>
               {creative.preview_url && (
-                <a href={creative.preview_url} target="_blank" rel="noopener noreferrer" className="text-primary underline text-xs">
-                  View Ad Preview
+                <a href={creative.preview_url} target="_blank" rel="noopener noreferrer">
+                  <Button size="sm" variant="secondary" className="gap-1.5 text-xs mt-1">
+                    <ExternalLink className="h-3 w-3" />
+                    View Ad Preview
+                  </Button>
                 </a>
               )}
             </div>
