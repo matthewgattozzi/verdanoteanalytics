@@ -67,8 +67,14 @@ export function useToggleAccount() {
 export function useRenameAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) =>
-      apiFetch("accounts", id, { method: "PUT", body: JSON.stringify({ name }) }),
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { error } = await supabase
+        .from("ad_accounts")
+        .update({ name })
+        .eq("id", id);
+      if (error) throw error;
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["accounts"] });
       toast.success("Account renamed");
