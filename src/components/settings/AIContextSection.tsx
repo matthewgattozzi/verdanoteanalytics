@@ -243,6 +243,16 @@ export function AIContextSection({
             {applyingToAll ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
             {applyingToAll && applyProgress ? `Updating ${applyProgress.current}/${applyProgress.total} accounts…` : "Copy prompts to all accounts"}
           </Button>
+          {applyingToAll && applyProgress && applyProgress.total > 0 && (
+            <div className="w-full mt-2">
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
+                  style={{ width: `${(applyProgress.current / applyProgress.total) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
           <p className="text-[11px] text-muted-foreground mt-1.5 text-center">Applies both system prompts to every account.</p>
         </div>
       )}
