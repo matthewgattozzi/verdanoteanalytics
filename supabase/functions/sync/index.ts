@@ -361,7 +361,7 @@ serve(async (req) => {
           const untilStr = endDate.toISOString().split("T")[0];
           const timeRange = JSON.stringify({ since: sinceStr, until: untilStr });
 
-          let adsPageLimit = 500; // Without insights, Meta allows much larger pages
+          let adsPageLimit = 50; // Conservative start to avoid wasting calls on "reduce data" retries
           let nextUrl: string | null =
             `https://graph.facebook.com/v21.0/${account.id}/ads?` +
             `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,video_id},` +
@@ -386,10 +386,16 @@ serve(async (req) => {
             const data = await resp.json();
 
             if (data.error) {
-              if (data.error.message?.includes("reduce the amount of data") && adsPageLimit > 25) {
-                adsPageLimit = Math.max(25, Math.floor(adsPageLimit / 2));
+              // Rate limit — wait and retry once
+              if (data.error.code === 80004) {
+                console.log(`Rate limited, waiting 60s before retry...`);
+                apiErrors.push({ timestamp: new Date().toISOString(), message: `Rate limited, backing off 60s` });
+                await new Promise((r) => setTimeout(r, 60000));
+                continue;
+              }
+              if (data.error.message?.includes("reduce the amount of data") && adsPageLimit > 10) {
+                adsPageLimit = Math.max(10, Math.floor(adsPageLimit / 2));
                 console.log(`Reducing page size to ${adsPageLimit} and retrying...`);
-                apiErrors.push({ timestamp: new Date().toISOString(), message: `Reduced page size to ${adsPageLimit}: ${data.error.message}` });
                 nextUrl = nextUrl.replace(/&limit=\d+/, `&limit=${adsPageLimit}`);
                 await new Promise((r) => setTimeout(r, 2000));
                 continue;
