@@ -168,6 +168,26 @@ serve(async (req) => {
       const body = await req.json();
       const { account_id, sync_type = "manual" } = body;
 
+      // Timeout recovery: mark syncs stuck in "running" for >10 minutes as failed
+      const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const { data: stuckSyncs } = await supabase
+        .from("sync_logs")
+        .select("id")
+        .eq("status", "running")
+        .lt("started_at", tenMinAgo);
+      if (stuckSyncs && stuckSyncs.length > 0) {
+        const stuckIds = stuckSyncs.map((s: any) => s.id);
+        await supabase
+          .from("sync_logs")
+          .update({
+            status: "failed",
+            api_errors: JSON.stringify([{ timestamp: new Date().toISOString(), message: "Sync timed out (exceeded 10 minutes)" }]),
+            completed_at: new Date().toISOString(),
+          })
+          .in("id", stuckIds);
+        console.log(`Recovered ${stuckIds.length} stuck sync(s)`);
+      }
+
       // Get Meta token — prefer secret, fallback to DB
       let token = Deno.env.get("META_ACCESS_TOKEN");
       if (!token) {
