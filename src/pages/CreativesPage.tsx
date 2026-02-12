@@ -25,6 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { RefreshCw, LayoutGrid, List, Loader2, AlertTriangle, Sparkles, Download, Layers, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { SaveViewButton } from "@/components/SaveViewButton";
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { ColumnPicker, type ColumnDef } from "@/components/ColumnPicker";
@@ -335,6 +336,16 @@ const CreativesPage = () => {
                 Export
               </Button>
             )}
+            <SaveViewButton getConfig={() => ({
+              page: "/",
+              ...(selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {}),
+              ...(groupBy !== "__none__" ? { group_by: groupBy } : {}),
+              ...(search ? { search } : {}),
+              ...(delivery ? { delivery } : {}),
+              ...(dateFrom ? { date_from: dateFrom } : {}),
+              ...(dateTo ? { date_to: dateTo } : {}),
+              ...(Object.keys(filters).length > 0 ? { filters } : {}),
+            })} />
           </div>
         }
       />
