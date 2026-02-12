@@ -70,6 +70,11 @@ const LoginPage = () => {
               className="bg-background"
             />
           </div>
+          <div className="flex items-center justify-between">
+            <a href="/reset-password" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              Forgot password?
+            </a>
+          </div>
           {error && (
             <p className="text-xs text-destructive">{error}</p>
           )}
