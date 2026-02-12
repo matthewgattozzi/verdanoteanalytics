@@ -1,0 +1,146 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+  const url = new URL(req.url);
+  const path = url.pathname.replace(/^\/settings\/?/, "").replace(/\/$/, "");
+
+  try {
+    // GET /settings — return all settings (mask secrets)
+    if (req.method === "GET" && !path) {
+      const { data, error } = await supabase.from("settings").select("*");
+      if (error) throw error;
+
+      const settings: Record<string, string> = {};
+      for (const row of data || []) {
+        const key = row.key;
+        const val = row.value || "";
+        if (key === "meta_access_token" || key === "gemini_api_key" || key === "app_password") {
+          settings[key] = val ? `****${val.slice(-4)}` : "";
+          settings[`${key}_set`] = val ? "true" : "false";
+        } else {
+          settings[key] = val;
+        }
+      }
+      return new Response(JSON.stringify(settings), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // PUT /settings — save settings
+    if (req.method === "PUT" && !path) {
+      const body = await req.json();
+      const updates: { key: string; value: string }[] = [];
+
+      for (const [key, value] of Object.entries(body)) {
+        if (typeof value === "string") {
+          // Skip masked values
+          if (value.startsWith("****")) continue;
+          updates.push({ key, value });
+        }
+      }
+
+      for (const { key, value } of updates) {
+        const { error } = await supabase
+          .from("settings")
+          .update({ value })
+          .eq("key", key);
+        if (error) throw error;
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // POST /settings/test-meta — test Meta connection
+    if (req.method === "POST" && path === "test-meta") {
+      const body = await req.json();
+      let token = body.token;
+
+      // If no token provided, read from DB
+      if (!token) {
+        const { data } = await supabase
+          .from("settings")
+          .select("value")
+          .eq("key", "meta_access_token")
+          .single();
+        token = data?.value;
+      }
+
+      if (!token) {
+        return new Response(JSON.stringify({ error: "No Meta access token configured" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Test token by fetching user info
+      const meResp = await fetch(`https://graph.facebook.com/v21.0/me?access_token=${encodeURIComponent(token)}`);
+      const meData = await meResp.json();
+
+      if (meData.error) {
+        return new Response(JSON.stringify({
+          connected: false,
+          error: meData.error.message,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Fetch ad accounts
+      const accountsResp = await fetch(
+        `https://graph.facebook.com/v21.0/me/adaccounts?fields=id,name,account_status&limit=100&access_token=${encodeURIComponent(token)}`
+      );
+      const accountsData = await accountsResp.json();
+
+      // Check token expiration
+      const debugResp = await fetch(
+        `https://graph.facebook.com/v21.0/debug_token?input_token=${encodeURIComponent(token)}&access_token=${encodeURIComponent(token)}`
+      );
+      const debugData = await debugResp.json();
+      const expiresAt = debugData?.data?.expires_at;
+      let tokenWarning = null;
+      if (expiresAt) {
+        const hoursLeft = (expiresAt - Date.now() / 1000) / 3600;
+        if (hoursLeft < 2) {
+          tokenWarning = "Token expires in less than 2 hours. Consider using a long-lived token.";
+        } else if (hoursLeft < 24 * 7) {
+          tokenWarning = `Token expires in ${Math.floor(hoursLeft / 24)} days.`;
+        }
+      }
+
+      return new Response(JSON.stringify({
+        connected: true,
+        user: { id: meData.id, name: meData.name },
+        accounts: accountsData.data || [],
+        tokenWarning,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "Not found" }), {
+      status: 404,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    console.error("Settings error:", e);
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});

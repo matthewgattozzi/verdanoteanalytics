@@ -1,0 +1,186 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+  const url = new URL(req.url);
+  const path = url.pathname.replace(/^\/accounts\/?/, "").replace(/\/$/, "");
+
+  try {
+    // GET /accounts — list all accounts
+    if (req.method === "GET" && !path) {
+      const { data, error } = await supabase
+        .from("ad_accounts")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // POST /accounts — add account
+    if (req.method === "POST" && !path) {
+      const body = await req.json();
+      const { id, name } = body;
+
+      if (!id || !name) {
+        return new Response(JSON.stringify({ error: "id and name are required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Idempotent upsert
+      const { data, error } = await supabase
+        .from("ad_accounts")
+        .upsert({ id, name, is_active: true }, { onConflict: "id" })
+        .select()
+        .single();
+      if (error) throw error;
+
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // PUT /accounts/:id — update account (toggle active)
+    if (req.method === "PUT" && path) {
+      const body = await req.json();
+      const { data, error } = await supabase
+        .from("ad_accounts")
+        .update({ is_active: body.is_active })
+        .eq("id", path)
+        .select()
+        .single();
+      if (error) throw error;
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // DELETE /accounts/:id — delete account
+    if (req.method === "DELETE" && path) {
+      const { error } = await supabase
+        .from("ad_accounts")
+        .delete()
+        .eq("id", path);
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // POST /accounts/:id/name-mappings — upload CSV name mappings
+    if (req.method === "POST" && path.endsWith("/name-mappings")) {
+      const accountId = path.replace("/name-mappings", "");
+      const body = await req.json();
+      const { mappings } = body;
+
+      if (!Array.isArray(mappings) || mappings.length === 0) {
+        return new Response(JSON.stringify({ error: "mappings array required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      let upserted = 0;
+      for (const m of mappings) {
+        const { error } = await supabase
+          .from("name_mappings")
+          .upsert({
+            account_id: accountId,
+            unique_code: m.unique_code || m.UniqueCode,
+            ad_type: m.ad_type || m.Type,
+            person: m.person || m.Person,
+            style: m.style || m.Style,
+            product: m.product || m.Product,
+            hook: m.hook || m.Hook,
+            theme: m.theme || m.Theme,
+          }, { onConflict: "account_id,unique_code" });
+        if (!error) upserted++;
+      }
+
+      // Re-match untagged creatives
+      const { data: untagged } = await supabase
+        .from("creatives")
+        .select("ad_id, unique_code")
+        .eq("account_id", accountId)
+        .eq("tag_source", "untagged");
+
+      let matched = 0;
+      for (const creative of untagged || []) {
+        if (!creative.unique_code) continue;
+        const { data: mapping } = await supabase
+          .from("name_mappings")
+          .select("*")
+          .eq("account_id", accountId)
+          .eq("unique_code", creative.unique_code)
+          .single();
+
+        if (mapping) {
+          await supabase
+            .from("creatives")
+            .update({
+              ad_type: mapping.ad_type,
+              person: mapping.person,
+              style: mapping.style,
+              product: mapping.product,
+              hook: mapping.hook,
+              theme: mapping.theme,
+              tag_source: "csv_match",
+            })
+            .eq("ad_id", creative.ad_id);
+          matched++;
+        }
+      }
+
+      // Update account counts
+      const { count: totalCount } = await supabase
+        .from("creatives")
+        .select("*", { count: "exact", head: true })
+        .eq("account_id", accountId);
+
+      const { count: untaggedCount } = await supabase
+        .from("creatives")
+        .select("*", { count: "exact", head: true })
+        .eq("account_id", accountId)
+        .eq("tag_source", "untagged");
+
+      await supabase
+        .from("ad_accounts")
+        .update({ creative_count: totalCount || 0, untagged_count: untaggedCount || 0 })
+        .eq("id", accountId);
+
+      return new Response(JSON.stringify({
+        upserted,
+        matched,
+        unmatchedCodes: upserted - matched,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "Not found" }), {
+      status: 404,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    console.error("Accounts error:", e);
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
