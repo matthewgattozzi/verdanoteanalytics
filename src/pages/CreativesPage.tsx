@@ -48,7 +48,7 @@ const CreativesPage = () => {
     setColumnOrder(newOrder);
     localStorage.setItem("creatives_column_order", JSON.stringify(newOrder));
   }, []);
-  const [delivery, setDelivery] = useState(() => searchParams.get("delivery") || "");
+  const [delivery, setDelivery] = useState(() => searchParams.get("delivery") || "had_delivery");
   const [filters, setFilters] = useState<Record<string, string>>(() => {
     const raw = searchParams.get("filters");
     if (raw) { try { return JSON.parse(raw); } catch { /* fall through */ } }
