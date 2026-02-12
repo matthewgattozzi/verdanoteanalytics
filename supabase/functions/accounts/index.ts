@@ -59,6 +59,7 @@ serve(async (req) => {
     if (req.method === "PUT" && path && !path.includes("/")) {
       const body = await req.json();
       const updateFields: Record<string, any> = {};
+      if (body.name !== undefined) updateFields.name = body.name;
       if (body.is_active !== undefined) updateFields.is_active = body.is_active;
       if (body.date_range_days !== undefined) updateFields.date_range_days = body.date_range_days;
       if (body.winner_roas_threshold !== undefined) updateFields.winner_roas_threshold = body.winner_roas_threshold;

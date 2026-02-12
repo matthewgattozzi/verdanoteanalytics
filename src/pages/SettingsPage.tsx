@@ -53,6 +53,7 @@ import {
   Building2,
   Users,
   UserPlus,
+  Pencil,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { CalendarClock } from "lucide-react";
@@ -64,6 +65,7 @@ import {
   useAddAccount,
   useDeleteAccount,
   useToggleAccount,
+  useRenameAccount,
   useUploadMappings,
   useSync,
   useUpdateAccountSettings,
@@ -145,14 +147,17 @@ const SettingsPage = () => {
   const [newUserRole, setNewUserRole] = useState<string>("client");
   const [newUserAccountIds, setNewUserAccountIds] = useState<string[]>([]);
   const [showDeleteUserConfirm, setShowDeleteUserConfirm] = useState<string | null>(null);
+  const [renamingAccount, setRenamingAccount] = useState<{ id: string; name: string } | null>(null);
 
   const { data: settings, isLoading: settingsLoading } = useSettings();
   const saveSettings = useSaveSettings();
   const testMeta = useTestMeta();
-  const { data: accounts, isLoading: accountsLoading } = useAccounts();
+  const { data: rawAccounts, isLoading: accountsLoading } = useAccounts();
+  const accounts = [...(rawAccounts || [])].sort((a: any, b: any) => a.name.localeCompare(b.name));
   const addAccount = useAddAccount();
   const deleteAccount = useDeleteAccount();
   const toggleAccount = useToggleAccount();
+  const renameAccount = useRenameAccount();
   const uploadMappings = useUploadMappings();
   const updateAccountSettings = useUpdateAccountSettings();
   const sync = useSync();
@@ -428,6 +433,9 @@ const SettingsPage = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => setRenamingAccount({ id: account.id, name: account.name })} title="Rename">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
                           <Button size="sm" variant="ghost" onClick={() => sync.mutate({ account_id: account.id })} disabled={sync.isPending} title="Sync">
                             <RefreshCw className="h-3.5 w-3.5" />
                           </Button>
@@ -652,7 +660,37 @@ const SettingsPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Account Confirmation */}
+      {/* Rename Account Modal */}
+      <Dialog open={!!renamingAccount} onOpenChange={() => setRenamingAccount(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rename Account</DialogTitle>
+            <DialogDescription>Enter a new display name for this account.</DialogDescription>
+          </DialogHeader>
+          <Input
+            value={renamingAccount?.name || ""}
+            onChange={(e) => setRenamingAccount(prev => prev ? { ...prev, name: e.target.value } : null)}
+            placeholder="Account name"
+            className="bg-background"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenamingAccount(null)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (renamingAccount && renamingAccount.name.trim()) {
+                  renameAccount.mutate({ id: renamingAccount.id, name: renamingAccount.name.trim() });
+                  setRenamingAccount(null);
+                }
+              }}
+              disabled={!renamingAccount?.name.trim() || renameAccount.isPending}
+            >
+              {renameAccount.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog open={!!showDeleteConfirm} onOpenChange={() => setShowDeleteConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
