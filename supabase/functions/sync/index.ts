@@ -311,7 +311,7 @@ serve(async (req) => {
         const startedAt = new Date();
 
         // Use per-account date_range_days, fallback to global settings
-        const dateRangeDays = sync_type === "initial" ? 90 : (account.date_range_days || parseInt(settings.date_range_days || "30"));
+        const dateRangeDays = sync_type === "initial" ? 90 : (account.date_range_days || parseInt(settings.date_range_days || "14"));
         const endDate = new Date();
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - dateRangeDays);
@@ -398,42 +398,9 @@ serve(async (req) => {
 
           creativesFetched = fetchedAds.length;
 
-          // Phase 1a: Fetch video source URLs in parallel batches
-          const videoIdMap = new Map<string, string>(); // video_id -> source URL
-          const videoIds = [...new Set(
-            fetchedAds
-              .map((ad: any) => ad.creative?.video_id)
-              .filter(Boolean)
-          )] as string[];
-
-          let videoPermissionDenied = false;
-          const VIDEO_BATCH = 10;
-          for (let vi = 0; vi < videoIds.length && !videoPermissionDenied; vi += VIDEO_BATCH) {
-            const batch = videoIds.slice(vi, vi + VIDEO_BATCH);
-            metaApiCalls += batch.length;
-            const results = await Promise.all(batch.map(async (vid) => {
-              try {
-                const resp = await fetch(
-                  `https://graph.facebook.com/v21.0/${vid}?fields=source&access_token=${encodeURIComponent(token)}`
-                );
-                return { vid, data: await resp.json() };
-              } catch (e) {
-                return { vid, data: { error: { message: String(e) } } };
-              }
-            }));
-            for (const { vid, data } of results) {
-              if (data.source) {
-                videoIdMap.set(vid, data.source);
-              } else if (data.error && (data.error.code === 10 || data.error.code === 100)) {
-                console.error(`Video source permission denied, skipping remaining. Error: ${data.error.message}`);
-                apiErrors.push({ timestamp: new Date().toISOString(), message: `Video URLs: ${data.error.message}` });
-                videoPermissionDenied = true;
-                break;
-              }
-            }
-            if (!videoPermissionDenied && vi + VIDEO_BATCH < videoIds.length) await new Promise((r) => setTimeout(r, 100));
-          }
-          console.log(`Resolved ${videoIdMap.size} video source URLs out of ${videoIds.length} video IDs`);
+          // Phase 1a: Skip video source URL fetching for speed — use shareable links instead
+          const videoIdMap = new Map<string, string>();
+          console.log(`Skipping video source URL fetching (${[...new Set(fetchedAds.map((ad: any) => ad.creative?.video_id).filter(Boolean))].length} videos) for faster sync`);
 
           // Phase 1b: Get existing manual-tagged ad_ids
           const { data: manualAds } = await supabase
