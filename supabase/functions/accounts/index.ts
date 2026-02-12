@@ -106,6 +106,15 @@ serve(async (req) => {
 
     // DELETE /accounts/:id — delete account
     if (req.method === "DELETE" && path) {
+      // Delete related data first to avoid foreign key violations
+      await supabase.from("creative_daily_metrics").delete().eq("account_id", path);
+      await supabase.from("creatives").delete().eq("account_id", path);
+      await supabase.from("name_mappings").delete().eq("account_id", path);
+      await supabase.from("sync_logs").delete().eq("account_id", path);
+      await supabase.from("reports").delete().eq("account_id", path);
+      await supabase.from("ai_insights").delete().eq("account_id", path);
+      await supabase.from("user_accounts").delete().eq("account_id", path);
+
       const { error } = await supabase
         .from("ad_accounts")
         .delete()
