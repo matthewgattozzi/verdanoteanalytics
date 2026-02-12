@@ -397,11 +397,11 @@ const CreativesPage = () => {
               {groupedData.map((g) => (
                 <TableRow key={g.name}>
                   <TableCell className="text-xs font-medium">{g.name}</TableCell>
-                  <TableCell className="text-xs text-right font-mono">{g.count}</TableCell>
-                  <TableCell className="text-xs text-right font-mono">${g.totalSpend.toLocaleString("en-US", { maximumFractionDigits: 0 })}</TableCell>
-                  <TableCell className="text-xs text-right font-mono">{g.avgRoas.toFixed(2)}x</TableCell>
-                  <TableCell className="text-xs text-right font-mono">${g.avgCpa.toFixed(2)}</TableCell>
-                  <TableCell className="text-xs text-right font-mono">{g.avgCtr.toFixed(2)}%</TableCell>
+                  <TableCell className="text-xs text-right">{g.count}</TableCell>
+                  <TableCell className="text-xs text-right">${g.totalSpend.toLocaleString("en-US", { maximumFractionDigits: 0 })}</TableCell>
+                  <TableCell className="text-xs text-right">{g.avgRoas.toFixed(2)}x</TableCell>
+                  <TableCell className="text-xs text-right">${g.avgCpa.toFixed(2)}</TableCell>
+                  <TableCell className="text-xs text-right">{g.avgCtr.toFixed(2)}%</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -461,24 +461,24 @@ const CreativesPage = () => {
                       hook: () => <TableCell key={key}><InlineTagSelect adId={c.ad_id} field="hook" currentValue={c.hook} /></TableCell>,
                       product: () => <TableCell key={key} className="text-xs truncate max-w-[120px]">{c.product || "—"}</TableCell>,
                       theme: () => <TableCell key={key} className="text-xs truncate max-w-[120px]">{c.theme || "—"}</TableCell>,
-                      spend: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.spend, "$")}</TableCell>,
-                      roas: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.roas, "", "x")}</TableCell>,
-                      cpa: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.cpa, "$")}</TableCell>,
-                      cpm: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.cpm, "$")}</TableCell>,
-                      cpc: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.cpc, "$")}</TableCell>,
-                      frequency: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.frequency, "", "", 1)}</TableCell>,
-                      cpmr: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c._cpmr, "$")}</TableCell>,
-                      ctr: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.ctr, "", "%")}</TableCell>,
-                      impressions: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.impressions, "", "", 0)}</TableCell>,
-                      clicks: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.clicks, "", "", 0)}</TableCell>,
-                      hook_rate: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.thumb_stop_rate, "", "%")}</TableCell>,
-                      hold_rate: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.hold_rate, "", "%")}</TableCell>,
-                      video_views: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.video_views, "", "", 0)}</TableCell>,
-                      video_avg_play_time: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.video_avg_play_time, "", "s", 1)}</TableCell>,
-                      purchases: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.purchases, "", "", 0)}</TableCell>,
-                      purchase_value: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.purchase_value, "$")}</TableCell>,
-                      adds_to_cart: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.adds_to_cart, "", "", 0)}</TableCell>,
-                      cost_per_atc: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.cost_per_add_to_cart, "$")}</TableCell>,
+                      spend: () => <TableCell key={key} className="text-xs text-right">{fmt(c.spend, "$")}</TableCell>,
+                      roas: () => <TableCell key={key} className="text-xs text-right">{fmt(c.roas, "", "x")}</TableCell>,
+                      cpa: () => <TableCell key={key} className="text-xs text-right">{fmt(c.cpa, "$")}</TableCell>,
+                      cpm: () => <TableCell key={key} className="text-xs text-right">{fmt(c.cpm, "$")}</TableCell>,
+                      cpc: () => <TableCell key={key} className="text-xs text-right">{fmt(c.cpc, "$")}</TableCell>,
+                      frequency: () => <TableCell key={key} className="text-xs text-right">{fmt(c.frequency, "", "", 1)}</TableCell>,
+                      cpmr: () => <TableCell key={key} className="text-xs text-right">{fmt(c._cpmr, "$")}</TableCell>,
+                      ctr: () => <TableCell key={key} className="text-xs text-right">{fmt(c.ctr, "", "%")}</TableCell>,
+                      impressions: () => <TableCell key={key} className="text-xs text-right">{fmt(c.impressions, "", "", 0)}</TableCell>,
+                      clicks: () => <TableCell key={key} className="text-xs text-right">{fmt(c.clicks, "", "", 0)}</TableCell>,
+                      hook_rate: () => <TableCell key={key} className="text-xs text-right">{fmt(c.thumb_stop_rate, "", "%")}</TableCell>,
+                      hold_rate: () => <TableCell key={key} className="text-xs text-right">{fmt(c.hold_rate, "", "%")}</TableCell>,
+                      video_views: () => <TableCell key={key} className="text-xs text-right">{fmt(c.video_views, "", "", 0)}</TableCell>,
+                      video_avg_play_time: () => <TableCell key={key} className="text-xs text-right">{fmt(c.video_avg_play_time, "", "s", 1)}</TableCell>,
+                      purchases: () => <TableCell key={key} className="text-xs text-right">{fmt(c.purchases, "", "", 0)}</TableCell>,
+                      purchase_value: () => <TableCell key={key} className="text-xs text-right">{fmt(c.purchase_value, "$")}</TableCell>,
+                      adds_to_cart: () => <TableCell key={key} className="text-xs text-right">{fmt(c.adds_to_cart, "", "", 0)}</TableCell>,
+                      cost_per_atc: () => <TableCell key={key} className="text-xs text-right">{fmt(c.cost_per_add_to_cart, "$")}</TableCell>,
                       campaign: () => <TableCell key={key} className="text-xs truncate max-w-[150px]">{c.campaign_name || "—"}</TableCell>,
                       adset: () => <TableCell key={key} className="text-xs truncate max-w-[150px]">{c.adset_name || "—"}</TableCell>,
                       tags: () => <TableCell key={key}><TagSourceBadge source={c.tag_source} /></TableCell>,

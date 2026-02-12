@@ -165,7 +165,7 @@ export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailM
               {spendMetrics.map((m) => (
                 <div key={m.label} className="glass-panel p-2.5 text-center">
                   <div className="metric-label text-[10px]">{m.label}</div>
-                  <div className="text-sm font-semibold font-mono mt-0.5">{m.value}</div>
+                  <div className="text-sm font-semibold mt-0.5">{m.value}</div>
                 </div>
               ))}
             </div>
@@ -176,7 +176,7 @@ export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailM
               {performanceMetrics.map((m) => (
                 <div key={m.label} className="glass-panel p-2.5 text-center">
                   <div className="metric-label text-[10px]">{m.label}</div>
-                  <div className="text-sm font-semibold font-mono mt-0.5">{m.value}</div>
+                  <div className="text-sm font-semibold mt-0.5">{m.value}</div>
                 </div>
               ))}
             </div>
@@ -187,7 +187,7 @@ export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailM
               {engagementMetrics.map((m) => (
                 <div key={m.label} className="glass-panel p-2.5 text-center">
                   <div className="metric-label text-[10px]">{m.label}</div>
-                  <div className="text-sm font-semibold font-mono mt-0.5">{m.value}</div>
+                  <div className="text-sm font-semibold mt-0.5">{m.value}</div>
                 </div>
               ))}
             </div>
