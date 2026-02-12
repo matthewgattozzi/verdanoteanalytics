@@ -364,69 +364,88 @@ serve(async (req) => {
 
           console.log(`Upserted ${creativesUpserted} creatives`);
 
-          // Phase 1c: Fetch daily breakdowns for daily_metrics table
+          // Phase 1c: Fetch daily breakdowns in 7-day chunks to avoid Meta API timeouts
           console.log(`Fetching daily breakdowns...`);
-          let dailyNextUrl: string | null =
-            `https://graph.facebook.com/v21.0/${account.id}/insights?` +
-            `time_range=${encodeURIComponent(timeRange)}&time_increment=1` +
-            `&level=ad` +
-            `&fields=ad_id,spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values` +
-            `&limit=500&access_token=${encodeURIComponent(token)}`;
-
           const dailyRows: any[] = [];
 
-          while (dailyNextUrl) {
-            metaApiCalls++;
-            const resp = await fetch(dailyNextUrl);
-            const data = await resp.json();
+          // Split date range into 7-day windows
+          const chunkStart = new Date(startDate);
+          while (chunkStart < endDate) {
+            const chunkEnd = new Date(chunkStart);
+            chunkEnd.setDate(chunkEnd.getDate() + 6);
+            if (chunkEnd > endDate) chunkEnd.setTime(endDate.getTime());
 
-            if (data.error) {
-              console.error(`Daily breakdown API error:`, data.error);
-              apiErrors.push({ timestamp: new Date().toISOString(), message: `Daily: ${data.error.message}` });
-              break;
-            }
+            const chunkSince = chunkStart.toISOString().split("T")[0];
+            const chunkUntil = chunkEnd.toISOString().split("T")[0];
+            const chunkRange = JSON.stringify({ since: chunkSince, until: chunkUntil });
 
-            if (data.data) {
-              for (const row of data.data) {
-                const spend = parseFloat(row.spend || "0");
-                const roas = row.purchase_roas?.[0]?.value ? parseFloat(row.purchase_roas[0].value) : 0;
-                const ctr = parseFloat(row.ctr || "0");
-                const clicks = parseInt(row.clicks || "0");
-                const impressions = parseInt(row.impressions || "0");
-                const cpm = parseFloat(row.cpm || "0");
-                const cpc = parseFloat(row.cpc || "0");
-                const frequency = parseFloat(row.frequency || "0");
-                let purchases = 0, purchaseValue = 0, cpa = 0;
-                if (row.actions) {
-                  const pa = row.actions.find((a: any) => a.action_type === "purchase");
-                  if (pa) purchases = parseInt(pa.value || "0");
-                }
-                if (row.action_values) {
-                  const pv = row.action_values.find((a: any) => a.action_type === "purchase");
-                  if (pv) purchaseValue = parseFloat(pv.value || "0");
-                }
-                if (row.cost_per_action_type) {
-                  const cp = row.cost_per_action_type.find((a: any) => a.action_type === "purchase");
-                  if (cp) cpa = parseFloat(cp.value || "0");
-                }
-                const thumbStopRate = impressions > 0 ? (clicks / impressions) * 100 : 0;
+            console.log(`Daily chunk: ${chunkSince} to ${chunkUntil}`);
 
-                dailyRows.push({
-                  ad_id: row.ad_id,
-                  account_id: account.id,
-                  date: row.date_start,
-                  spend, roas, cpa, ctr, clicks, impressions,
-                  cpm, cpc, frequency, purchases, purchase_value: purchaseValue,
-                  thumb_stop_rate: thumbStopRate,
-                  video_views: 0, hold_rate: 0, video_avg_play_time: 0,
-                  adds_to_cart: 0, cost_per_add_to_cart: 0,
-                });
+            let dailyNextUrl: string | null =
+              `https://graph.facebook.com/v21.0/${account.id}/insights?` +
+              `time_range=${encodeURIComponent(chunkRange)}&time_increment=1` +
+              `&level=ad` +
+              `&fields=ad_id,spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values` +
+              `&limit=500&access_token=${encodeURIComponent(token)}`;
+
+            while (dailyNextUrl) {
+              metaApiCalls++;
+              const resp = await fetch(dailyNextUrl);
+              const data = await resp.json();
+
+              if (data.error) {
+                console.error(`Daily breakdown API error:`, data.error);
+                apiErrors.push({ timestamp: new Date().toISOString(), message: `Daily: ${data.error.message}` });
+                break;
               }
-              console.log(`Daily rows fetched: ${dailyRows.length}`);
+
+              if (data.data) {
+                for (const row of data.data) {
+                  const spend = parseFloat(row.spend || "0");
+                  const roas = row.purchase_roas?.[0]?.value ? parseFloat(row.purchase_roas[0].value) : 0;
+                  const ctr = parseFloat(row.ctr || "0");
+                  const clicks = parseInt(row.clicks || "0");
+                  const impressions = parseInt(row.impressions || "0");
+                  const cpm = parseFloat(row.cpm || "0");
+                  const cpc = parseFloat(row.cpc || "0");
+                  const frequency = parseFloat(row.frequency || "0");
+                  let purchases = 0, purchaseValue = 0, cpa = 0;
+                  if (row.actions) {
+                    const pa = row.actions.find((a: any) => a.action_type === "purchase");
+                    if (pa) purchases = parseInt(pa.value || "0");
+                  }
+                  if (row.action_values) {
+                    const pv = row.action_values.find((a: any) => a.action_type === "purchase");
+                    if (pv) purchaseValue = parseFloat(pv.value || "0");
+                  }
+                  if (row.cost_per_action_type) {
+                    const cp = row.cost_per_action_type.find((a: any) => a.action_type === "purchase");
+                    if (cp) cpa = parseFloat(cp.value || "0");
+                  }
+                  const thumbStopRate = impressions > 0 ? (clicks / impressions) * 100 : 0;
+
+                  dailyRows.push({
+                    ad_id: row.ad_id,
+                    account_id: account.id,
+                    date: row.date_start,
+                    spend, roas, cpa, ctr, clicks, impressions,
+                    cpm, cpc, frequency, purchases, purchase_value: purchaseValue,
+                    thumb_stop_rate: thumbStopRate,
+                    video_views: 0, hold_rate: 0, video_avg_play_time: 0,
+                    adds_to_cart: 0, cost_per_add_to_cart: 0,
+                  });
+                }
+                console.log(`Daily rows fetched: ${dailyRows.length}`);
+              }
+
+              dailyNextUrl = data.paging?.next || null;
+              if (dailyNextUrl) await new Promise((r) => setTimeout(r, 200));
             }
 
-            dailyNextUrl = data.paging?.next || null;
-            if (dailyNextUrl) await new Promise((r) => setTimeout(r, 200));
+            // Move to next chunk
+            chunkStart.setDate(chunkStart.getDate() + 7);
+            // Small delay between chunks to respect rate limits
+            await new Promise((r) => setTimeout(r, 500));
           }
 
           // Upsert daily metrics in chunks
