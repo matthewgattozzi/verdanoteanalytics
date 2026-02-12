@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
-import { toast } from "@/hooks/use-toast";
 
 export function useCreatives(filters: Record<string, string> = {}) {
   const params = new URLSearchParams();
@@ -27,10 +27,10 @@ export function useUpdateCreative() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["creatives"] });
       qc.invalidateQueries({ queryKey: ["accounts"] });
-      toast({ title: "Tags updated" });
+      toast.success("Tags updated");
     },
     onError: (e: Error) => {
-      toast({ title: "Error updating tags", description: e.message, variant: "destructive" });
+      toast.error("Error updating tags", { description: e.message });
     },
   });
 }
@@ -43,7 +43,22 @@ export function useBulkUntag() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["creatives"] });
       qc.invalidateQueries({ queryKey: ["accounts"] });
-      toast({ title: "Creatives marked as untagged" });
+      toast.success("Creatives marked as untagged");
+    },
+  });
+}
+
+export function useAnalyzeCreative() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (adId: string) =>
+      apiFetch("analyze-creative", "", { method: "POST", body: JSON.stringify({ ad_id: adId }) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["creatives"] });
+      toast.success("AI analysis complete");
+    },
+    onError: (e: Error) => {
+      toast.error("Analysis failed", { description: e.message });
     },
   });
 }
