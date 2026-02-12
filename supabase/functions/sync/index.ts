@@ -168,13 +168,13 @@ serve(async (req) => {
       const body = await req.json();
       const { account_id, sync_type = "manual" } = body;
 
-      // Timeout recovery: mark syncs stuck in "running" for >10 minutes as failed
-      const tenMinAgo = new Date(Date.now() - 20 * 60 * 1000).toISOString();
+      // Timeout recovery: mark syncs stuck in "running" for >20 minutes as failed
+      const twentyMinAgo = new Date(Date.now() - 20 * 60 * 1000).toISOString();
       const { data: stuckSyncs } = await supabase
         .from("sync_logs")
         .select("id")
         .eq("status", "running")
-        .lt("started_at", tenMinAgo);
+        .lt("started_at", twentyMinAgo);
       if (stuckSyncs && stuckSyncs.length > 0) {
         const stuckIds = stuckSyncs.map((s: any) => s.id);
         await supabase
@@ -186,6 +186,25 @@ serve(async (req) => {
           })
           .in("id", stuckIds);
         console.log(`Recovered ${stuckIds.length} stuck sync(s)`);
+      }
+
+      // Prevent concurrent syncs: check if any sync is still running
+      const { data: runningSyncs } = await supabase
+        .from("sync_logs")
+        .select("id, account_id, started_at")
+        .eq("status", "running")
+        .limit(1);
+
+      if (runningSyncs && runningSyncs.length > 0) {
+        const running = runningSyncs[0];
+        const startedAgo = Math.round((Date.now() - new Date(running.started_at).getTime()) / 1000);
+        return new Response(JSON.stringify({
+          error: `A sync is already in progress (started ${startedAgo}s ago). Please wait for it to finish.`,
+          running_sync: { id: running.id, account_id: running.account_id, started_at: running.started_at },
+        }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       // Get Meta token — prefer secret, fallback to DB
