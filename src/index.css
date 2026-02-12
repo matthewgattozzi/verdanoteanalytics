@@ -2,75 +2,75 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Serif+4:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @layer base {
   :root {
-    --background: 220 16% 6%;
-    --foreground: 210 20% 92%;
+    --background: 30 25% 97%;
+    --foreground: 20 20% 15%;
 
-    --card: 220 16% 10%;
-    --card-foreground: 210 20% 92%;
+    --card: 30 20% 99%;
+    --card-foreground: 20 20% 15%;
 
-    --popover: 220 16% 12%;
-    --popover-foreground: 210 20% 92%;
+    --popover: 30 20% 99%;
+    --popover-foreground: 20 20% 15%;
 
-    --primary: 210 100% 56%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 18 60% 42%;
+    --primary-foreground: 40 30% 97%;
 
-    --secondary: 220 14% 16%;
-    --secondary-foreground: 210 20% 80%;
+    --secondary: 30 18% 92%;
+    --secondary-foreground: 20 15% 35%;
 
-    --muted: 220 14% 14%;
-    --muted-foreground: 215 15% 50%;
+    --muted: 30 15% 93%;
+    --muted-foreground: 20 10% 50%;
 
-    --accent: 220 14% 18%;
-    --accent-foreground: 210 20% 92%;
+    --accent: 30 20% 90%;
+    --accent-foreground: 20 20% 15%;
 
-    --destructive: 0 72% 55%;
+    --destructive: 0 55% 48%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 14% 18%;
-    --input: 220 14% 18%;
-    --ring: 210 100% 56%;
+    --border: 30 15% 87%;
+    --input: 30 15% 87%;
+    --ring: 18 60% 42%;
 
     --radius: 0.5rem;
 
-    /* Status colors */
-    --success: 142 71% 45%;
+    /* Status colors — warm-shifted */
+    --success: 152 50% 38%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 10%;
-    --info: 199 89% 48%;
+    --warning: 35 80% 50%;
+    --warning-foreground: 20 20% 12%;
+    --info: 200 55% 45%;
     --info-foreground: 0 0% 100%;
 
-    /* Tag source colors */
-    --tag-parsed: 142 71% 45%;
-    --tag-csv: 210 100% 56%;
-    --tag-manual: 38 92% 50%;
-    --tag-untagged: 0 72% 55%;
+    /* Tag source colors — warm palette */
+    --tag-parsed: 152 50% 38%;
+    --tag-csv: 200 55% 45%;
+    --tag-manual: 35 80% 50%;
+    --tag-untagged: 0 55% 48%;
 
     /* Recommendation colors */
-    --scale: 142 71% 45%;
-    --watch: 38 92% 50%;
-    --kill: 0 72% 55%;
+    --scale: 152 50% 38%;
+    --watch: 35 80% 50%;
+    --kill: 0 55% 48%;
 
-    /* Sidebar */
-    --sidebar-background: 220 16% 8%;
-    --sidebar-foreground: 210 20% 75%;
-    --sidebar-primary: 210 100% 56%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 14%;
-    --sidebar-accent-foreground: 210 20% 92%;
-    --sidebar-border: 220 14% 14%;
-    --sidebar-ring: 210 100% 56%;
+    /* Sidebar — warm cream */
+    --sidebar-background: 30 20% 95%;
+    --sidebar-foreground: 20 15% 35%;
+    --sidebar-primary: 18 60% 42%;
+    --sidebar-primary-foreground: 40 30% 97%;
+    --sidebar-accent: 30 18% 90%;
+    --sidebar-accent-foreground: 20 20% 15%;
+    --sidebar-border: 30 15% 87%;
+    --sidebar-ring: 18 60% 42%;
 
-    /* Chart palette */
-    --chart-1: 210 100% 56%;
-    --chart-2: 142 71% 45%;
-    --chart-3: 38 92% 50%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    /* Chart palette — warm tones */
+    --chart-1: 18 60% 42%;
+    --chart-2: 152 50% 38%;
+    --chart-3: 35 80% 50%;
+    --chart-4: 340 40% 50%;
+    --chart-5: 200 55% 45%;
   }
 }
 
@@ -80,8 +80,12 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Source Serif 4', 'Lora', Georgia, serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Lora', Georgia, serif;
   }
 
   code, .font-mono {
@@ -91,7 +95,7 @@
 
 @layer utilities {
   .glass-panel {
-    @apply bg-card/80 backdrop-blur-sm border border-border/50 rounded-lg;
+    @apply bg-card border border-border/60 rounded-lg shadow-sm;
   }
 
   .metric-value {
