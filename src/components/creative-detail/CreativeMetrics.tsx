@@ -1,0 +1,76 @@
+import { fmt } from "@/components/creatives/constants";
+
+interface CreativeMetricsProps {
+  creative: any;
+}
+
+export function CreativeMetrics({ creative }: CreativeMetricsProps) {
+  const fmtVal = (v: number | null, prefix = "", suffix = "") => {
+    if (v === null || v === undefined || v === 0) return "—";
+    return `${prefix}${Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${suffix}`;
+  };
+
+  const fmtInt = (v: number | null) => {
+    if (v === null || v === undefined || v === 0) return "—";
+    return Number(v).toLocaleString("en-US");
+  };
+
+  const cpmr = (creative.cpm && creative.frequency) ? creative.cpm * creative.frequency : null;
+
+  const sections = [
+    {
+      title: "Spend & Efficiency",
+      cols: 6,
+      metrics: [
+        { label: "Spend", value: fmtVal(creative.spend, "$") },
+        { label: "CPA", value: fmtVal(creative.cpa, "$") },
+        { label: "CPM", value: fmtVal(creative.cpm, "$") },
+        { label: "CPC", value: fmtVal(creative.cpc, "$") },
+        { label: "Frequency", value: fmtVal(creative.frequency) },
+        { label: "CPMr", value: fmtVal(cpmr, "$") },
+      ],
+    },
+    {
+      title: "Performance & Commerce",
+      cols: 5,
+      metrics: [
+        { label: "ROAS", value: fmtVal(creative.roas, "", "x") },
+        { label: "Purchases", value: fmtInt(creative.purchases) },
+        { label: "Purchase Value", value: fmtVal(creative.purchase_value, "$") },
+        { label: "Adds to Cart", value: fmtInt(creative.adds_to_cart) },
+        { label: "Cost / ATC", value: fmtVal(creative.cost_per_add_to_cart, "$") },
+      ],
+    },
+    {
+      title: "Engagement",
+      cols: 7,
+      metrics: [
+        { label: "Unique CTR", value: fmtVal(creative.ctr, "", "%") },
+        { label: "Hook Rate", value: fmtVal(creative.thumb_stop_rate, "", "%") },
+        { label: "Hold Rate", value: fmtVal(creative.hold_rate, "", "%") },
+        { label: "Impressions", value: fmtInt(creative.impressions) },
+        { label: "Clicks", value: fmtInt(creative.clicks) },
+        { label: "Video Views", value: fmtInt(creative.video_views) },
+        { label: "Avg Play Time", value: fmtVal(creative.video_avg_play_time, "", "s") },
+      ],
+    },
+  ];
+
+  return (
+    <div className="space-y-3">
+      {sections.map((section) => (
+        <div key={section.title}>
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1.5">{section.title}</p>
+          <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${section.cols}, minmax(0, 1fr))` }}>
+            {section.metrics.map((m) => (
+              <div key={m.label} className="glass-panel p-2.5 text-center">
+                <div className="metric-label text-[10px]">{m.label}</div>
+                <div className="text-sm font-semibold mt-0.5">{m.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
