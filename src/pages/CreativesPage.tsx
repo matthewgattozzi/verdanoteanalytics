@@ -23,7 +23,27 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { RefreshCw, LayoutGrid, List, Loader2, AlertTriangle, Sparkles, Download } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { ColumnPicker, type ColumnDef } from "@/components/ColumnPicker";
+
+const TABLE_COLUMNS: ColumnDef[] = [
+  { key: "creative", label: "Creative", defaultVisible: true },
+  { key: "type", label: "Type", defaultVisible: true },
+  { key: "person", label: "Person", defaultVisible: true },
+  { key: "style", label: "Style", defaultVisible: true },
+  { key: "hook", label: "Hook", defaultVisible: true },
+  { key: "spend", label: "Spend", defaultVisible: true },
+  { key: "roas", label: "ROAS", defaultVisible: true },
+  { key: "cpa", label: "CPA", defaultVisible: true },
+  { key: "ctr", label: "CTR", defaultVisible: true },
+  { key: "tags", label: "Tags", defaultVisible: true },
+  { key: "impressions", label: "Impressions", defaultVisible: false },
+  { key: "clicks", label: "Clicks", defaultVisible: false },
+  { key: "purchases", label: "Purchases", defaultVisible: false },
+  { key: "cpm", label: "CPM", defaultVisible: false },
+  { key: "campaign", label: "Campaign", defaultVisible: false },
+  { key: "adset", label: "Ad Set", defaultVisible: false },
+];
 import { useCreatives, useCreativeFilters, useBulkAnalyze } from "@/hooks/useCreatives";
 import { useSync } from "@/hooks/useApi";
 import { exportCreativesCSV } from "@/lib/csv";
@@ -31,6 +51,16 @@ import { useAccountContext } from "@/contexts/AccountContext";
 
 const CreativesPage = () => {
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
+  const [visibleCols, setVisibleCols] = useState<Set<string>>(
+    () => new Set(TABLE_COLUMNS.filter(c => c.defaultVisible !== false).map(c => c.key))
+  );
+  const toggleCol = useCallback((key: string) => {
+    setVisibleCols(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }, []);
   const [delivery, setDelivery] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [dateFrom, setDateFrom] = useState<string | undefined>();
@@ -103,6 +133,7 @@ const CreativesPage = () => {
                 <List className="h-3.5 w-3.5" />
               </Button>
             </div>
+            <ColumnPicker columns={TABLE_COLUMNS} visibleColumns={visibleCols} onToggle={toggleCol} />
             <Button size="sm" onClick={() => syncMut.mutate({ account_id: "all" })} disabled={syncMut.isPending}>
               {syncMut.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
               Sync
@@ -200,36 +231,50 @@ const CreativesPage = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-xs">Creative</TableHead>
-                <TableHead className="text-xs">Type</TableHead>
-                <TableHead className="text-xs">Person</TableHead>
-                <TableHead className="text-xs">Style</TableHead>
-                <TableHead className="text-xs">Hook</TableHead>
-                <TableHead className="text-xs text-right">Spend</TableHead>
-                <TableHead className="text-xs text-right">ROAS</TableHead>
-                <TableHead className="text-xs text-right">CPA</TableHead>
-                <TableHead className="text-xs text-right">CTR</TableHead>
-                <TableHead className="text-xs">Tags</TableHead>
+                {visibleCols.has("creative") && <TableHead className="text-xs">Creative</TableHead>}
+                {visibleCols.has("type") && <TableHead className="text-xs">Type</TableHead>}
+                {visibleCols.has("person") && <TableHead className="text-xs">Person</TableHead>}
+                {visibleCols.has("style") && <TableHead className="text-xs">Style</TableHead>}
+                {visibleCols.has("hook") && <TableHead className="text-xs">Hook</TableHead>}
+                {visibleCols.has("spend") && <TableHead className="text-xs text-right">Spend</TableHead>}
+                {visibleCols.has("roas") && <TableHead className="text-xs text-right">ROAS</TableHead>}
+                {visibleCols.has("cpa") && <TableHead className="text-xs text-right">CPA</TableHead>}
+                {visibleCols.has("ctr") && <TableHead className="text-xs text-right">CTR</TableHead>}
+                {visibleCols.has("impressions") && <TableHead className="text-xs text-right">Impressions</TableHead>}
+                {visibleCols.has("clicks") && <TableHead className="text-xs text-right">Clicks</TableHead>}
+                {visibleCols.has("purchases") && <TableHead className="text-xs text-right">Purchases</TableHead>}
+                {visibleCols.has("cpm") && <TableHead className="text-xs text-right">CPM</TableHead>}
+                {visibleCols.has("campaign") && <TableHead className="text-xs">Campaign</TableHead>}
+                {visibleCols.has("adset") && <TableHead className="text-xs">Ad Set</TableHead>}
+                {visibleCols.has("tags") && <TableHead className="text-xs">Tags</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {creatives.map((c: any) => (
                 <TableRow key={c.ad_id} className="cursor-pointer hover:bg-accent/50" onClick={() => setSelectedCreative(c)}>
-                  <TableCell>
-                    <div className="max-w-[200px]">
-                      <div className="text-xs font-medium truncate">{c.ad_name}</div>
-                      <div className="text-[10px] font-mono text-muted-foreground">{c.unique_code}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-xs">{c.ad_type || "—"}</TableCell>
-                  <TableCell className="text-xs">{c.person || "—"}</TableCell>
-                  <TableCell className="text-xs">{c.style || "—"}</TableCell>
-                  <TableCell className="text-xs">{c.hook || "—"}</TableCell>
-                  <TableCell className="text-xs text-right font-mono">{fmt(c.spend, "$")}</TableCell>
-                  <TableCell className="text-xs text-right font-mono">{fmt(c.roas, "", "x")}</TableCell>
-                  <TableCell className="text-xs text-right font-mono">{fmt(c.cpa, "$")}</TableCell>
-                  <TableCell className="text-xs text-right font-mono">{fmt(c.ctr, "", "%")}</TableCell>
-                  <TableCell><TagSourceBadge source={c.tag_source} /></TableCell>
+                  {visibleCols.has("creative") && (
+                    <TableCell>
+                      <div className="max-w-[200px]">
+                        <div className="text-xs font-medium truncate">{c.ad_name}</div>
+                        <div className="text-[10px] font-mono text-muted-foreground">{c.unique_code}</div>
+                      </div>
+                    </TableCell>
+                  )}
+                  {visibleCols.has("type") && <TableCell className="text-xs">{c.ad_type || "—"}</TableCell>}
+                  {visibleCols.has("person") && <TableCell className="text-xs">{c.person || "—"}</TableCell>}
+                  {visibleCols.has("style") && <TableCell className="text-xs">{c.style || "—"}</TableCell>}
+                  {visibleCols.has("hook") && <TableCell className="text-xs">{c.hook || "—"}</TableCell>}
+                  {visibleCols.has("spend") && <TableCell className="text-xs text-right font-mono">{fmt(c.spend, "$")}</TableCell>}
+                  {visibleCols.has("roas") && <TableCell className="text-xs text-right font-mono">{fmt(c.roas, "", "x")}</TableCell>}
+                  {visibleCols.has("cpa") && <TableCell className="text-xs text-right font-mono">{fmt(c.cpa, "$")}</TableCell>}
+                  {visibleCols.has("ctr") && <TableCell className="text-xs text-right font-mono">{fmt(c.ctr, "", "%")}</TableCell>}
+                  {visibleCols.has("impressions") && <TableCell className="text-xs text-right font-mono">{fmt(c.impressions)}</TableCell>}
+                  {visibleCols.has("clicks") && <TableCell className="text-xs text-right font-mono">{fmt(c.clicks)}</TableCell>}
+                  {visibleCols.has("purchases") && <TableCell className="text-xs text-right font-mono">{fmt(c.purchases)}</TableCell>}
+                  {visibleCols.has("cpm") && <TableCell className="text-xs text-right font-mono">{fmt(c.cpm, "$")}</TableCell>}
+                  {visibleCols.has("campaign") && <TableCell className="text-xs truncate max-w-[150px]">{c.campaign_name || "—"}</TableCell>}
+                  {visibleCols.has("adset") && <TableCell className="text-xs truncate max-w-[150px]">{c.adset_name || "—"}</TableCell>}
+                  {visibleCols.has("tags") && <TableCell><TagSourceBadge source={c.tag_source} /></TableCell>}
                 </TableRow>
               ))}
             </TableBody>
