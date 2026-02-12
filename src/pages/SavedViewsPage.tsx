@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Bookmark, Plus, Trash2, ExternalLink, Loader2 } from "lucide-react";
+import { Bookmark, Plus, Trash2, ExternalLink, Loader2, Pencil, Check, X as XIcon } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -136,6 +136,32 @@ const SavedViewsPage = () => {
       toast.success("View deleted");
     },
   });
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+
+  const renameMutation = useMutation({
+    mutationFn: async ({ id, newName }: { id: string; newName: string }) => {
+      const { error } = await supabase.from("saved_views").update({ name: newName }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["saved-views"] });
+      toast.success("View renamed");
+      setEditingId(null);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const startEditing = (view: SavedView) => {
+    setEditingId(view.id);
+    setEditName(view.name);
+  };
+
+  const confirmRename = () => {
+    if (!editingId || !editName.trim()) return;
+    renameMutation.mutate({ id: editingId, newName: editName.trim() });
+  };
 
   const resetForm = () => {
     setName("");
@@ -293,7 +319,28 @@ const SavedViewsPage = () => {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <Bookmark className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                  <span className="text-sm font-medium truncate">{view.name}</span>
+                  {editingId === view.id ? (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") confirmRename();
+                          if (e.key === "Escape") setEditingId(null);
+                        }}
+                        className="h-6 text-sm font-medium w-48 px-1.5"
+                        autoFocus
+                      />
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={confirmRename} disabled={!editName.trim() || renameMutation.isPending}>
+                        <Check className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setEditingId(null)}>
+                        <XIcon className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="text-sm font-medium truncate cursor-pointer hover:underline" onDoubleClick={() => startEditing(view)}>{view.name}</span>
+                  )}
                   <Badge variant="outline" className="text-[10px] flex-shrink-0">{getPageLabel(view.config.page)}</Badge>
                   {view.config.account_id && (
                     <Badge variant="outline" className="text-[10px] flex-shrink-0">{getAccountName(view.config.account_id)}</Badge>
@@ -316,6 +363,14 @@ const SavedViewsPage = () => {
                 <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => applyView(view)}>
                   <ExternalLink className="h-3 w-3" />
                   Open
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => startEditing(view)}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
                 </Button>
                 <Button
                   variant="ghost"
