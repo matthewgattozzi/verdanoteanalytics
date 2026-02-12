@@ -48,6 +48,7 @@ const TABLE_COLUMNS: ColumnDef[] = [
   { key: "cpm", label: "CPM", defaultVisible: false, group: "Performance" },
   { key: "cpc", label: "CPC (Link Click)", defaultVisible: false, group: "Performance" },
   { key: "frequency", label: "Frequency", defaultVisible: false, group: "Performance" },
+  { key: "cpmr", label: "CPMr (CPM × Freq)", defaultVisible: false, group: "Performance" },
   // Engagement
   { key: "ctr", label: "Unique CTR", defaultVisible: true, group: "Engagement" },
   { key: "impressions", label: "Impressions", defaultVisible: false, group: "Engagement" },
@@ -86,7 +87,7 @@ const SORT_FIELD_MAP: Record<string, string> = {
   hook_rate: "thumb_stop_rate", hold_rate: "hold_rate",
   video_views: "video_views", video_avg_play_time: "video_avg_play_time",
   adds_to_cart: "adds_to_cart", cost_per_atc: "cost_per_add_to_cart",
-  result_type: "result_type",
+  result_type: "result_type", cpmr: "_cpmr",
   campaign: "campaign_name", adset: "adset_name", ad_status: "ad_status",
 };
 
@@ -154,7 +155,10 @@ const CreativesPage = () => {
   }, []);
 
   const sortedCreatives = useMemo(() => {
-    const list = [...(creatives || [])];
+    const list = [...(creatives || [])].map((c: any) => ({
+      ...c,
+      _cpmr: (Number(c.cpm) || 0) * (Number(c.frequency) || 0),
+    }));
     if (!sort.key || !sort.direction) return list;
     const field = SORT_FIELD_MAP[sort.key] || sort.key;
     const dir = sort.direction === "asc" ? 1 : -1;
@@ -208,7 +212,7 @@ const CreativesPage = () => {
 
   const renderSortableHead = (key: string, label: string, extraClass = "") => {
     if (!visibleCols.has(key)) return null;
-    const numericCols = ["spend", "roas", "cpa", "ctr", "impressions", "clicks", "purchases", "purchase_value", "cpm", "cpc", "frequency", "video_views", "hook_rate", "hold_rate", "video_avg_play_time", "adds_to_cart", "cost_per_atc"];
+    const numericCols = ["spend", "roas", "cpa", "ctr", "impressions", "clicks", "purchases", "purchase_value", "cpm", "cpc", "frequency", "cpmr", "video_views", "hook_rate", "hold_rate", "video_avg_play_time", "adds_to_cart", "cost_per_atc"];
     const isRight = numericCols.includes(key);
     return (
       <SortableTableHead
@@ -403,7 +407,8 @@ const CreativesPage = () => {
                 {renderSortableHead("cpm", "CPM")}
                 {renderSortableHead("cpc", "CPC")}
                 {renderSortableHead("frequency", "Frequency")}
-                {renderSortableHead("ctr", "CTR")}
+                {renderSortableHead("cpmr", "CPMr")}
+                {renderSortableHead("ctr", "Unique CTR")}
                 {renderSortableHead("impressions", "Impressions")}
                 {renderSortableHead("clicks", "Clicks")}
                 {renderSortableHead("hook_rate", "Hook Rate")}
@@ -469,6 +474,7 @@ const CreativesPage = () => {
                   {visibleCols.has("cpm") && <TableCell className="text-xs text-right font-mono">{fmt(c.cpm, "$")}</TableCell>}
                   {visibleCols.has("cpc") && <TableCell className="text-xs text-right font-mono">{fmt(c.cpc, "$")}</TableCell>}
                   {visibleCols.has("frequency") && <TableCell className="text-xs text-right font-mono">{fmt(c.frequency)}</TableCell>}
+                  {visibleCols.has("cpmr") && <TableCell className="text-xs text-right font-mono">{fmt(c._cpmr, "$")}</TableCell>}
                   {visibleCols.has("ctr") && <TableCell className="text-xs text-right font-mono">{fmt(c.ctr, "", "%")}</TableCell>}
                   {visibleCols.has("impressions") && <TableCell className="text-xs text-right font-mono">{fmt(c.impressions)}</TableCell>}
                   {visibleCols.has("clicks") && <TableCell className="text-xs text-right font-mono">{fmt(c.clicks)}</TableCell>}
