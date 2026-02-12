@@ -96,19 +96,36 @@ serve(async (req) => {
 
     // Fetch account details for business context
     let businessContext = "";
+    let companyPdfContent = "";
     if (account_id && account_id !== "all") {
-      const { data: account } = await supabase
+      const supabaseService = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const { data: account } = await supabaseService
         .from("ad_accounts")
-        .select("name, company_description, primary_kpi, secondary_kpis, winner_roas_threshold, iteration_spend_threshold")
+        .select("name, company_description, company_pdf_url, primary_kpi, secondary_kpis, winner_roas_threshold, iteration_spend_threshold")
         .eq("id", account_id)
         .single();
       if (account) {
         businessContext = `\nBusiness Context:
-- Company/Account: ${account.name}${account.company_description ? ` — ${account.company_description}` : ""}
+- Company/Account: ${account.name}
 - Primary KPI: ${account.primary_kpi || `Purchase ROAS > ${account.winner_roas_threshold || 2.0}x`}
 - Secondary KPIs: ${account.secondary_kpis || "CTR, Hook Rate, Volume"}
 - Winner ROAS Threshold: ${account.winner_roas_threshold || 2.0}x
 - Min Spend Threshold: $${account.iteration_spend_threshold || 50}\n`;
+
+        // Fetch company PDF if available
+        if (account.company_pdf_url) {
+          try {
+            const pdfPath = account.company_pdf_url.replace(/.*\/company-docs\//, "");
+            const { data: pdfData } = await supabaseService.storage.from("company-docs").download(pdfPath);
+            if (pdfData) {
+              const arrayBuf = await pdfData.arrayBuffer();
+              const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuf)));
+              companyPdfContent = base64;
+            }
+          } catch (e) {
+            console.error("Failed to fetch company PDF:", e);
+          }
+        }
       }
     }
 
@@ -190,7 +207,16 @@ Please provide a comprehensive analysis following the required structure.`;
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userPrompt },
+          companyPdfContent
+            ? {
+                role: "user",
+                content: [
+                  { type: "text", text: "Here is the company information document for context:" },
+                  { type: "image_url", image_url: { url: `data:application/pdf;base64,${companyPdfContent}` } },
+                  { type: "text", text: userPrompt },
+                ],
+              }
+            : { role: "user", content: userPrompt },
         ],
         stream: !!stream,
       }),

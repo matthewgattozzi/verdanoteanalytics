@@ -67,6 +67,7 @@ serve(async (req) => {
       if (body.company_description !== undefined) updateFields.company_description = body.company_description;
       if (body.primary_kpi !== undefined) updateFields.primary_kpi = body.primary_kpi;
       if (body.secondary_kpis !== undefined) updateFields.secondary_kpis = body.secondary_kpis;
+      if (body.company_pdf_url !== undefined) updateFields.company_pdf_url = body.company_pdf_url;
 
       const { data, error } = await supabase
         .from("ad_accounts")
