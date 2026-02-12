@@ -64,6 +64,21 @@ export function useToggleAccount() {
   });
 }
 
+export function useRenameAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      apiFetch("accounts", id, { method: "PUT", body: JSON.stringify({ name }) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["accounts"] });
+      toast.success("Account renamed");
+    },
+    onError: (e: Error) => {
+      toast.error("Error renaming account", { description: e.message });
+    },
+  });
+}
+
 export function useUpdateAccountSettings() {
   const qc = useQueryClient();
   return useMutation({

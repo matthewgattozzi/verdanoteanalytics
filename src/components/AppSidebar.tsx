@@ -63,7 +63,7 @@ export function AppSidebar() {
             </SelectTrigger>
             <SelectContent>
               {!isClient && <SelectItem value="all" className="text-xs">All Accounts</SelectItem>}
-              {accounts.map((acc: any) => (
+              {[...accounts].sort((a: any, b: any) => a.name.localeCompare(b.name)).map((acc: any) => (
                 <SelectItem key={acc.id} value={acc.id} className="text-xs">
                   {acc.name}
                 </SelectItem>
