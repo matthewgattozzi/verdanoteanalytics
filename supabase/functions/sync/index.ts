@@ -169,7 +169,7 @@ serve(async (req) => {
       const { account_id, sync_type = "manual" } = body;
 
       // Timeout recovery: mark syncs stuck in "running" for >10 minutes as failed
-      const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const tenMinAgo = new Date(Date.now() - 20 * 60 * 1000).toISOString();
       const { data: stuckSyncs } = await supabase
         .from("sync_logs")
         .select("id")
@@ -180,8 +180,8 @@ serve(async (req) => {
         await supabase
           .from("sync_logs")
           .update({
-            status: "failed",
-            api_errors: JSON.stringify([{ timestamp: new Date().toISOString(), message: "Sync timed out (exceeded 10 minutes)" }]),
+             status: "failed",
+            api_errors: JSON.stringify([{ timestamp: new Date().toISOString(), message: "Sync timed out (exceeded 20 minutes)" }]),
             completed_at: new Date().toISOString(),
           })
           .in("id", stuckIds);
@@ -308,7 +308,7 @@ serve(async (req) => {
 
           creativesFetched = fetchedAds.length;
 
-          // Phase 1a: Fetch video source URLs individually per creative's video_id
+          // Phase 1a: Fetch video source URLs in parallel batches
           const videoIdMap = new Map<string, string>(); // video_id -> source URL
           const videoIds = [...new Set(
             fetchedAds
@@ -316,28 +316,32 @@ serve(async (req) => {
               .filter(Boolean)
           )] as string[];
 
-          for (const vid of videoIds) {
-            metaApiCalls++;
-            try {
-              const resp = await fetch(
-                `https://graph.facebook.com/v21.0/${vid}?fields=source&access_token=${encodeURIComponent(token)}`
-              );
-              const data = await resp.json();
+          let videoPermissionDenied = false;
+          const VIDEO_BATCH = 10;
+          for (let vi = 0; vi < videoIds.length && !videoPermissionDenied; vi += VIDEO_BATCH) {
+            const batch = videoIds.slice(vi, vi + VIDEO_BATCH);
+            metaApiCalls += batch.length;
+            const results = await Promise.all(batch.map(async (vid) => {
+              try {
+                const resp = await fetch(
+                  `https://graph.facebook.com/v21.0/${vid}?fields=source&access_token=${encodeURIComponent(token)}`
+                );
+                return { vid, data: await resp.json() };
+              } catch (e) {
+                return { vid, data: { error: { message: String(e) } } };
+              }
+            }));
+            for (const { vid, data } of results) {
               if (data.source) {
                 videoIdMap.set(vid, data.source);
-              } else if (data.error) {
-                // Log once and stop trying if permission error
-                if (data.error.code === 10 || data.error.code === 100) {
-                  console.error(`Video source permission denied, skipping remaining videos. Error: ${data.error.message}`);
-                  apiErrors.push({ timestamp: new Date().toISOString(), message: `Video URLs: ${data.error.message}` });
-                  break;
-                }
+              } else if (data.error && (data.error.code === 10 || data.error.code === 100)) {
+                console.error(`Video source permission denied, skipping remaining. Error: ${data.error.message}`);
+                apiErrors.push({ timestamp: new Date().toISOString(), message: `Video URLs: ${data.error.message}` });
+                videoPermissionDenied = true;
+                break;
               }
-            } catch (e) {
-              console.error(`Video fetch error for ${vid}:`, e);
             }
-            // Rate limit
-            if (videoIdMap.size % 10 === 0) await new Promise((r) => setTimeout(r, 200));
+            if (!videoPermissionDenied && vi + VIDEO_BATCH < videoIds.length) await new Promise((r) => setTimeout(r, 100));
           }
           console.log(`Resolved ${videoIdMap.size} video source URLs out of ${videoIds.length} video IDs`);
 
@@ -416,11 +420,13 @@ serve(async (req) => {
             else console.error("Batch upsert error:", error);
           }
 
-          // Batch update manual-tagged creatives (metrics only, chunks of 100)
-          for (const item of manualUpdateBatch) {
-            const { ad_id, ...metrics } = item;
-            await supabase.from("creatives").update(metrics).eq("ad_id", ad_id);
-            creativesUpserted++;
+          // Batch update manual-tagged creatives (metrics only, parallel batches of 50)
+          for (let i = 0; i < manualUpdateBatch.length; i += 50) {
+            const batch = manualUpdateBatch.slice(i, i + 50);
+            await Promise.all(batch.map(({ ad_id, ...metrics }: any) =>
+              supabase.from("creatives").update(metrics).eq("ad_id", ad_id)
+            ));
+            creativesUpserted += batch.length;
           }
 
           console.log(`Upserted ${creativesUpserted} creatives`);
@@ -429,11 +435,11 @@ serve(async (req) => {
           console.log(`Fetching daily breakdowns...`);
           const dailyRows: any[] = [];
 
-          // Split date range into 7-day windows
+          // Split date range into 14-day windows for faster processing
           const chunkStart = new Date(startDate);
           while (chunkStart < endDate) {
             const chunkEnd = new Date(chunkStart);
-            chunkEnd.setDate(chunkEnd.getDate() + 6);
+            chunkEnd.setDate(chunkEnd.getDate() + 13);
             if (chunkEnd > endDate) chunkEnd.setTime(endDate.getTime());
 
             const chunkSince = chunkStart.toISOString().split("T")[0];
@@ -500,13 +506,13 @@ serve(async (req) => {
               }
 
               dailyNextUrl = data.paging?.next || null;
-              if (dailyNextUrl) await new Promise((r) => setTimeout(r, 200));
+              if (dailyNextUrl) await new Promise((r) => setTimeout(r, 100));
             }
 
             // Move to next chunk
-            chunkStart.setDate(chunkStart.getDate() + 7);
-            // Small delay between chunks to respect rate limits
-            await new Promise((r) => setTimeout(r, 500));
+            chunkStart.setDate(chunkStart.getDate() + 14);
+            // Small delay between chunks
+            await new Promise((r) => setTimeout(r, 200));
           }
 
           // Upsert daily metrics in chunks
@@ -519,22 +525,35 @@ serve(async (req) => {
           }
           console.log(`Upserted ${dailyRows.length} daily metric rows`);
 
-          // Phase 2: Tag resolution for non-manual creatives (batch)
+          // Phase 2: Tag resolution — batch load all CSV mappings upfront to avoid per-creative queries
+          const { data: allMappings } = await supabase
+            .from("name_mappings")
+            .select("*")
+            .eq("account_id", account.id);
+          const mappingsByCode = new Map((allMappings || []).map((m: any) => [m.unique_code, m]));
+
           const { data: unresolved } = await supabase
             .from("creatives")
             .select("ad_id, ad_name, tag_source, unique_code")
             .eq("account_id", account.id)
             .neq("tag_source", "manual");
 
-          // Group tag updates by source for batch processing
           const tagUpdates: { ad_id: string; tags: any; source: string }[] = [];
           for (const creative of unresolved || []) {
-            const result = await resolveTagsForCreative(supabase, creative, account.id);
-            if (result.source !== "manual" && result.tags) {
-              tagUpdates.push({ ad_id: creative.ad_id, tags: result.tags, source: result.source });
-              if (result.source === "parsed") tagsParsed++;
-              else if (result.source === "csv_match") tagsCsvMatched++;
-              else if (result.source === "untagged") tagsUntagged++;
+            // Inline tag resolution (no DB queries needed now)
+            const parsed = parseAdName(creative.ad_name);
+            if (parsed.parsed) {
+              tagUpdates.push({ ad_id: creative.ad_id, tags: { unique_code: parsed.unique_code, ad_type: parsed.ad_type, person: parsed.person, style: parsed.style, product: parsed.product, hook: parsed.hook, theme: parsed.theme }, source: "parsed" });
+              tagsParsed++;
+            } else {
+              const mapping = mappingsByCode.get(parsed.unique_code);
+              if (mapping) {
+                tagUpdates.push({ ad_id: creative.ad_id, tags: { unique_code: parsed.unique_code, ad_type: mapping.ad_type, person: mapping.person, style: mapping.style, product: mapping.product, hook: mapping.hook, theme: mapping.theme }, source: "csv_match" });
+                tagsCsvMatched++;
+              } else {
+                tagUpdates.push({ ad_id: creative.ad_id, tags: { unique_code: parsed.unique_code }, source: "untagged" });
+                tagsUntagged++;
+              }
             }
           }
 
