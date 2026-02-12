@@ -114,30 +114,56 @@ function parseInsightsRow(row: any) {
 
   let purchases = 0, purchaseValue = 0, cpa = 0;
   let addsToCart = 0, costPerAtc = 0;
-  let videoViews = 0;
+  let videoViews = 0, thruPlays = 0;
 
   if (row.actions) {
-    const pa = row.actions.find((a: any) => a.action_type === "purchase" || a.action_type === "offsite_conversion.fb_pixel_purchase");
+    // Purchase actions — try multiple action type names
+    const purchaseTypes = ["purchase", "offsite_conversion.fb_pixel_purchase", "omni_purchase"];
+    const pa = row.actions.find((a: any) => purchaseTypes.includes(a.action_type));
     if (pa) purchases = parseInt(pa.value || "0");
-    const atc = row.actions.find((a: any) => a.action_type === "add_to_cart" || a.action_type === "offsite_conversion.fb_pixel_add_to_cart");
+
+    // Add to cart — try multiple action type names
+    const atcTypes = ["add_to_cart", "offsite_conversion.fb_pixel_add_to_cart", "omni_add_to_cart"];
+    const atc = row.actions.find((a: any) => atcTypes.includes(a.action_type));
     if (atc) addsToCart = parseInt(atc.value || "0");
+
+    // Video views (3-second views)
     const vv = row.actions.find((a: any) => a.action_type === "video_view");
     if (vv) videoViews = parseInt(vv.value || "0");
+
+    // ThruPlays (for hold rate)
+    const tp = row.actions.find((a: any) => a.action_type === "video_thruplay" || a.action_type === "thruplay");
+    if (tp) thruPlays = parseInt(tp.value || "0");
   }
   if (row.action_values) {
-    const pv = row.action_values.find((a: any) => a.action_type === "purchase" || a.action_type === "offsite_conversion.fb_pixel_purchase");
+    const purchaseTypes = ["purchase", "offsite_conversion.fb_pixel_purchase", "omni_purchase"];
+    const pv = row.action_values.find((a: any) => purchaseTypes.includes(a.action_type));
     if (pv) purchaseValue = parseFloat(pv.value || "0");
   }
   if (row.cost_per_action_type) {
-    const cp = row.cost_per_action_type.find((a: any) => a.action_type === "purchase" || a.action_type === "offsite_conversion.fb_pixel_purchase");
+    const purchaseTypes = ["purchase", "offsite_conversion.fb_pixel_purchase", "omni_purchase"];
+    const cp = row.cost_per_action_type.find((a: any) => purchaseTypes.includes(a.action_type));
     if (cp) cpa = parseFloat(cp.value || "0");
-    const cpatc = row.cost_per_action_type.find((a: any) => a.action_type === "add_to_cart" || a.action_type === "offsite_conversion.fb_pixel_add_to_cart");
+
+    const atcTypes = ["add_to_cart", "offsite_conversion.fb_pixel_add_to_cart", "omni_add_to_cart"];
+    const cpatc = row.cost_per_action_type.find((a: any) => atcTypes.includes(a.action_type));
     if (cpatc) costPerAtc = parseFloat(cpatc.value || "0");
   }
 
-  const thumbStopRate = impressions > 0 ? (clicks / impressions) * 100 : 0;
+  // Hook Rate (Thumb Stop Rate) = 3-second video views / impressions × 100
+  const thumbStopRate = impressions > 0 && videoViews > 0 ? (videoViews / impressions) * 100 : 0;
 
-  return { spend, roas, cpa, ctr, clicks, impressions, cpm, cpc, frequency, purchases, purchase_value: purchaseValue, thumb_stop_rate: thumbStopRate, adds_to_cart: addsToCart, cost_per_add_to_cart: costPerAtc, video_views: videoViews };
+  // Hold Rate = ThruPlays / 3-second video views × 100
+  const holdRate = videoViews > 0 && thruPlays > 0 ? (thruPlays / videoViews) * 100 : 0;
+
+  // Avg Play Time from Meta's video_avg_time_watched_actions
+  let videoAvgPlayTime = 0;
+  if (row.video_avg_time_watched_actions) {
+    const vat = row.video_avg_time_watched_actions.find((a: any) => a.action_type === "video_view");
+    if (vat) videoAvgPlayTime = parseFloat(vat.value || "0");
+  }
+
+  return { spend, roas, cpa, ctr, clicks, impressions, cpm, cpc, frequency, purchases, purchase_value: purchaseValue, thumb_stop_rate: thumbStopRate, hold_rate: holdRate, video_avg_play_time: videoAvgPlayTime, adds_to_cart: addsToCart, cost_per_add_to_cart: costPerAtc, video_views: videoViews };
 }
 
 // ─── Main Handler ────────────────────────────────────────────────────────────
@@ -316,7 +342,7 @@ serve(async (req) => {
           if (!isTimedOut()) {
             console.log("Phase 2: Fetching aggregated insights...");
 
-            const insightsFields = "ad_id,spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values";
+            const insightsFields = "ad_id,spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values,video_avg_time_watched_actions";
             const insightsUrl = `https://graph.facebook.com/v21.0/${account.id}/insights?` +
               `time_range=${encodeURIComponent(timeRange)}` +
               `&level=ad` +
@@ -355,7 +381,7 @@ serve(async (req) => {
               const metrics = insights ? parseInsightsRow(insights) : {
                 spend: 0, roas: 0, cpa: 0, ctr: 0, clicks: 0, impressions: 0,
                 cpm: 0, cpc: 0, frequency: 0, purchases: 0, purchase_value: 0, 
-                thumb_stop_rate: 0, adds_to_cart: 0, cost_per_add_to_cart: 0, video_views: 0,
+                thumb_stop_rate: 0, hold_rate: 0, video_avg_play_time: 0, adds_to_cart: 0, cost_per_add_to_cart: 0, video_views: 0,
               };
 
               const creativeData = {
@@ -365,7 +391,7 @@ serve(async (req) => {
                 adset_name: ad.adset?.name || null,
                 thumbnail_url: ad.creative?.thumbnail_url || null,
                 preview_url: ad.preview_shareable_link || null,
-                ...metrics, hold_rate: 0,
+                ...metrics,
               };
 
               if (manualAdIds.has(ad.id)) {
@@ -427,7 +453,7 @@ serve(async (req) => {
 
               const dailyUrl = `https://graph.facebook.com/v21.0/${account.id}/insights?` +
                 `time_range=${encodeURIComponent(chunkRange)}&time_increment=1&level=ad` +
-                `&fields=ad_id,spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values` +
+                `&fields=ad_id,spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values,video_avg_time_watched_actions` +
                 `&limit=200&access_token=${encodeURIComponent(metaToken)}`;
 
               let nextDailyUrl: string | null = dailyUrl;
@@ -439,7 +465,7 @@ serve(async (req) => {
                     const metrics = parseInsightsRow(row);
                     dailyRows.push({
                       ad_id: row.ad_id, account_id: account.id, date: row.date_start,
-                      ...metrics, hold_rate: 0, video_avg_play_time: 0,
+                      ...metrics,
                     });
                   }
                   console.log(`  Daily rows: ${dailyRows.length}`);
