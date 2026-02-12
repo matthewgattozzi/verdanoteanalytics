@@ -77,17 +77,17 @@ export function DateRangeFilter({ dateFrom, dateTo, onChange }: DateRangeFilterP
             {displayLabel}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 z-50 bg-popover border border-border shadow-lg" align="start">
+        <PopoverContent className="w-auto p-0 z-50 bg-popover border border-border shadow-lg" align="start" sideOffset={4}>
           <div className="flex">
             {/* Presets sidebar */}
-            <div className="border-r border-border p-2 min-w-[140px] space-y-0.5">
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2 pb-1">Presets</p>
+            <div className="border-r border-border py-1.5 px-1.5 min-w-[110px] space-y-0.5">
+              <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider px-1.5 pb-0.5">Presets</p>
               {PRESETS.map((p) => (
                 <button
                   key={p.label}
                   onClick={() => handlePreset(p)}
                   className={cn(
-                    "w-full text-left text-xs px-2 py-1.5 rounded-md transition-colors",
+                    "w-full text-left text-[11px] px-1.5 py-1 rounded transition-colors",
                     activePreset?.label === p.label
                       ? "bg-primary text-primary-foreground"
                       : "hover:bg-accent text-foreground"
@@ -99,22 +99,22 @@ export function DateRangeFilter({ dateFrom, dateTo, onChange }: DateRangeFilterP
             </div>
 
             {/* Calendar */}
-            <div className="p-2">
-              <div className="flex items-center gap-2 px-2 pb-2 border-b border-border mb-2">
+            <div className="p-1.5">
+              <div className="flex items-center gap-1.5 px-1 pb-1.5 border-b border-border mb-1">
                 <button
                   onClick={() => setPickingFrom(true)}
                   className={cn(
-                    "text-xs px-2 py-1 rounded transition-colors",
+                    "text-[11px] px-1.5 py-0.5 rounded transition-colors",
                     pickingFrom ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {dateFrom ? format(new Date(dateFrom), "MMM d, yyyy") : "Start date"}
                 </button>
-                <span className="text-xs text-muted-foreground">–</span>
+                <span className="text-[11px] text-muted-foreground">–</span>
                 <button
                   onClick={() => setPickingFrom(false)}
                   className={cn(
-                    "text-xs px-2 py-1 rounded transition-colors",
+                    "text-[11px] px-1.5 py-0.5 rounded transition-colors",
                     !pickingFrom ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -127,7 +127,7 @@ export function DateRangeFilter({ dateFrom, dateTo, onChange }: DateRangeFilterP
                 onSelect={handleCalendarSelect}
                 disabled={(date) => date > new Date()}
                 initialFocus
-                className="p-0 pointer-events-auto"
+                className="p-0 pointer-events-auto [&_table]:text-xs [&_td]:p-0 [&_th]:p-0 [&_td>button]:h-7 [&_td>button]:w-7 [&_th]:w-7 [&_th]:text-[10px]"
               />
             </div>
           </div>
