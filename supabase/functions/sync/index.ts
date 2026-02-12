@@ -38,37 +38,65 @@ function parseAdName(adName: string) {
 
 // ─── Meta API Helper ─────────────────────────────────────────────────────────
 
-const MAX_RATE_LIMIT_RETRIES = 2;
+const MAX_RATE_LIMIT_RETRIES = 3;
 
 async function metaFetch(
   url: string,
   ctx: { metaApiCalls: number; apiErrors: { timestamp: string; message: string }[]; isTimedOut: () => boolean }
-): Promise<{ data: any[] | null; next: string | null; error: boolean }> {
-  if (ctx.isTimedOut()) return { data: null, next: null, error: false };
+): Promise<{ data: any[] | null; next: string | null; error: boolean; rateLimited: boolean }> {
+  if (ctx.isTimedOut()) return { data: null, next: null, error: false, rateLimited: false };
 
   let rateLimitRetries = 0;
   while (true) {
     ctx.metaApiCalls++;
-    const resp = await fetch(url);
-    const json = await resp.json();
+    try {
+      const resp = await fetch(url);
+      const json = await resp.json();
 
-    if (json.error) {
-      // Rate limit — back off and retry (limited retries)
-      if (json.error.code === 80004 && rateLimitRetries < MAX_RATE_LIMIT_RETRIES) {
-        rateLimitRetries++;
-        const waitSec = 30 * rateLimitRetries;
-        console.log(`Rate limited, waiting ${waitSec}s (retry ${rateLimitRetries}/${MAX_RATE_LIMIT_RETRIES})...`);
-        ctx.apiErrors.push({ timestamp: new Date().toISOString(), message: `Rate limited, backing off ${waitSec}s` });
-        await new Promise(r => setTimeout(r, waitSec * 1000));
-        if (ctx.isTimedOut()) return { data: null, next: null, error: false };
-        continue;
+      if (json.error) {
+        // Rate limit
+        if ((json.error.code === 80004 || json.error.code === 80000 || json.error.error_subcode === 2446079) && rateLimitRetries < MAX_RATE_LIMIT_RETRIES) {
+          rateLimitRetries++;
+          const waitSec = 30 * rateLimitRetries;
+          console.log(`Rate limited, waiting ${waitSec}s (retry ${rateLimitRetries}/${MAX_RATE_LIMIT_RETRIES})...`);
+          ctx.apiErrors.push({ timestamp: new Date().toISOString(), message: `Rate limited, backing off ${waitSec}s` });
+          await new Promise(r => setTimeout(r, waitSec * 1000));
+          if (ctx.isTimedOut()) return { data: null, next: null, error: false, rateLimited: true };
+          continue;
+        }
+        // "Reduce data" error — try lower limit
+        if (json.error.message?.includes("reduce the amount of data")) {
+          console.log("Meta asked to reduce data volume");
+          ctx.apiErrors.push({ timestamp: new Date().toISOString(), message: "Reduce data request" });
+          // Try reducing the limit in the URL
+          const reducedUrl = url.replace(/limit=\d+/, (match) => {
+            const currentLimit = parseInt(match.split("=")[1]);
+            const newLimit = Math.max(10, Math.floor(currentLimit / 2));
+            return `limit=${newLimit}`;
+          });
+          if (reducedUrl !== url) {
+            ctx.metaApiCalls++;
+            const retryResp = await fetch(reducedUrl);
+            const retryJson = await retryResp.json();
+            if (!retryJson.error) {
+              return { data: retryJson.data || [], next: retryJson.paging?.next || null, error: false, rateLimited: false };
+            }
+          }
+          return { data: null, next: null, error: true, rateLimited: false };
+        }
+
+        console.error("Meta API error:", JSON.stringify(json.error));
+        ctx.apiErrors.push({ timestamp: new Date().toISOString(), message: json.error.message || "Unknown Meta error" });
+        const isRateLimit = json.error.code === 80004 || json.error.code === 80000;
+        return { data: null, next: null, error: true, rateLimited: isRateLimit };
       }
-      console.error("Meta API error:", json.error);
-      ctx.apiErrors.push({ timestamp: new Date().toISOString(), message: json.error.message || "Unknown Meta error" });
-      return { data: null, next: null, error: true };
-    }
 
-    return { data: json.data || [], next: json.paging?.next || null, error: false };
+      return { data: json.data || [], next: json.paging?.next || null, error: false, rateLimited: false };
+    } catch (fetchErr) {
+      console.error("Fetch error:", fetchErr);
+      ctx.apiErrors.push({ timestamp: new Date().toISOString(), message: `Network error: ${String(fetchErr)}` });
+      return { data: null, next: null, error: true, rateLimited: false };
+    }
   }
 }
 
@@ -85,21 +113,31 @@ function parseInsightsRow(row: any) {
   const frequency = parseFloat(row.frequency || "0");
 
   let purchases = 0, purchaseValue = 0, cpa = 0;
+  let addsToCart = 0, costPerAtc = 0;
+  let videoViews = 0;
+
   if (row.actions) {
-    const pa = row.actions.find((a: any) => a.action_type === "purchase");
+    const pa = row.actions.find((a: any) => a.action_type === "purchase" || a.action_type === "offsite_conversion.fb_pixel_purchase");
     if (pa) purchases = parseInt(pa.value || "0");
+    const atc = row.actions.find((a: any) => a.action_type === "add_to_cart" || a.action_type === "offsite_conversion.fb_pixel_add_to_cart");
+    if (atc) addsToCart = parseInt(atc.value || "0");
+    const vv = row.actions.find((a: any) => a.action_type === "video_view");
+    if (vv) videoViews = parseInt(vv.value || "0");
   }
   if (row.action_values) {
-    const pv = row.action_values.find((a: any) => a.action_type === "purchase");
+    const pv = row.action_values.find((a: any) => a.action_type === "purchase" || a.action_type === "offsite_conversion.fb_pixel_purchase");
     if (pv) purchaseValue = parseFloat(pv.value || "0");
   }
   if (row.cost_per_action_type) {
-    const cp = row.cost_per_action_type.find((a: any) => a.action_type === "purchase");
+    const cp = row.cost_per_action_type.find((a: any) => a.action_type === "purchase" || a.action_type === "offsite_conversion.fb_pixel_purchase");
     if (cp) cpa = parseFloat(cp.value || "0");
+    const cpatc = row.cost_per_action_type.find((a: any) => a.action_type === "add_to_cart" || a.action_type === "offsite_conversion.fb_pixel_add_to_cart");
+    if (cpatc) costPerAtc = parseFloat(cpatc.value || "0");
   }
+
   const thumbStopRate = impressions > 0 ? (clicks / impressions) * 100 : 0;
 
-  return { spend, roas, cpa, ctr, clicks, impressions, cpm, cpc, frequency, purchases, purchase_value: purchaseValue, thumb_stop_rate: thumbStopRate };
+  return { spend, roas, cpa, ctr, clicks, impressions, cpm, cpc, frequency, purchases, purchase_value: purchaseValue, thumb_stop_rate: thumbStopRate, adds_to_cart: addsToCart, cost_per_add_to_cart: costPerAtc, video_views: videoViews };
 }
 
 // ─── Main Handler ────────────────────────────────────────────────────────────
@@ -146,26 +184,21 @@ serve(async (req) => {
       const body = await req.json();
       const { account_id, sync_type = "manual" } = body;
 
-      // Timeout recovery: mark stuck syncs as failed
+      // Timeout recovery
       const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
       const { data: stuckSyncs } = await supabase.from("sync_logs").select("id").eq("status", "running").lt("started_at", tenMinAgo);
       if (stuckSyncs?.length) {
         await supabase.from("sync_logs").update({
           status: "failed",
-          api_errors: JSON.stringify([{ timestamp: new Date().toISOString(), message: "Sync timed out (exceeded 10 minutes)" }]),
+          api_errors: JSON.stringify([{ timestamp: new Date().toISOString(), message: "Sync timed out" }]),
           completed_at: new Date().toISOString(),
         }).in("id", stuckSyncs.map((s: any) => s.id));
-        console.log(`Recovered ${stuckSyncs.length} stuck sync(s)`);
       }
 
       // Prevent concurrent syncs
       const { data: runningSyncs } = await supabase.from("sync_logs").select("id, account_id, started_at").eq("status", "running").limit(1);
       if (runningSyncs?.length) {
-        const r = runningSyncs[0];
-        return new Response(JSON.stringify({
-          error: `Sync already running (started ${Math.round((Date.now() - new Date(r.started_at).getTime()) / 1000)}s ago)`,
-          running_sync: r,
-        }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "Sync already running" }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       // Get Meta token
@@ -176,11 +209,7 @@ serve(async (req) => {
       }
       if (!metaToken) return new Response(JSON.stringify({ error: "No Meta access token configured" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      // Get settings & accounts
-      const { data: settingsRows } = await supabase.from("settings").select("*");
-      const settings: Record<string, string> = {};
-      for (const row of settingsRows || []) settings[row.key] = row.value;
-
+      // Get accounts
       let accounts: any[] = [];
       if (account_id && account_id !== "all") {
         const { data } = await supabase.from("ad_accounts").select("*").eq("id", account_id).single();
@@ -191,40 +220,16 @@ serve(async (req) => {
       }
       if (!accounts.length) return new Response(JSON.stringify({ error: "No accounts to sync" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      // Stagger scheduled multi-account syncs
-      if (account_id === "all" && accounts.length > 1 && sync_type === "scheduled") {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-        const results: any[] = [];
-        for (let i = 0; i < accounts.length; i++) {
-          const acct = accounts[i];
-          console.log(`Staggered sync: account ${acct.id} (${acct.name}) [${i + 1}/${accounts.length}]`);
-          try {
-            const resp = await fetch(`${supabaseUrl}/functions/v1/sync`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
-              body: JSON.stringify({ account_id: acct.id, sync_type: "scheduled" }),
-            });
-            results.push({ account_id: acct.id, status: resp.ok ? "triggered" : "error", result: await resp.json() });
-          } catch (e) {
-            results.push({ account_id: acct.id, status: "error", error: String(e) });
-          }
-          if (i < accounts.length - 1) await new Promise(r => setTimeout(r, 5000));
-        }
-        return new Response(JSON.stringify({ staggered: true, results }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-
-      // ─── Single-account sync ───────────────────────────────────────
       const HARD_DEADLINE_MS = 8 * 60 * 1000;
       const syncStartGlobal = Date.now();
       const isTimedOut = () => (Date.now() - syncStartGlobal) > HARD_DEADLINE_MS;
       const allResults = [];
 
       for (const account of accounts) {
-        if (isTimedOut()) { console.log("Global timeout, skipping remaining accounts"); break; }
+        if (isTimedOut()) break;
 
         const startedAt = Date.now();
-        const dateRangeDays = sync_type === "initial" ? 90 : (account.date_range_days || parseInt(settings.date_range_days || "14"));
+        const dateRangeDays = sync_type === "initial" ? 90 : (account.date_range_days || 14);
         const endDate = new Date();
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - dateRangeDays);
@@ -232,19 +237,17 @@ serve(async (req) => {
         const untilStr = endDate.toISOString().split("T")[0];
         const timeRange = JSON.stringify({ since: sinceStr, until: untilStr });
 
-        // Create sync log
         const { data: logEntry, error: logError } = await supabase.from("sync_logs").insert({
           account_id: account.id, sync_type, status: "running",
           date_range_start: sinceStr, date_range_end: untilStr,
         }).select().single();
-        if (logError) { console.error("Failed to create sync log:", logError); continue; }
+        if (logError) { console.error("Log create error:", logError); continue; }
         const syncLogId = logEntry.id;
 
         let creativesFetched = 0, creativesUpserted = 0;
         let tagsParsed = 0, tagsCsvMatched = 0, tagsManualPreserved = 0, tagsUntagged = 0;
         const ctx = { metaApiCalls: 0, apiErrors: [] as { timestamp: string; message: string }[], isTimedOut };
 
-        // Helper to save progress at any point
         const saveProgress = async (status: string) => {
           await supabase.from("sync_logs").update({
             status, creatives_fetched: creativesFetched, creatives_upserted: creativesUpserted,
@@ -257,44 +260,67 @@ serve(async (req) => {
 
         try {
           console.log(`\n━━━ Syncing ${account.name} (${account.id}) ━━━`);
-          console.log(`Date range: ${sinceStr} → ${untilStr} (${dateRangeDays} days)`);
+          console.log(`Date range: ${sinceStr} → ${untilStr}`);
 
-          // ─── PHASE 1: Fetch ads metadata ─────────────────────────────
-          // Fetch WITHOUT insights — Meta returns much larger pages this way
-          console.log("Phase 1: Fetching ads metadata...");
+          // ─── Check if we already have ads in DB ─────────────────────
+          const { count: existingCount } = await supabase.from("creatives")
+            .select("*", { count: "exact", head: true })
+            .eq("account_id", account.id);
+          const hasExistingAds = (existingCount || 0) > 0;
 
-          const adsUrl = `https://graph.facebook.com/v21.0/${account.id}/ads?` +
-            `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,video_id},preview_shareable_link` +
-            `&limit=50&access_token=${encodeURIComponent(metaToken)}`;
+          // ─── PHASE 1: Fetch ads metadata (skip if we already have them) ──
+          let fetchedAds: any[] = [];
+          let skipAdFetch = false;
 
-          const fetchedAds: any[] = [];
-          let nextAdsUrl: string | null = adsUrl;
+          if (hasExistingAds && sync_type !== "initial") {
+            console.log(`Phase 1: Skipping ad fetch — ${existingCount} ads already in DB`);
+            skipAdFetch = true;
+            creativesFetched = existingCount || 0;
+          } else {
+            console.log("Phase 1: Fetching ads metadata...");
+            const adsUrl = `https://graph.facebook.com/v21.0/${account.id}/ads?` +
+              `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url},preview_shareable_link` +
+              `&limit=50&access_token=${encodeURIComponent(metaToken)}`;
 
-          while (nextAdsUrl && !isTimedOut()) {
-            const result = await metaFetch(nextAdsUrl, ctx);
-            if (result.error) break;
-            if (result.data) {
-              fetchedAds.push(...result.data);
-              console.log(`  Ads fetched: ${fetchedAds.length}`);
+            let nextAdsUrl: string | null = adsUrl;
+            let adFetchFailed = false;
+
+            while (nextAdsUrl && !isTimedOut()) {
+              const result = await metaFetch(nextAdsUrl, ctx);
+              if (result.error || result.rateLimited) {
+                if (result.rateLimited && hasExistingAds) {
+                  console.log("Rate limited on ad fetch but ads exist in DB — skipping to insights");
+                  skipAdFetch = true;
+                  creativesFetched = existingCount || 0;
+                }
+                adFetchFailed = !skipAdFetch;
+                break;
+              }
+              if (result.data) {
+                fetchedAds.push(...result.data);
+                console.log(`  Ads fetched: ${fetchedAds.length}`);
+              }
+              nextAdsUrl = result.next;
+              if (nextAdsUrl) await new Promise(r => setTimeout(r, 500));
             }
-            nextAdsUrl = result.next;
-            if (nextAdsUrl) await new Promise(r => setTimeout(r, 500));
+
+            if (!skipAdFetch) {
+              creativesFetched = fetchedAds.length;
+              console.log(`Phase 1 complete: ${creativesFetched} ads`);
+            }
           }
 
-          creativesFetched = fetchedAds.length;
-          console.log(`Phase 1 complete: ${creativesFetched} ads fetched in ${ctx.metaApiCalls} API calls`);
-
           // ─── PHASE 2: Fetch aggregated insights (account-level) ──────
-          // Single API call at account level with level=ad — returns all ads' insights at once
           const insightsMap = new Map<string, any>();
 
-          if (creativesFetched > 0 && !isTimedOut()) {
+          if (!isTimedOut()) {
             console.log("Phase 2: Fetching aggregated insights...");
 
+            const insightsFields = "ad_id,spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values";
             const insightsUrl = `https://graph.facebook.com/v21.0/${account.id}/insights?` +
               `time_range=${encodeURIComponent(timeRange)}` +
               `&level=ad` +
-              `&fields=ad_id,spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values` +
+              `&fields=${insightsFields}` +
               `&limit=500&access_token=${encodeURIComponent(metaToken)}`;
 
             let nextInsightsUrl: string | null = insightsUrl;
@@ -309,17 +335,17 @@ serve(async (req) => {
               if (nextInsightsUrl) await new Promise(r => setTimeout(r, 300));
             }
 
-            console.log(`Phase 2 complete: ${insightsMap.size} ad insights fetched`);
+            console.log(`Phase 2 complete: ${insightsMap.size} ad insights`);
           }
 
-          // ─── PHASE 3: Build & upsert creatives ───────────────────────
-          if (creativesFetched > 0) {
-            console.log("Phase 3: Upserting creatives...");
+          // ─── PHASE 3: Upsert creatives ───────────────────────────────
+          // Get manual-tagged ad IDs to preserve
+          const { data: manualAds } = await supabase.from("creatives").select("ad_id")
+            .eq("account_id", account.id).eq("tag_source", "manual");
+          const manualAdIds = new Set((manualAds || []).map((a: any) => a.ad_id));
 
-            // Get manual-tagged ad IDs to preserve
-            const { data: manualAds } = await supabase.from("creatives").select("ad_id")
-              .eq("account_id", account.id).eq("tag_source", "manual");
-            const manualAdIds = new Set((manualAds || []).map((a: any) => a.ad_id));
+          if (!skipAdFetch && fetchedAds.length > 0) {
+            console.log("Phase 3: Upserting creatives with metrics...");
 
             const upsertBatch: any[] = [];
             const manualUpdateBatch: any[] = [];
@@ -328,7 +354,8 @@ serve(async (req) => {
               const insights = insightsMap.get(ad.id);
               const metrics = insights ? parseInsightsRow(insights) : {
                 spend: 0, roas: 0, cpa: 0, ctr: 0, clicks: 0, impressions: 0,
-                cpm: 0, cpc: 0, frequency: 0, purchases: 0, purchase_value: 0, thumb_stop_rate: 0,
+                cpm: 0, cpc: 0, frequency: 0, purchases: 0, purchase_value: 0, 
+                thumb_stop_rate: 0, adds_to_cart: 0, cost_per_add_to_cart: 0, video_views: 0,
               };
 
               const creativeData = {
@@ -338,7 +365,7 @@ serve(async (req) => {
                 adset_name: ad.adset?.name || null,
                 thumbnail_url: ad.creative?.thumbnail_url || null,
                 preview_url: ad.preview_shareable_link || null,
-                ...metrics, video_views: 0, hold_rate: 0,
+                ...metrics, hold_rate: 0,
               };
 
               if (manualAdIds.has(ad.id)) {
@@ -349,36 +376,43 @@ serve(async (req) => {
               }
             }
 
-            // Batch upsert (progressive — save as we go)
             for (let i = 0; i < upsertBatch.length; i += 100) {
               const chunk = upsertBatch.slice(i, i + 100);
               const { error } = await supabase.from("creatives").upsert(chunk, { onConflict: "ad_id" });
               if (!error) creativesUpserted += chunk.length;
-              else console.error("Upsert error:", error);
+              else console.error("Upsert error:", error.message);
             }
-
-            // Update manual-tagged creatives (metrics only)
-            for (let i = 0; i < manualUpdateBatch.length; i += 50) {
-              const batch = manualUpdateBatch.slice(i, i + 50);
-              await Promise.all(batch.map(({ ad_id, ...metrics }: any) =>
-                supabase.from("creatives").update(metrics).eq("ad_id", ad_id)
-              ));
-              creativesUpserted += batch.length;
+            for (const item of manualUpdateBatch) {
+              const { ad_id, ...metrics } = item;
+              await supabase.from("creatives").update(metrics).eq("ad_id", ad_id);
+              creativesUpserted++;
             }
-
-            console.log(`Phase 3 complete: ${creativesUpserted} creatives upserted`);
-
-            // Save progress after creatives — if function dies during daily breakdowns, we still have creatives
-            await saveProgress("running");
+            console.log(`Phase 3 complete: ${creativesUpserted} upserted`);
+          } else if (skipAdFetch && insightsMap.size > 0) {
+            // Update existing creatives with new insights data
+            console.log("Phase 3: Updating existing creatives with insights...");
+            let updated = 0;
+            const entries = Array.from(insightsMap.entries());
+            for (let i = 0; i < entries.length; i += 50) {
+              const batch = entries.slice(i, i + 50);
+              await Promise.all(batch.map(([adId, row]) => {
+                const metrics = parseInsightsRow(row);
+                return supabase.from("creatives").update(metrics).eq("ad_id", adId);
+              }));
+              updated += batch.length;
+            }
+            creativesUpserted = updated;
+            console.log(`Phase 3 complete: ${updated} creatives updated with insights`);
           }
 
-          // ─── PHASE 4: Daily breakdowns (account-level) ───────────────
+          await saveProgress("running");
+
+          // ─── PHASE 4: Daily breakdowns ───────────────────────────────
           const dailyRows: any[] = [];
 
           if (!isTimedOut()) {
             console.log("Phase 4: Fetching daily breakdowns...");
 
-            // 14-day chunks to keep response sizes manageable
             const chunkStart = new Date(startDate);
             while (chunkStart < endDate && !isTimedOut()) {
               const chunkEnd = new Date(chunkStart);
@@ -405,8 +439,7 @@ serve(async (req) => {
                     const metrics = parseInsightsRow(row);
                     dailyRows.push({
                       ad_id: row.ad_id, account_id: account.id, date: row.date_start,
-                      ...metrics, video_views: 0, hold_rate: 0, video_avg_play_time: 0,
-                      adds_to_cart: 0, cost_per_add_to_cart: 0,
+                      ...metrics, hold_rate: 0, video_avg_play_time: 0,
                     });
                   }
                   console.log(`  Daily rows: ${dailyRows.length}`);
@@ -419,18 +452,17 @@ serve(async (req) => {
               if (chunkStart < endDate) await new Promise(r => setTimeout(r, 500));
             }
 
-            // Upsert daily metrics
             for (let i = 0; i < dailyRows.length; i += 100) {
               const chunk = dailyRows.slice(i, i + 100);
               const { error } = await supabase.from("creative_daily_metrics").upsert(chunk, { onConflict: "ad_id,date" });
-              if (error) console.error("Daily upsert error:", error);
+              if (error) console.error("Daily upsert error:", error.message);
             }
-            console.log(`Phase 4 complete: ${dailyRows.length} daily rows upserted`);
+            console.log(`Phase 4 complete: ${dailyRows.length} daily rows`);
           } else {
             ctx.apiErrors.push({ timestamp: new Date().toISOString(), message: "Skipped daily breakdowns due to timeout" });
           }
 
-          // ─── PHASE 5: Tag resolution (pure DB, no API calls) ─────────
+          // ─── PHASE 5: Tag resolution ─────────────────────────────────
           console.log("Phase 5: Resolving tags...");
 
           const { data: allMappings } = await supabase.from("name_mappings").select("*").eq("account_id", account.id);
@@ -478,7 +510,7 @@ serve(async (req) => {
           await saveProgress(finalStatus);
 
           console.log(`\n✅ Sync complete for ${account.name}: ${finalStatus}`);
-          console.log(`   ${creativesFetched} fetched, ${creativesUpserted} upserted, ${ctx.metaApiCalls} API calls, ${Date.now() - startedAt}ms`);
+          console.log(`   ${creativesFetched} fetched, ${creativesUpserted} upserted, insights: ${insightsMap.size}, daily: ${dailyRows.length}`);
 
           allResults.push({
             account_id: account.id, account_name: account.name,
