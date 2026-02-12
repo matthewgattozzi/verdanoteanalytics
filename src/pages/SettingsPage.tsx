@@ -89,14 +89,19 @@ const SettingsPage = () => {
     });
   };
 
-  const handleApplyPromptsToAll = () => {
+  const handleApplyPromptsToAll = async () => {
     const promptValues = {
       creative_analysis_prompt: creativePrompt === DEFAULT_CREATIVE_PROMPT ? null : creativePrompt || null,
       insights_prompt: insightsPrompt === DEFAULT_INSIGHTS_PROMPT ? null : insightsPrompt || null,
     };
-    (accounts || []).forEach((acc: any) => {
-      updateAccountSettings.mutate({ id: acc.id, ...promptValues });
-    });
+    for (const acc of (accounts || []) as any[]) {
+      try {
+        await updateAccountSettings.mutateAsync({ id: acc.id, ...promptValues });
+      } catch (e) {
+        // error toast already shown by mutation
+      }
+    }
+    toast.success("Prompts applied to all accounts");
   };
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
