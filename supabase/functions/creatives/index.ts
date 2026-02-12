@@ -35,6 +35,35 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  // Auth: require authenticated user with valid role
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const token = authHeader.replace("Bearer ", "");
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const { data: userRole } = await supabase.from("user_roles").select("role").eq("user_id", user.id).single();
+  if (!userRole || !["builder", "employee", "client"].includes(userRole.role)) {
+    return new Response(JSON.stringify({ error: "Forbidden" }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Clients can only read, not write
+  if (userRole.role === "client" && req.method !== "GET") {
+    return new Response(JSON.stringify({ error: "Forbidden: read-only access" }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const url = new URL(req.url);
   const path = url.pathname.replace(/^\/creatives\/?/, "").replace(/\/$/, "");
 
@@ -336,6 +365,6 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("Creatives error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Internal server error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

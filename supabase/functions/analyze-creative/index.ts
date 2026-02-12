@@ -39,6 +39,27 @@ serve(async (req) => {
 
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+  // Auth: require builder or employee role
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const token = authHeader.replace("Bearer ", "");
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const { data: userRole } = await supabase.from("user_roles").select("role").eq("user_id", user.id).single();
+  if (!userRole || !["builder", "employee"].includes(userRole.role)) {
+    return new Response(JSON.stringify({ error: "Forbidden" }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const body = await req.json();
     const { ad_id, bulk } = body;
@@ -96,7 +117,6 @@ serve(async (req) => {
         });
       }
 
-      // Mark all as analyzing
       const ids = creatives.map((c: any) => c.ad_id);
       await supabase.from("creatives").update({ analysis_status: "analyzing" }).in("ad_id", ids);
 
@@ -109,7 +129,6 @@ serve(async (req) => {
           if (result.error) {
             errors++;
             await supabase.from("creatives").update({ analysis_status: "pending" }).eq("ad_id", creative.ad_id);
-            // If rate limited, stop processing
             if (result.status === 429 || result.status === 402) break;
             continue;
           }
@@ -124,8 +143,6 @@ serve(async (req) => {
           }).eq("ad_id", creative.ad_id);
 
           analyzed++;
-
-          // Small delay between requests to avoid rate limits
           await new Promise(r => setTimeout(r, 500));
         } catch (err) {
           errors++;
@@ -143,7 +160,7 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("Analyze error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
