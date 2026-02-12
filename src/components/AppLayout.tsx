@@ -42,7 +42,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <span className="text-sm font-semibold">Creative Analytics</span>
+          <span className="text-sm font-semibold">Verdanote</span>
         </div>
         <div className="p-4 md:p-6 max-w-[1400px] mx-auto">
           {children}
