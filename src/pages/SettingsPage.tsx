@@ -74,7 +74,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
-function AccountSyncSettings({ account, onSave, isPending }: { account: any; onSave: (account: any, dateRange: string, roasThreshold: string, spendThreshold: string) => void; isPending: boolean }) {
+function AccountSyncSettings({ account, allAccounts, onSave, onApplyToAll, isPending }: { account: any; allAccounts: any[]; onSave: (account: any, dateRange: string, roasThreshold: string, spendThreshold: string) => void; onApplyToAll: (dateRange: string, roasThreshold: string, spendThreshold: string) => void; isPending: boolean }) {
   const [dateRange, setDateRange] = useState(String(account.date_range_days || 30));
   const [roasThreshold, setRoasThreshold] = useState(String(account.winner_roas_threshold || 2.0));
   const [spendThreshold, setSpendThreshold] = useState(String(account.iteration_spend_threshold || 50));
@@ -102,11 +102,16 @@ function AccountSyncSettings({ account, onSave, isPending }: { account: any; onS
           <p className="text-[11px] text-muted-foreground">Minimum spend to include a creative in iteration analysis.</p>
         </div>
       </div>
-      <div className="pt-2">
+      <div className="pt-2 flex items-center gap-2">
         <Button size="sm" onClick={() => onSave(account, dateRange, roasThreshold, spendThreshold)} disabled={isPending}>
           {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
           Save Settings
         </Button>
+        {allAccounts.length > 1 && (
+          <Button size="sm" variant="outline" onClick={() => onApplyToAll(dateRange, roasThreshold, spendThreshold)} disabled={isPending}>
+            Apply to All Accounts
+          </Button>
+        )}
       </div>
     </section>
   );
@@ -186,6 +191,17 @@ const SettingsPage = () => {
       date_range_days: parseInt(dateRange) || 30,
       winner_roas_threshold: parseFloat(roasThreshold) || 2.0,
       iteration_spend_threshold: parseFloat(spendThreshold) || 50,
+    });
+  };
+
+  const handleApplyToAll = (dateRange: string, roasThreshold: string, spendThreshold: string) => {
+    (accounts || []).forEach((acc: any) => {
+      updateAccountSettings.mutate({
+        id: acc.id,
+        date_range_days: parseInt(dateRange) || 30,
+        winner_roas_threshold: parseFloat(roasThreshold) || 2.0,
+        iteration_spend_threshold: parseFloat(spendThreshold) || 50,
+      });
     });
   };
 
@@ -419,7 +435,7 @@ const SettingsPage = () => {
 
         {/* Per-Account Sync Settings */}
         {accounts?.map((account: any) => (
-          <AccountSyncSettings key={account.id} account={account} onSave={handleSaveAccountSettings} isPending={updateAccountSettings.isPending} />
+          <AccountSyncSettings key={account.id} account={account} allAccounts={accounts || []} onSave={handleSaveAccountSettings} onApplyToAll={handleApplyToAll} isPending={updateAccountSettings.isPending} />
         ))}
 
         {/* User Management — builder only */}

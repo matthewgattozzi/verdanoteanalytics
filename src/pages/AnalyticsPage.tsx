@@ -79,6 +79,14 @@ const AnalyticsPage = () => {
     const totalPurchaseValue = tagged.reduce((s: number, c: any) => s + (Number(c.purchase_value) || 0), 0);
     const blendedRoas = totalSpend > 0 ? totalPurchaseValue / totalSpend : 0;
 
+    // Per-funnel breakdown
+    const funnels: Record<string, { total: number; winners: number }> = { TOF: { total: 0, winners: 0 }, MOF: { total: 0, winners: 0 }, BOF: { total: 0, winners: 0 } };
+    tagged.forEach((c: any) => {
+      const f = determineFunnel(c);
+      funnels[f].total++;
+      if (isWinner(c)) funnels[f].winners++;
+    });
+
     // Slice by dimension
     const sliceMap: Record<string, { total: number; winners: number }> = {};
     tagged.forEach((c: any) => {
@@ -97,6 +105,7 @@ const AnalyticsPage = () => {
       winners: winners.length,
       winRate: tagged.length > 0 ? ((winners.length / tagged.length) * 100).toFixed(1) : "0",
       blendedRoas: blendedRoas.toFixed(2),
+      funnels,
       breakdown,
     };
   }, [tagged, sliceBy, roasThreshold, spendThreshold]);
@@ -203,6 +212,33 @@ const AnalyticsPage = () => {
             <MetricCard label="Win Rate" value={winRateData ? `${winRateData.winRate}%` : "—"} icon={<Target className="h-4 w-4" />} />
             <MetricCard label="Blended ROAS" value={winRateData ? `${winRateData.blendedRoas}x` : "—"} />
           </div>
+
+          {/* Funnel stage breakdown */}
+          {winRateData?.funnels && (
+            <div className="grid grid-cols-3 gap-3">
+              {(["TOF", "MOF", "BOF"] as const).map((stage) => {
+                const f = winRateData.funnels[stage];
+                const rate = f.total > 0 ? ((f.winners / f.total) * 100).toFixed(1) : "0";
+                const labels = { TOF: "Top of Funnel", MOF: "Mid Funnel", BOF: "Bottom of Funnel" };
+                const criteria = { TOF: "CTR + Thumb Stop > median", MOF: "CTR + Hold Rate > median", BOF: `ROAS ≥ ${roasThreshold}x + spend > $${spendThreshold}` };
+                return (
+                  <div key={stage} className="glass-panel p-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-semibold">{stage}</span>
+                      <Badge variant="outline" className="text-[10px]">{labels[stage]}</Badge>
+                    </div>
+                    <div className="text-2xl font-bold font-mono">{rate}%</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">
+                      {f.winners} / {f.total} creatives
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5 italic">
+                      {criteria[stage]}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Slice by:</span>
