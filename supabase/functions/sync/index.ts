@@ -168,14 +168,16 @@ serve(async (req) => {
       const body = await req.json();
       const { account_id, sync_type = "manual" } = body;
 
-      // Get Meta token
-      const { data: tokenRow } = await supabase
-        .from("settings")
-        .select("value")
-        .eq("key", "meta_access_token")
-        .single();
-
-      const token = tokenRow?.value;
+      // Get Meta token — prefer secret, fallback to DB
+      let token = Deno.env.get("META_ACCESS_TOKEN");
+      if (!token) {
+        const { data: tokenRow } = await supabase
+          .from("settings")
+          .select("value")
+          .eq("key", "meta_access_token")
+          .single();
+        token = tokenRow?.value || null;
+      }
       if (!token) {
         return new Response(JSON.stringify({ error: "No Meta access token configured" }), {
           status: 400,
