@@ -11,6 +11,7 @@ import ReportsPage from "./pages/ReportsPage";
 import SettingsPage from "./pages/SettingsPage";
 import UserSettingsPage from "./pages/UserSettingsPage";
 import SyncHistoryPage from "./pages/SyncHistoryPage";
+import SavedViewsPage from "./pages/SavedViewsPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import UpdatePasswordPage from "./pages/UpdatePasswordPage";
@@ -41,6 +42,7 @@ function ProtectedRoutes() {
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/user-settings" element={<UserSettingsPage />} />
         <Route path="/sync-history" element={<SyncHistoryPage />} />
+        <Route path="/saved-views" element={<SavedViewsPage />} />
         <Route path="/accounts" element={<Navigate to="/settings" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
