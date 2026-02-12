@@ -7,6 +7,7 @@ import {
   History,
   Zap,
   LogOut,
+  UserCog,
 } from "lucide-react";
 import {
   Select,
@@ -103,7 +104,17 @@ export function AppSidebar() {
 
       {/* Footer */}
       <div className="mx-5 border-t border-border/30" />
-      <div className="px-5 py-4 flex items-center justify-between">
+      <div className="px-3 pt-3 pb-1">
+        <NavLink
+          to="/user-settings"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground transition-all duration-150 hover:bg-[hsl(30,20%,88%)] hover:text-foreground"
+          activeClassName="bg-[hsl(30,22%,87%)] text-foreground shadow-[inset_0_1px_2px_hsl(30_20%_70%/0.15)] border border-border/30"
+        >
+          <UserCog className="h-4 w-4 flex-shrink-0" />
+          User Settings
+        </NavLink>
+      </div>
+      <div className="px-5 pb-4 pt-1 flex items-center justify-between">
         <div className="min-w-0">
           <p className="text-[10px] text-muted-foreground/70 truncate">{user?.email}</p>
         </div>
