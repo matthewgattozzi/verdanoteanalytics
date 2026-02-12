@@ -159,6 +159,8 @@ const SavedViewsPage = () => {
     if (c.date_from) params.set("from", c.date_from);
     if (c.date_to) params.set("to", c.date_to);
     if (c.search) params.set("q", c.search);
+    if ((c as any).delivery) params.set("delivery", (c as any).delivery);
+    if ((c as any).filters) params.set("filters", JSON.stringify((c as any).filters));
     const qs = params.toString();
     navigate(`${c.page}${qs ? `?${qs}` : ""}`);
   };
