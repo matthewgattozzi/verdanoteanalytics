@@ -132,6 +132,8 @@ export function useSync() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["accounts"] });
       qc.invalidateQueries({ queryKey: ["creatives"] });
+      qc.invalidateQueries({ queryKey: ["all-creatives"] });
+      qc.invalidateQueries({ queryKey: ["daily-trends"] });
       toast.success("Sync completed");
     },
     onError: (e: Error) => {
