@@ -62,3 +62,20 @@ export function useAnalyzeCreative() {
     },
   });
 }
+
+export function useBulkAnalyze() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (limit?: number) =>
+      apiFetch("analyze-creative", "", { method: "POST", body: JSON.stringify({ bulk: true, limit: limit || 20 }) }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["creatives"] });
+      toast.success(`Analyzed ${data.analyzed} creatives`, {
+        description: data.errors > 0 ? `${data.errors} errors occurred` : undefined,
+      });
+    },
+    onError: (e: Error) => {
+      toast.error("Bulk analysis failed", { description: e.message });
+    },
+  });
+}

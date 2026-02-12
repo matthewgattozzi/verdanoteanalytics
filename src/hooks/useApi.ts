@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export function useSettings() {
   return useQuery({
@@ -16,10 +16,10 @@ export function useSaveSettings() {
       apiFetch("settings", "", { method: "PUT", body: JSON.stringify(settings) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["settings"] });
-      toast({ title: "Settings saved" });
+      toast.success("Settings saved");
     },
     onError: (e: Error) => {
-      toast({ title: "Error saving settings", description: e.message, variant: "destructive" });
+      toast.error("Error saving settings", { description: e.message });
     },
   });
 }
@@ -45,10 +45,10 @@ export function useAddAccount() {
       apiFetch("accounts", "", { method: "POST", body: JSON.stringify(account) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["accounts"] });
-      toast({ title: "Account added" });
+      toast.success("Account added");
     },
     onError: (e: Error) => {
-      toast({ title: "Error adding account", description: e.message, variant: "destructive" });
+      toast.error("Error adding account", { description: e.message });
     },
   });
 }
@@ -71,10 +71,10 @@ export function useDeleteAccount() {
       apiFetch("accounts", id, { method: "DELETE" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["accounts"] });
-      toast({ title: "Account removed" });
+      toast.success("Account removed");
     },
     onError: (e: Error) => {
-      toast({ title: "Error removing account", description: e.message, variant: "destructive" });
+      toast.error("Error removing account", { description: e.message });
     },
   });
 }
@@ -86,10 +86,10 @@ export function useUploadMappings() {
       apiFetch("accounts", `${accountId}/name-mappings`, { method: "POST", body: JSON.stringify({ mappings }) }),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["accounts"] });
-      toast({ title: "Mappings uploaded", description: `Matched ${data.matched} creatives, ${data.unmatchedCodes} codes pending.` });
+      toast.success("Mappings uploaded", { description: `Matched ${data.matched} creatives, ${data.unmatchedCodes} codes pending.` });
     },
     onError: (e: Error) => {
-      toast({ title: "Upload error", description: e.message, variant: "destructive" });
+      toast.error("Upload error", { description: e.message });
     },
   });
 }
@@ -102,10 +102,10 @@ export function useSync() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["accounts"] });
       qc.invalidateQueries({ queryKey: ["creatives"] });
-      toast({ title: "Sync completed" });
+      toast.success("Sync completed");
     },
     onError: (e: Error) => {
-      toast({ title: "Sync failed", description: e.message, variant: "destructive" });
+      toast.error("Sync failed", { description: e.message });
     },
   });
 }
@@ -114,5 +114,42 @@ export function useSyncHistory(accountId?: string) {
   return useQuery({
     queryKey: ["sync-history", accountId],
     queryFn: () => apiFetch("sync", `history${accountId ? `?account_id=${accountId}` : ""}`),
+  });
+}
+
+export function useReports() {
+  return useQuery({
+    queryKey: ["reports"],
+    queryFn: () => apiFetch("reports"),
+  });
+}
+
+export function useGenerateReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { report_name: string; account_id?: string }) =>
+      apiFetch("reports", "", { method: "POST", body: JSON.stringify(params) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["reports"] });
+      toast.success("Report generated");
+    },
+    onError: (e: Error) => {
+      toast.error("Error generating report", { description: e.message });
+    },
+  });
+}
+
+export function useDeleteReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch("reports", id, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["reports"] });
+      toast.success("Report deleted");
+    },
+    onError: (e: Error) => {
+      toast.error("Error deleting report", { description: e.message });
+    },
   });
 }
