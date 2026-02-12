@@ -6,71 +6,71 @@
 
 @layer base {
   :root {
-    --background: 30 25% 97%;
-    --foreground: 20 20% 15%;
+    --background: 34 30% 96%;
+    --foreground: 20 25% 12%;
 
-    --card: 30 20% 99%;
-    --card-foreground: 20 20% 15%;
+    --card: 36 30% 99%;
+    --card-foreground: 20 25% 12%;
 
-    --popover: 30 20% 99%;
-    --popover-foreground: 20 20% 15%;
+    --popover: 36 30% 99%;
+    --popover-foreground: 20 25% 12%;
 
-    --primary: 18 60% 42%;
-    --primary-foreground: 40 30% 97%;
+    --primary: 16 55% 40%;
+    --primary-foreground: 40 40% 97%;
 
-    --secondary: 30 18% 92%;
-    --secondary-foreground: 20 15% 35%;
+    --secondary: 32 22% 91%;
+    --secondary-foreground: 20 18% 32%;
 
-    --muted: 30 15% 93%;
-    --muted-foreground: 20 10% 50%;
+    --muted: 32 18% 92%;
+    --muted-foreground: 20 12% 48%;
 
-    --accent: 30 20% 90%;
-    --accent-foreground: 20 20% 15%;
+    --accent: 32 25% 89%;
+    --accent-foreground: 20 25% 12%;
 
-    --destructive: 0 55% 48%;
+    --destructive: 2 50% 46%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 30 15% 87%;
-    --input: 30 15% 87%;
-    --ring: 18 60% 42%;
+    --border: 32 18% 84%;
+    --input: 32 18% 84%;
+    --ring: 16 55% 40%;
 
     --radius: 0.5rem;
 
     /* Status colors — warm-shifted */
-    --success: 152 50% 38%;
+    --success: 155 42% 36%;
     --success-foreground: 0 0% 100%;
-    --warning: 35 80% 50%;
-    --warning-foreground: 20 20% 12%;
-    --info: 200 55% 45%;
+    --warning: 36 75% 48%;
+    --warning-foreground: 20 25% 10%;
+    --info: 205 45% 44%;
     --info-foreground: 0 0% 100%;
 
-    /* Tag source colors — warm palette */
-    --tag-parsed: 152 50% 38%;
-    --tag-csv: 200 55% 45%;
-    --tag-manual: 35 80% 50%;
-    --tag-untagged: 0 55% 48%;
+    /* Tag source colors */
+    --tag-parsed: 155 42% 36%;
+    --tag-csv: 205 45% 44%;
+    --tag-manual: 36 75% 48%;
+    --tag-untagged: 2 50% 46%;
 
     /* Recommendation colors */
-    --scale: 152 50% 38%;
-    --watch: 35 80% 50%;
-    --kill: 0 55% 48%;
+    --scale: 155 42% 36%;
+    --watch: 36 75% 48%;
+    --kill: 2 50% 46%;
 
-    /* Sidebar — warm cream */
-    --sidebar-background: 30 20% 95%;
-    --sidebar-foreground: 20 15% 35%;
-    --sidebar-primary: 18 60% 42%;
-    --sidebar-primary-foreground: 40 30% 97%;
-    --sidebar-accent: 30 18% 90%;
-    --sidebar-accent-foreground: 20 20% 15%;
-    --sidebar-border: 30 15% 87%;
-    --sidebar-ring: 18 60% 42%;
+    /* Sidebar — warm parchment */
+    --sidebar-background: 34 28% 94%;
+    --sidebar-foreground: 20 16% 38%;
+    --sidebar-primary: 16 55% 40%;
+    --sidebar-primary-foreground: 40 40% 97%;
+    --sidebar-accent: 32 24% 88%;
+    --sidebar-accent-foreground: 20 25% 12%;
+    --sidebar-border: 32 18% 84%;
+    --sidebar-ring: 16 55% 40%;
 
-    /* Chart palette — warm tones */
-    --chart-1: 18 60% 42%;
-    --chart-2: 152 50% 38%;
-    --chart-3: 35 80% 50%;
-    --chart-4: 340 40% 50%;
-    --chart-5: 200 55% 45%;
+    /* Chart palette */
+    --chart-1: 16 55% 40%;
+    --chart-2: 155 42% 36%;
+    --chart-3: 36 75% 48%;
+    --chart-4: 340 35% 48%;
+    --chart-5: 205 45% 44%;
   }
 }
 
@@ -86,24 +86,49 @@
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Lora', Georgia, serif;
+    font-weight: 600;
   }
 
   code, .font-mono {
     font-family: 'JetBrains Mono', monospace;
   }
+
+  /* Softer focus rings */
+  *:focus-visible {
+    --tw-ring-opacity: 0.4;
+  }
+}
+
+@layer components {
+  /* Warm button refinements */
+  .btn-primary-warm {
+    @apply bg-primary text-primary-foreground shadow-sm;
+    box-shadow: 0 1px 3px 0 hsl(16 55% 40% / 0.2), 0 1px 2px -1px hsl(16 55% 40% / 0.15);
+  }
+
+  .btn-primary-warm:hover {
+    filter: brightness(1.08);
+  }
 }
 
 @layer utilities {
   .glass-panel {
-    @apply bg-card border border-border/60 rounded-lg shadow-sm;
+    @apply bg-card border border-border/50 rounded-lg;
+    box-shadow: 0 1px 3px 0 hsl(30 20% 50% / 0.06), 0 1px 2px -1px hsl(30 20% 50% / 0.04);
+  }
+
+  .glass-panel:hover {
+    box-shadow: 0 2px 6px 0 hsl(30 20% 50% / 0.1), 0 1px 3px -1px hsl(30 20% 50% / 0.06);
   }
 
   .metric-value {
     @apply text-2xl font-semibold tracking-tight font-mono;
+    color: hsl(20 25% 18%);
   }
 
   .metric-label {
-    @apply text-xs font-medium uppercase tracking-wider text-muted-foreground;
+    @apply text-[10px] font-medium uppercase tracking-widest text-muted-foreground;
+    letter-spacing: 0.1em;
   }
 
   .status-dot {
