@@ -316,8 +316,8 @@ const SettingsPage = () => {
   return (
     <AppLayout>
       <PageHeader
-        title="Settings"
-        description="Configure your accounts, users, and sync preferences."
+        title="Account Settings"
+        description="Configure your ad accounts, sync preferences, and team members."
       />
 
       <div className="max-w-2xl space-y-8">

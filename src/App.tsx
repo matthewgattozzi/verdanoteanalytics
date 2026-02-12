@@ -9,6 +9,7 @@ import CreativesPage from "./pages/CreativesPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import ReportsPage from "./pages/ReportsPage";
 import SettingsPage from "./pages/SettingsPage";
+import UserSettingsPage from "./pages/UserSettingsPage";
 import SyncHistoryPage from "./pages/SyncHistoryPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
@@ -36,6 +37,7 @@ function ProtectedRoutes() {
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/user-settings" element={<UserSettingsPage />} />
         <Route path="/sync-history" element={<SyncHistoryPage />} />
         <Route path="/accounts" element={<Navigate to="/settings" replace />} />
         <Route path="*" element={<NotFound />} />
