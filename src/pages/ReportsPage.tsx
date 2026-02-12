@@ -27,7 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { FileText, Plus, Trash2, Loader2, Eye, Download } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useReports, useGenerateReport, useDeleteReport, useAccounts } from "@/hooks/useApi";
 import { ReportDetailModal } from "@/components/ReportDetailModal";
 import { exportReportCSV } from "@/lib/csv";
@@ -42,6 +42,21 @@ const ReportsPage = () => {
   const { data: accounts } = useAccounts();
   const generateMut = useGenerateReport();
   const deleteMut = useDeleteReport();
+
+  // Find previous report for comparison
+  const previousReport = useMemo(() => {
+    if (!selectedReport || !reports || reports.length < 2) return undefined;
+    const sorted = [...reports].sort((a: any, b: any) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    const currentIdx = sorted.findIndex((r: any) => r.id === selectedReport.id);
+    if (currentIdx < 0 || currentIdx >= sorted.length - 1) return undefined;
+    // Find next older report with same account_id (or both null)
+    for (let i = currentIdx + 1; i < sorted.length; i++) {
+      if (sorted[i].account_id === selectedReport.account_id) return sorted[i];
+    }
+    return undefined;
+  }, [selectedReport, reports]);
 
   const handleGenerate = () => {
     generateMut.mutate(
@@ -159,7 +174,12 @@ const ReportsPage = () => {
         </DialogContent>
       </Dialog>
 
-      <ReportDetailModal report={selectedReport} open={!!selectedReport} onClose={() => setSelectedReport(null)} />
+      <ReportDetailModal
+        report={selectedReport}
+        previousReport={previousReport}
+        open={!!selectedReport}
+        onClose={() => setSelectedReport(null)}
+      />
     </AppLayout>
   );
 };
