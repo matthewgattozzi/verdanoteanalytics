@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Bookmark, Plus, Trash2, ExternalLink, Loader2, Pencil, Check, X as XIcon } from "lucide-react";
+import { Bookmark, Plus, Trash2, ExternalLink, Loader2, Pencil, Check, X as XIcon, Copy } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -173,6 +173,23 @@ const SavedViewsPage = () => {
     if (!editingId || !editName.trim()) return;
     renameMutation.mutate({ id: editingId, newName: editName.trim() });
   };
+
+  const duplicateMutation = useMutation({
+    mutationFn: async (view: SavedView) => {
+      const { error } = await supabase.from("saved_views").insert([{
+        user_id: user!.id,
+        name: `${view.name} (copy)`,
+        description: view.description,
+        config: view.config as any,
+      }]);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["saved-views"] });
+      toast.success("View duplicated");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   const resetForm = () => {
     setName("");
@@ -382,6 +399,15 @@ const SavedViewsPage = () => {
                   onClick={() => startEditing(view)}
                 >
                   <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => duplicateMutation.mutate(view)}
+                  disabled={duplicateMutation.isPending}
+                >
+                  <Copy className="h-3.5 w-3.5" />
                 </Button>
                 <Button
                   variant="ghost"
