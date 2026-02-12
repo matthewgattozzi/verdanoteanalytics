@@ -29,29 +29,41 @@ import { useState, useMemo, useCallback } from "react";
 import { ColumnPicker, type ColumnDef } from "@/components/ColumnPicker";
 
 const TABLE_COLUMNS: ColumnDef[] = [
-  { key: "creative", label: "Creative", defaultVisible: true },
-  { key: "type", label: "Type", defaultVisible: true },
-  { key: "person", label: "Person", defaultVisible: true },
-  { key: "style", label: "Style", defaultVisible: true },
-  { key: "hook", label: "Hook", defaultVisible: true },
-  { key: "product", label: "Product", defaultVisible: false },
-  { key: "theme", label: "Theme", defaultVisible: false },
-  { key: "spend", label: "Spend", defaultVisible: true },
-  { key: "roas", label: "ROAS", defaultVisible: true },
-  { key: "cpa", label: "CPA", defaultVisible: true },
-  { key: "ctr", label: "CTR", defaultVisible: true },
-  { key: "tags", label: "Tags", defaultVisible: true },
-  { key: "impressions", label: "Impressions", defaultVisible: false },
-  { key: "clicks", label: "Clicks", defaultVisible: false },
-  { key: "purchases", label: "Purchases", defaultVisible: false },
-  { key: "purchase_value", label: "Purchase Value", defaultVisible: false },
-  { key: "cpm", label: "CPM", defaultVisible: false },
-  { key: "video_views", label: "Video Views", defaultVisible: false },
-  { key: "thumb_stop_rate", label: "Thumb Stop Rate", defaultVisible: false },
-  { key: "hold_rate", label: "Hold Rate", defaultVisible: false },
-  { key: "campaign", label: "Campaign", defaultVisible: false },
-  { key: "adset", label: "Ad Set", defaultVisible: false },
-  { key: "ad_status", label: "Ad Status", defaultVisible: false },
+  // Core
+  { key: "creative", label: "Creative", defaultVisible: true, group: "Core" },
+  { key: "ad_status", label: "Delivery Status", defaultVisible: false, group: "Core" },
+  { key: "result_type", label: "Result Type", defaultVisible: false, group: "Core" },
+  // Tags
+  { key: "type", label: "Type", defaultVisible: true, group: "Tags" },
+  { key: "person", label: "Person", defaultVisible: true, group: "Tags" },
+  { key: "style", label: "Style", defaultVisible: true, group: "Tags" },
+  { key: "hook", label: "Hook", defaultVisible: true, group: "Tags" },
+  { key: "product", label: "Product", defaultVisible: false, group: "Tags" },
+  { key: "theme", label: "Theme", defaultVisible: false, group: "Tags" },
+  { key: "tags", label: "Tag Source", defaultVisible: true, group: "Tags" },
+  // Performance
+  { key: "spend", label: "Amount Spent", defaultVisible: true, group: "Performance" },
+  { key: "roas", label: "Purchase ROAS", defaultVisible: true, group: "Performance" },
+  { key: "cpa", label: "Cost per Result", defaultVisible: true, group: "Performance" },
+  { key: "cpm", label: "CPM", defaultVisible: false, group: "Performance" },
+  { key: "cpc", label: "CPC (Link Click)", defaultVisible: false, group: "Performance" },
+  { key: "frequency", label: "Frequency", defaultVisible: false, group: "Performance" },
+  // Engagement
+  { key: "ctr", label: "Unique CTR", defaultVisible: true, group: "Engagement" },
+  { key: "impressions", label: "Impressions", defaultVisible: false, group: "Engagement" },
+  { key: "clicks", label: "Clicks", defaultVisible: false, group: "Engagement" },
+  { key: "hook_rate", label: "Hook Rate", defaultVisible: false, group: "Engagement" },
+  { key: "hold_rate", label: "Hold Rate", defaultVisible: false, group: "Engagement" },
+  { key: "video_views", label: "Video Views", defaultVisible: false, group: "Engagement" },
+  { key: "video_avg_play_time", label: "Video Avg Play Time", defaultVisible: false, group: "Engagement" },
+  // Commerce
+  { key: "purchases", label: "Results (Purchases)", defaultVisible: false, group: "Commerce" },
+  { key: "purchase_value", label: "Purchase Value", defaultVisible: false, group: "Commerce" },
+  { key: "adds_to_cart", label: "Adds to Cart", defaultVisible: false, group: "Commerce" },
+  { key: "cost_per_atc", label: "Cost per Add to Cart", defaultVisible: false, group: "Commerce" },
+  // Context
+  { key: "campaign", label: "Campaign", defaultVisible: false, group: "Context" },
+  { key: "adset", label: "Ad Set", defaultVisible: false, group: "Context" },
 ];
 
 const GROUP_BY_OPTIONS = [
@@ -70,8 +82,12 @@ const SORT_FIELD_MAP: Record<string, string> = {
   product: "product", theme: "theme",
   spend: "spend", roas: "roas", cpa: "cpa", ctr: "ctr", impressions: "impressions",
   clicks: "clicks", purchases: "purchases", purchase_value: "purchase_value",
-  cpm: "cpm", video_views: "video_views", thumb_stop_rate: "thumb_stop_rate",
-  hold_rate: "hold_rate", campaign: "campaign_name", adset: "adset_name", ad_status: "ad_status",
+  cpm: "cpm", cpc: "cpc", frequency: "frequency",
+  hook_rate: "thumb_stop_rate", hold_rate: "hold_rate",
+  video_views: "video_views", video_avg_play_time: "video_avg_play_time",
+  adds_to_cart: "adds_to_cart", cost_per_atc: "cost_per_add_to_cart",
+  result_type: "result_type",
+  campaign: "campaign_name", adset: "adset_name", ad_status: "ad_status",
 };
 
 import { useCreatives, useCreativeFilters, useBulkAnalyze } from "@/hooks/useCreatives";
@@ -192,7 +208,7 @@ const CreativesPage = () => {
 
   const renderSortableHead = (key: string, label: string, extraClass = "") => {
     if (!visibleCols.has(key)) return null;
-    const numericCols = ["spend", "roas", "cpa", "ctr", "impressions", "clicks", "purchases", "purchase_value", "cpm", "video_views", "thumb_stop_rate", "hold_rate"];
+    const numericCols = ["spend", "roas", "cpa", "ctr", "impressions", "clicks", "purchases", "purchase_value", "cpm", "cpc", "frequency", "video_views", "hook_rate", "hold_rate", "video_avg_play_time", "adds_to_cart", "cost_per_atc"];
     const isRight = numericCols.includes(key);
     return (
       <SortableTableHead
@@ -373,27 +389,33 @@ const CreativesPage = () => {
             <TableHeader>
               <TableRow>
                 {renderSortableHead("creative", "Creative")}
+                {renderSortableHead("ad_status", "Status")}
+                {renderSortableHead("result_type", "Result Type")}
                 {renderSortableHead("type", "Type")}
                 {renderSortableHead("person", "Person")}
                 {renderSortableHead("style", "Style")}
                 {renderSortableHead("hook", "Hook")}
                 {renderSortableHead("product", "Product")}
                 {renderSortableHead("theme", "Theme")}
-                {renderSortableHead("spend", "Spend")}
+                {renderSortableHead("spend", "Spent")}
                 {renderSortableHead("roas", "ROAS")}
-                {renderSortableHead("cpa", "CPA")}
+                {renderSortableHead("cpa", "Cost/Result")}
+                {renderSortableHead("cpm", "CPM")}
+                {renderSortableHead("cpc", "CPC")}
+                {renderSortableHead("frequency", "Frequency")}
                 {renderSortableHead("ctr", "CTR")}
                 {renderSortableHead("impressions", "Impressions")}
                 {renderSortableHead("clicks", "Clicks")}
+                {renderSortableHead("hook_rate", "Hook Rate")}
+                {renderSortableHead("hold_rate", "Hold Rate")}
+                {renderSortableHead("video_views", "Video Views")}
+                {renderSortableHead("video_avg_play_time", "Avg Play Time")}
                 {renderSortableHead("purchases", "Purchases")}
                 {renderSortableHead("purchase_value", "Purchase Value")}
-                {renderSortableHead("cpm", "CPM")}
-                {renderSortableHead("video_views", "Video Views")}
-                {renderSortableHead("thumb_stop_rate", "TSR")}
-                {renderSortableHead("hold_rate", "Hold Rate")}
+                {renderSortableHead("adds_to_cart", "Adds to Cart")}
+                {renderSortableHead("cost_per_atc", "Cost/ATC")}
                 {renderSortableHead("campaign", "Campaign")}
                 {renderSortableHead("adset", "Ad Set")}
-                {renderSortableHead("ad_status", "Status")}
                 {visibleCols.has("tags") && <TableHead className="text-xs">Tags</TableHead>}
               </TableRow>
             </TableHeader>
@@ -408,6 +430,8 @@ const CreativesPage = () => {
                       </div>
                     </TableCell>
                   )}
+                  {visibleCols.has("ad_status") && <TableCell className="text-xs">{c.ad_status || "—"}</TableCell>}
+                  {visibleCols.has("result_type") && <TableCell className="text-xs">{c.result_type || "—"}</TableCell>}
                   {visibleCols.has("type") && (
                     <TableCell>
                       <InlineTagSelect adId={c.ad_id} field="ad_type" currentValue={c.ad_type} />
@@ -433,18 +457,22 @@ const CreativesPage = () => {
                   {visibleCols.has("spend") && <TableCell className="text-xs text-right font-mono">{fmt(c.spend, "$")}</TableCell>}
                   {visibleCols.has("roas") && <TableCell className="text-xs text-right font-mono">{fmt(c.roas, "", "x")}</TableCell>}
                   {visibleCols.has("cpa") && <TableCell className="text-xs text-right font-mono">{fmt(c.cpa, "$")}</TableCell>}
+                  {visibleCols.has("cpm") && <TableCell className="text-xs text-right font-mono">{fmt(c.cpm, "$")}</TableCell>}
+                  {visibleCols.has("cpc") && <TableCell className="text-xs text-right font-mono">{fmt(c.cpc, "$")}</TableCell>}
+                  {visibleCols.has("frequency") && <TableCell className="text-xs text-right font-mono">{fmt(c.frequency)}</TableCell>}
                   {visibleCols.has("ctr") && <TableCell className="text-xs text-right font-mono">{fmt(c.ctr, "", "%")}</TableCell>}
                   {visibleCols.has("impressions") && <TableCell className="text-xs text-right font-mono">{fmt(c.impressions)}</TableCell>}
                   {visibleCols.has("clicks") && <TableCell className="text-xs text-right font-mono">{fmt(c.clicks)}</TableCell>}
+                  {visibleCols.has("hook_rate") && <TableCell className="text-xs text-right font-mono">{fmt(c.thumb_stop_rate, "", "%")}</TableCell>}
+                  {visibleCols.has("hold_rate") && <TableCell className="text-xs text-right font-mono">{fmt(c.hold_rate, "", "%")}</TableCell>}
+                  {visibleCols.has("video_views") && <TableCell className="text-xs text-right font-mono">{fmt(c.video_views)}</TableCell>}
+                  {visibleCols.has("video_avg_play_time") && <TableCell className="text-xs text-right font-mono">{fmt(c.video_avg_play_time, "", "s")}</TableCell>}
                   {visibleCols.has("purchases") && <TableCell className="text-xs text-right font-mono">{fmt(c.purchases)}</TableCell>}
                   {visibleCols.has("purchase_value") && <TableCell className="text-xs text-right font-mono">{fmt(c.purchase_value, "$")}</TableCell>}
-                  {visibleCols.has("cpm") && <TableCell className="text-xs text-right font-mono">{fmt(c.cpm, "$")}</TableCell>}
-                  {visibleCols.has("video_views") && <TableCell className="text-xs text-right font-mono">{fmt(c.video_views)}</TableCell>}
-                  {visibleCols.has("thumb_stop_rate") && <TableCell className="text-xs text-right font-mono">{fmt(c.thumb_stop_rate, "", "%")}</TableCell>}
-                  {visibleCols.has("hold_rate") && <TableCell className="text-xs text-right font-mono">{fmt(c.hold_rate, "", "%")}</TableCell>}
+                  {visibleCols.has("adds_to_cart") && <TableCell className="text-xs text-right font-mono">{fmt(c.adds_to_cart)}</TableCell>}
+                  {visibleCols.has("cost_per_atc") && <TableCell className="text-xs text-right font-mono">{fmt(c.cost_per_add_to_cart, "$")}</TableCell>}
                   {visibleCols.has("campaign") && <TableCell className="text-xs truncate max-w-[150px]">{c.campaign_name || "—"}</TableCell>}
                   {visibleCols.has("adset") && <TableCell className="text-xs truncate max-w-[150px]">{c.adset_name || "—"}</TableCell>}
-                  {visibleCols.has("ad_status") && <TableCell className="text-xs">{c.ad_status || "—"}</TableCell>}
                   {visibleCols.has("tags") && <TableCell><TagSourceBadge source={c.tag_source} /></TableCell>}
                 </TableRow>
               ))}
