@@ -19,7 +19,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useUpdateCreative, useAnalyzeCreative } from "@/hooks/useCreatives";
 import { useState, useEffect } from "react";
-import { Loader2, RotateCcw, Save, Image as ImageIcon, Sparkles, Wand2 } from "lucide-react";
+import { Loader2, RotateCcw, Save, Image as ImageIcon, Sparkles, Wand2, Maximize, Minimize } from "lucide-react";
+import { useRef, useCallback } from "react";
 
 const TYPE_OPTIONS = ["Video", "Static", "GIF", "Carousel"];
 const PERSON_OPTIONS = ["Creator", "Customer", "Founder", "Actor", "No Talent"];
@@ -33,8 +34,20 @@ interface CreativeDetailModalProps {
 }
 
 export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailModalProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const updateCreative = useUpdateCreative();
   const analyzeCreative = useAnalyzeCreative();
+
+  const toggleFullscreen = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (!document.fullscreenElement) {
+      video.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+    }
+  }, []);
   const [tags, setTags] = useState({
     ad_type: "",
     person: "",
@@ -93,15 +106,26 @@ export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailM
         </DialogHeader>
 
         {/* Media preview */}
-        <div className="bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+        <div className="bg-muted rounded-lg flex items-center justify-center overflow-hidden relative group">
           {creative.preview_url ? (
-            <video
-              src={creative.preview_url}
-              controls
-              poster={creative.thumbnail_url || undefined}
-              className="w-full max-h-[400px] object-contain rounded-lg"
-              preload="metadata"
-            />
+            <>
+              <video
+                ref={videoRef}
+                src={creative.preview_url}
+                controls
+                poster={creative.thumbnail_url || undefined}
+                className="w-full max-h-[400px] object-contain rounded-lg"
+                preload="metadata"
+              />
+              <Button
+                size="icon"
+                variant="secondary"
+                className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={toggleFullscreen}
+              >
+                {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
+              </Button>
+            </>
           ) : creative.thumbnail_url ? (
             <img
               src={creative.thumbnail_url}
