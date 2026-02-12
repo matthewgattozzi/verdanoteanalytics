@@ -83,101 +83,83 @@ serve(async (req) => {
       const hasDateFilter = dateFrom || dateTo;
 
       if (hasDateFilter) {
-        // When date filter is active, aggregate metrics from creative_daily_metrics
-        // First get the creatives (for tags, names, etc.)
-        let creativeQuery = supabase.from("creatives").select("ad_id, account_id, ad_name, ad_status, ad_type, person, style, hook, product, theme, tag_source, unique_code, campaign_name, adset_name, thumbnail_url, preview_url, result_type, analysis_status, ai_analysis, ai_hook_analysis, ai_visual_notes, ai_cta_notes, analyzed_at");
+        // Query daily metrics first, then merge with creative details
+        let dmQuery = supabase.from("creative_daily_metrics").select("ad_id, spend, impressions, clicks, purchases, purchase_value, adds_to_cart, video_views");
+        if (accountId) dmQuery = dmQuery.eq("account_id", accountId);
+        if (dateFrom) dmQuery = dmQuery.gte("date", dateFrom);
+        if (dateTo) dmQuery = dmQuery.lte("date", dateTo);
 
-        if (accountId) creativeQuery = creativeQuery.eq("account_id", accountId);
-        if (adType) creativeQuery = creativeQuery.eq("ad_type", adType);
-        if (person) creativeQuery = creativeQuery.eq("person", person);
-        if (style) creativeQuery = creativeQuery.eq("style", style);
-        if (hook) creativeQuery = creativeQuery.eq("hook", hook);
-        if (product) creativeQuery = creativeQuery.eq("product", product);
-        if (theme) creativeQuery = creativeQuery.eq("theme", theme);
-        if (tagSource) creativeQuery = creativeQuery.eq("tag_source", tagSource);
-        if (adStatus) creativeQuery = creativeQuery.eq("ad_status", adStatus);
+        const { data: dailyData, error: dmErr } = await dmQuery;
+        if (dmErr) throw dmErr;
 
-        const { data: creatives, error: cErr } = await creativeQuery.limit(limit);
-        if (cErr) throw cErr;
-        if (!creatives || creatives.length === 0) {
+        // Aggregate by ad_id
+        const aggMap: Record<string, any> = {};
+        for (const row of (dailyData || [])) {
+          if (!aggMap[row.ad_id]) {
+            aggMap[row.ad_id] = { spend: 0, impressions: 0, clicks: 0, purchases: 0, purchase_value: 0, adds_to_cart: 0, video_views: 0 };
+          }
+          const a = aggMap[row.ad_id];
+          a.spend += Number(row.spend) || 0;
+          a.impressions += Number(row.impressions) || 0;
+          a.clicks += Number(row.clicks) || 0;
+          a.purchases += Number(row.purchases) || 0;
+          a.purchase_value += Number(row.purchase_value) || 0;
+          a.adds_to_cart += Number(row.adds_to_cart) || 0;
+          a.video_views += Number(row.video_views) || 0;
+        }
+
+        // Filter to ads with delivery if needed
+        let relevantAdIds = Object.keys(aggMap);
+        if (delivery === "had_delivery") {
+          relevantAdIds = relevantAdIds.filter(id => aggMap[id].spend > 0);
+        }
+
+        if (relevantAdIds.length === 0) {
           return new Response(JSON.stringify([]), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
 
-        // Get daily metrics for these creatives in the date range
-        const adIds = creatives.map((c: any) => c.ad_id);
-        let metricsQuery = supabase.from("creative_daily_metrics").select("ad_id, spend, impressions, clicks, ctr, cpm, cpc, cpa, roas, purchases, purchase_value, adds_to_cart, cost_per_add_to_cart, video_views, thumb_stop_rate, hold_rate, frequency, video_avg_play_time").in("ad_id", adIds);
-
-        if (dateFrom) metricsQuery = metricsQuery.gte("date", dateFrom);
-        if (dateTo) metricsQuery = metricsQuery.lte("date", dateTo);
-
-        const { data: dailyMetrics, error: mErr } = await metricsQuery;
-        if (mErr) throw mErr;
-
-        // Aggregate daily metrics per ad_id
-        const metricsMap: Record<string, any> = {};
-        for (const m of (dailyMetrics || [])) {
-          if (!metricsMap[m.ad_id]) {
-            metricsMap[m.ad_id] = {
-              spend: 0, impressions: 0, clicks: 0, purchases: 0,
-              purchase_value: 0, adds_to_cart: 0, video_views: 0,
-              _roas_sum: 0, _ctr_sum: 0, _cpm_sum: 0, _cpc_sum: 0, _cpa_sum: 0,
-              _freq_sum: 0, _tsr_sum: 0, _hold_sum: 0, _vpt_sum: 0, _cpatc_sum: 0,
-              _days: 0,
-            };
-          }
-          const agg = metricsMap[m.ad_id];
-          agg.spend += Number(m.spend) || 0;
-          agg.impressions += Number(m.impressions) || 0;
-          agg.clicks += Number(m.clicks) || 0;
-          agg.purchases += Number(m.purchases) || 0;
-          agg.purchase_value += Number(m.purchase_value) || 0;
-          agg.adds_to_cart += Number(m.adds_to_cart) || 0;
-          agg.video_views += Number(m.video_views) || 0;
-          agg._days++;
-          // For rate metrics, we'll recalculate from aggregates
+        // Fetch creative details for relevant ads only (batched)
+        const allCreatives: any[] = [];
+        for (let i = 0; i < relevantAdIds.length; i += 100) {
+          const batch = relevantAdIds.slice(i, i + 100);
+          let cQuery = supabase.from("creatives").select("*").in("ad_id", batch);
+          if (adType) cQuery = cQuery.eq("ad_type", adType);
+          if (person) cQuery = cQuery.eq("person", person);
+          if (style) cQuery = cQuery.eq("style", style);
+          if (hook) cQuery = cQuery.eq("hook", hook);
+          if (product) cQuery = cQuery.eq("product", product);
+          if (theme) cQuery = cQuery.eq("theme", theme);
+          if (tagSource) cQuery = cQuery.eq("tag_source", tagSource);
+          if (adStatus) cQuery = cQuery.eq("ad_status", adStatus);
+          const { data: cData } = await cQuery;
+          if (cData) allCreatives.push(...cData);
         }
 
-        // Merge aggregated metrics into creatives
-        const result = creatives.map((c: any) => {
-          const agg = metricsMap[c.ad_id];
-          if (!agg) {
-            return { ...c, spend: 0, impressions: 0, clicks: 0, ctr: 0, cpm: 0, cpc: 0, cpa: 0, roas: 0, purchases: 0, purchase_value: 0, adds_to_cart: 0, cost_per_add_to_cart: 0, video_views: 0, thumb_stop_rate: 0, hold_rate: 0, frequency: 0, video_avg_play_time: 0 };
-          }
-          const impressions = agg.impressions;
-          const clicks = agg.clicks;
-          const spend = agg.spend;
-          const purchases = agg.purchases;
+        // Merge aggregated metrics
+        const result = allCreatives.map((c: any) => {
+          const a = aggMap[c.ad_id] || { spend: 0, impressions: 0, clicks: 0, purchases: 0, purchase_value: 0, adds_to_cart: 0, video_views: 0 };
           return {
             ...c,
-            spend,
-            impressions,
-            clicks,
-            ctr: impressions > 0 ? (clicks / impressions) * 100 : 0,
-            cpm: impressions > 0 ? (spend / impressions) * 1000 : 0,
-            cpc: clicks > 0 ? spend / clicks : 0,
-            cpa: purchases > 0 ? spend / purchases : 0,
-            roas: spend > 0 ? agg.purchase_value / spend : 0,
-            purchases,
-            purchase_value: agg.purchase_value,
-            adds_to_cart: agg.adds_to_cart,
-            cost_per_add_to_cart: agg.adds_to_cart > 0 ? spend / agg.adds_to_cart : 0,
-            video_views: agg.video_views,
-            thumb_stop_rate: impressions > 0 ? (clicks / impressions) * 100 : 0,
-            hold_rate: 0,
-            frequency: 0,
-            video_avg_play_time: 0,
+            spend: a.spend,
+            impressions: a.impressions,
+            clicks: a.clicks,
+            ctr: a.impressions > 0 ? (a.clicks / a.impressions) * 100 : 0,
+            cpm: a.impressions > 0 ? (a.spend / a.impressions) * 1000 : 0,
+            cpc: a.clicks > 0 ? a.spend / a.clicks : 0,
+            cpa: a.purchases > 0 ? a.spend / a.purchases : 0,
+            roas: a.spend > 0 ? a.purchase_value / a.spend : 0,
+            purchases: a.purchases,
+            purchase_value: a.purchase_value,
+            adds_to_cart: a.adds_to_cart,
+            cost_per_add_to_cart: a.adds_to_cart > 0 ? a.spend / a.adds_to_cart : 0,
+            video_views: a.video_views,
+            thumb_stop_rate: a.impressions > 0 ? (a.clicks / a.impressions) * 100 : 0,
+            hold_rate: 0, frequency: 0, video_avg_play_time: 0,
           };
         });
 
-        // Apply delivery filter after aggregation
-        let filtered = result;
-        if (delivery === "had_delivery") filtered = filtered.filter((c: any) => c.spend > 0);
-        if (delivery === "active") filtered = filtered.filter((c: any) => c.ad_status === "ACTIVE");
-
-        // Sort by spend desc
-        filtered.sort((a: any, b: any) => (b.spend || 0) - (a.spend || 0));
-
-        return new Response(JSON.stringify(filtered.slice(0, limit)), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        result.sort((a: any, b: any) => (b.spend || 0) - (a.spend || 0));
+        return new Response(JSON.stringify(result.slice(0, limit)), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       // No date filter — use aggregated totals from creatives table
