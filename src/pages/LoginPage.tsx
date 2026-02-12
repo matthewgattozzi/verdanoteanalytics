@@ -1,16 +1,27 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Zap } from "lucide-react";
 
 const LoginPage = () => {
-  const { signIn } = useAuth();
+  const { signIn, user, isLoading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (user) return <Navigate to="/" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
