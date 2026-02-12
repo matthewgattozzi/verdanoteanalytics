@@ -89,6 +89,16 @@ const SettingsPage = () => {
     });
   };
 
+  const handleApplyPromptsToAll = () => {
+    const promptValues = {
+      creative_analysis_prompt: creativePrompt === DEFAULT_CREATIVE_PROMPT ? null : creativePrompt || null,
+      insights_prompt: insightsPrompt === DEFAULT_INSIGHTS_PROMPT ? null : insightsPrompt || null,
+    };
+    (accounts || []).forEach((acc: any) => {
+      updateAccountSettings.mutate({ id: acc.id, ...promptValues });
+    });
+  };
+
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -198,6 +208,9 @@ const SettingsPage = () => {
           onSaveSettings={async (updates) => {
             await updateAccountSettings.mutateAsync({ id: account.id, ...updates });
           }}
+          onApplyPromptsToAll={handleApplyPromptsToAll}
+          applyingToAll={updateAccountSettings.isPending}
+          showApplyAll={accounts.length > 1}
         />
 
         <SyncSettingsSection
