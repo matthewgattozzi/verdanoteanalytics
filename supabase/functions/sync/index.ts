@@ -288,40 +288,40 @@ serve(async (req) => {
 
           creativesFetched = fetchedAds.length;
 
-          // Phase 1b: Upsert creatives
+          // Phase 1b: Get existing manual-tagged ad_ids
+          const { data: manualAds } = await supabase
+            .from("creatives")
+            .select("ad_id")
+            .eq("account_id", account.id)
+            .eq("tag_source", "manual");
+          const manualAdIds = new Set((manualAds || []).map((a: any) => a.ad_id));
+
+          // Build all creative records
+          const upsertBatch: any[] = [];
+          const manualUpdateBatch: any[] = [];
+
           for (const ad of fetchedAds) {
             const insights = ad.insights?.data?.[0] || {};
-
-            // Extract metrics
             const spend = parseFloat(insights.spend || "0");
             const roas = insights.purchase_roas?.[0]?.value ? parseFloat(insights.purchase_roas[0].value) : 0;
             const ctr = parseFloat(insights.ctr || "0");
             const clicks = parseInt(insights.clicks || "0");
             const impressions = parseInt(insights.impressions || "0");
             const cpm = parseFloat(insights.cpm || "0");
-
-            // Extract purchases and CPA from actions
-            let purchases = 0;
-            let purchaseValue = 0;
-            let cpa = 0;
-
+            let purchases = 0, purchaseValue = 0, cpa = 0;
             if (insights.actions) {
-              const purchaseAction = insights.actions.find((a: any) => a.action_type === "purchase");
-              if (purchaseAction) purchases = parseInt(purchaseAction.value || "0");
+              const pa = insights.actions.find((a: any) => a.action_type === "purchase");
+              if (pa) purchases = parseInt(pa.value || "0");
             }
             if (insights.action_values) {
-              const purchaseVal = insights.action_values.find((a: any) => a.action_type === "purchase");
-              if (purchaseVal) purchaseValue = parseFloat(purchaseVal.value || "0");
+              const pv = insights.action_values.find((a: any) => a.action_type === "purchase");
+              if (pv) purchaseValue = parseFloat(pv.value || "0");
             }
             if (insights.cost_per_action_type) {
-              const cpaPurchase = insights.cost_per_action_type.find((a: any) => a.action_type === "purchase");
-              if (cpaPurchase) cpa = parseFloat(cpaPurchase.value || "0");
+              const cp = insights.cost_per_action_type.find((a: any) => a.action_type === "purchase");
+              if (cp) cpa = parseFloat(cp.value || "0");
             }
-
-            // Video metrics
-            const videoViews = 0; // Would need video_view action type
             const thumbStopRate = impressions > 0 ? (clicks / impressions) * 100 : 0;
-            const holdRate = 0;
 
             const creativeData = {
               ad_id: ad.id,
@@ -331,67 +331,67 @@ serve(async (req) => {
               campaign_name: ad.campaign?.name || null,
               adset_name: ad.adset?.name || null,
               thumbnail_url: ad.creative?.thumbnail_url || null,
-              spend,
-              roas,
-              cpa,
-              ctr,
-              clicks,
-              impressions,
-              video_views: videoViews,
-              thumb_stop_rate: thumbStopRate,
-              hold_rate: holdRate,
-              cpm,
-              purchases,
-              purchase_value: purchaseValue,
+              spend, roas, cpa, ctr, clicks, impressions,
+              video_views: 0, thumb_stop_rate: thumbStopRate, hold_rate: 0,
+              cpm, purchases, purchase_value: purchaseValue,
             };
 
-            // Check if creative already exists with manual tags
-            const { data: existing } = await supabase
-              .from("creatives")
-              .select("tag_source")
-              .eq("ad_id", ad.id)
-              .single();
-
-            if (existing?.tag_source === "manual") {
-              // Preserve manual tags, update metrics only
-              const { error } = await supabase
-                .from("creatives")
-                .update(creativeData)
-                .eq("ad_id", ad.id);
-              if (!error) {
-                creativesUpserted++;
-                tagsManualPreserved++;
-              }
+            if (manualAdIds.has(ad.id)) {
+              manualUpdateBatch.push(creativeData);
+              tagsManualPreserved++;
             } else {
-              // Upsert with tag resolution
-              const { error } = await supabase
-                .from("creatives")
-                .upsert({ ...creativeData, unique_code: ad.name.split("_")[0] }, { onConflict: "ad_id" });
-              if (!error) creativesUpserted++;
+              upsertBatch.push({ ...creativeData, unique_code: ad.name.split("_")[0] });
             }
           }
 
-          // Phase 2: Tag resolution for non-manual creatives
+          // Batch upsert non-manual creatives (chunks of 100)
+          for (let i = 0; i < upsertBatch.length; i += 100) {
+            const chunk = upsertBatch.slice(i, i + 100);
+            const { error } = await supabase
+              .from("creatives")
+              .upsert(chunk, { onConflict: "ad_id" });
+            if (!error) creativesUpserted += chunk.length;
+            else console.error("Batch upsert error:", error);
+          }
+
+          // Batch update manual-tagged creatives (metrics only, chunks of 100)
+          for (const item of manualUpdateBatch) {
+            const { ad_id, ...metrics } = item;
+            await supabase.from("creatives").update(metrics).eq("ad_id", ad_id);
+            creativesUpserted++;
+          }
+
+          console.log(`Upserted ${creativesUpserted} creatives`);
+
+          // Phase 2: Tag resolution for non-manual creatives (batch)
           const { data: unresolved } = await supabase
             .from("creatives")
             .select("ad_id, ad_name, tag_source, unique_code")
             .eq("account_id", account.id)
             .neq("tag_source", "manual");
 
+          // Group tag updates by source for batch processing
+          const tagUpdates: { ad_id: string; tags: any; source: string }[] = [];
           for (const creative of unresolved || []) {
             const result = await resolveTagsForCreative(supabase, creative, account.id);
-
             if (result.source !== "manual" && result.tags) {
-              await supabase
-                .from("creatives")
-                .update({ ...result.tags, tag_source: result.source })
-                .eq("ad_id", creative.ad_id);
-
+              tagUpdates.push({ ad_id: creative.ad_id, tags: result.tags, source: result.source });
               if (result.source === "parsed") tagsParsed++;
               else if (result.source === "csv_match") tagsCsvMatched++;
               else if (result.source === "untagged") tagsUntagged++;
             }
           }
+
+          // Apply tag updates in parallel batches
+          const TAG_BATCH = 50;
+          for (let i = 0; i < tagUpdates.length; i += TAG_BATCH) {
+            const batch = tagUpdates.slice(i, i + TAG_BATCH);
+            await Promise.all(batch.map(({ ad_id, tags, source }) =>
+              supabase.from("creatives").update({ ...tags, tag_source: source }).eq("ad_id", ad_id)
+            ));
+          }
+
+          console.log(`Tags resolved: ${tagsParsed} parsed, ${tagsCsvMatched} csv, ${tagsUntagged} untagged`);
 
           // Update account counts
           const { count: totalCount } = await supabase
