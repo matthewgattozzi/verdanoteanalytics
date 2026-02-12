@@ -260,24 +260,30 @@ serve(async (req) => {
 
           const fetchedAds: any[] = [];
 
+          console.log(`Fetching ads for account ${account.id} (${account.name})`);
+          console.log(`Date range: ${startDate.toISOString().split("T")[0]} to ${endDate.toISOString().split("T")[0]}`);
+
           while (nextUrl) {
             metaApiCalls++;
+            console.log(`Meta API call #${metaApiCalls}...`);
             const resp = await fetch(nextUrl);
             const data = await resp.json();
 
             if (data.error) {
+              console.error(`Meta API error:`, data.error);
               apiErrors.push({ timestamp: new Date().toISOString(), message: data.error.message });
               break;
             }
 
             if (data.data) {
               fetchedAds.push(...data.data);
+              console.log(`Fetched ${data.data.length} ads (total: ${fetchedAds.length})`);
             }
 
             nextUrl = data.paging?.next || null;
 
             // Basic rate limiting
-            if (nextUrl) await new Promise((r) => setTimeout(r, 500));
+            if (nextUrl) await new Promise((r) => setTimeout(r, 200));
           }
 
           creativesFetched = fetchedAds.length;
