@@ -194,30 +194,32 @@ ${JSON.stringify(dataRows, null, 0)}
 
 Please provide a comprehensive analysis following the required structure.`;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Build user content for Anthropic format
+    const userContent: any[] = [];
+    if (companyPdfContent) {
+      userContent.push({
+        type: "document",
+        source: { type: "base64", media_type: "application/pdf", data: companyPdfContent },
+      });
+      userContent.push({ type: "text", text: "Here is the company information document for context." });
+    }
+    userContent.push({ type: "text", text: userPrompt });
+
+    const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          companyPdfContent
-            ? {
-                role: "user",
-                content: [
-                  { type: "text", text: "Here is the company information document for context:" },
-                  { type: "image_url", image_url: { url: `data:application/pdf;base64,${companyPdfContent}` } },
-                  { type: "text", text: userPrompt },
-                ],
-              }
-            : { role: "user", content: userPrompt },
-        ],
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 8192,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userContent }],
         stream: !!stream,
       }),
     });
@@ -246,9 +248,9 @@ Please provide a comprehensive analysis following the required structure.`;
       });
     }
 
-    // Non-streaming: return the full analysis
+    // Non-streaming: extract text from Anthropic response format
     const result = await aiResponse.json();
-    const analysis = result.choices?.[0]?.message?.content || "No analysis generated.";
+    const analysis = result.content?.map((b: any) => b.text).join("") || "No analysis generated.";
 
     // Save to history
     await supabase.from("ai_insights").insert([{

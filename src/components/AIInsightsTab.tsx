@@ -116,7 +116,14 @@ export function AIInsightsTab() {
 
           try {
             const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            // Anthropic SSE format: content_block_delta with delta.text
+            let content: string | undefined;
+            if (parsed.type === "content_block_delta") {
+              content = parsed.delta?.text;
+            } else if (parsed.choices?.[0]?.delta?.content) {
+              // Fallback: OpenAI format
+              content = parsed.choices[0].delta.content;
+            }
             if (content) {
               fullContent += content;
               setStreamedContent(fullContent);
@@ -139,7 +146,12 @@ export function AIInsightsTab() {
           if (jsonStr === "[DONE]") continue;
           try {
             const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            let content: string | undefined;
+            if (parsed.type === "content_block_delta") {
+              content = parsed.delta?.text;
+            } else if (parsed.choices?.[0]?.delta?.content) {
+              content = parsed.choices[0].delta.content;
+            }
             if (content) {
               fullContent += content;
               setStreamedContent(fullContent);
