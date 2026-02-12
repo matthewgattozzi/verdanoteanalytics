@@ -80,6 +80,7 @@ serve(async (req) => {
       const offset = parseInt(url.searchParams.get("offset") || "0");
       const dateFrom = url.searchParams.get("date_from");
       const dateTo = url.searchParams.get("date_to");
+      const search = url.searchParams.get("search")?.trim();
 
       const hasDateFilter = dateFrom || dateTo;
 
@@ -132,6 +133,7 @@ serve(async (req) => {
           if (theme) cQuery = cQuery.eq("theme", theme);
           if (tagSource) cQuery = cQuery.eq("tag_source", tagSource);
           if (adStatus) cQuery = cQuery.eq("ad_status", adStatus);
+          if (search) cQuery = cQuery.or(`ad_name.ilike.%${search}%,unique_code.ilike.%${search}%,campaign_name.ilike.%${search}%`);
           const { data: cData } = await cQuery;
           if (cData) allCreatives.push(...cData);
         }
@@ -178,6 +180,7 @@ serve(async (req) => {
       if (adStatus) countQuery = countQuery.eq("ad_status", adStatus);
       if (delivery === "had_delivery") countQuery = countQuery.gt("spend", 0);
       if (delivery === "active") countQuery = countQuery.eq("ad_status", "ACTIVE");
+      if (search) countQuery = countQuery.or(`ad_name.ilike.%${search}%,unique_code.ilike.%${search}%,campaign_name.ilike.%${search}%`);
 
       const { count } = await countQuery;
 
@@ -193,6 +196,7 @@ serve(async (req) => {
       if (adStatus) query = query.eq("ad_status", adStatus);
       if (delivery === "had_delivery") query = query.gt("spend", 0);
       if (delivery === "active") query = query.eq("ad_status", "ACTIVE");
+      if (search) query = query.or(`ad_name.ilike.%${search}%,unique_code.ilike.%${search}%,campaign_name.ilike.%${search}%`);
 
       query = query.range(offset, offset + limit - 1);
 
