@@ -63,6 +63,7 @@ export type Database = {
           ad_name: string
           ad_status: string | null
           ad_type: string | null
+          adds_to_cart: number | null
           adset_name: string | null
           ai_analysis: string | null
           ai_cta_notes: string | null
@@ -72,10 +73,13 @@ export type Database = {
           analyzed_at: string | null
           campaign_name: string | null
           clicks: number | null
+          cost_per_add_to_cart: number | null
           cpa: number | null
+          cpc: number | null
           cpm: number | null
           created_at: string
           ctr: number | null
+          frequency: number | null
           hold_rate: number | null
           hook: string | null
           impressions: number | null
@@ -84,6 +88,7 @@ export type Database = {
           product: string | null
           purchase_value: number | null
           purchases: number | null
+          result_type: string | null
           roas: number | null
           spend: number | null
           style: string | null
@@ -93,6 +98,7 @@ export type Database = {
           thumbnail_url: string | null
           unique_code: string | null
           updated_at: string
+          video_avg_play_time: number | null
           video_views: number | null
         }
         Insert: {
@@ -101,6 +107,7 @@ export type Database = {
           ad_name: string
           ad_status?: string | null
           ad_type?: string | null
+          adds_to_cart?: number | null
           adset_name?: string | null
           ai_analysis?: string | null
           ai_cta_notes?: string | null
@@ -110,10 +117,13 @@ export type Database = {
           analyzed_at?: string | null
           campaign_name?: string | null
           clicks?: number | null
+          cost_per_add_to_cart?: number | null
           cpa?: number | null
+          cpc?: number | null
           cpm?: number | null
           created_at?: string
           ctr?: number | null
+          frequency?: number | null
           hold_rate?: number | null
           hook?: string | null
           impressions?: number | null
@@ -122,6 +132,7 @@ export type Database = {
           product?: string | null
           purchase_value?: number | null
           purchases?: number | null
+          result_type?: string | null
           roas?: number | null
           spend?: number | null
           style?: string | null
@@ -131,6 +142,7 @@ export type Database = {
           thumbnail_url?: string | null
           unique_code?: string | null
           updated_at?: string
+          video_avg_play_time?: number | null
           video_views?: number | null
         }
         Update: {
@@ -139,6 +151,7 @@ export type Database = {
           ad_name?: string
           ad_status?: string | null
           ad_type?: string | null
+          adds_to_cart?: number | null
           adset_name?: string | null
           ai_analysis?: string | null
           ai_cta_notes?: string | null
@@ -148,10 +161,13 @@ export type Database = {
           analyzed_at?: string | null
           campaign_name?: string | null
           clicks?: number | null
+          cost_per_add_to_cart?: number | null
           cpa?: number | null
+          cpc?: number | null
           cpm?: number | null
           created_at?: string
           ctr?: number | null
+          frequency?: number | null
           hold_rate?: number | null
           hook?: string | null
           impressions?: number | null
@@ -160,6 +176,7 @@ export type Database = {
           product?: string | null
           purchase_value?: number | null
           purchases?: number | null
+          result_type?: string | null
           roas?: number | null
           spend?: number | null
           style?: string | null
@@ -169,6 +186,7 @@ export type Database = {
           thumbnail_url?: string | null
           unique_code?: string | null
           updated_at?: string
+          video_avg_play_time?: number | null
           video_views?: number | null
         }
         Relationships: [
