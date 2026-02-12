@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useUpdateCreative, useAnalyzeCreative } from "@/hooks/useCreatives";
 import { useState, useEffect } from "react";
-import { Loader2, RotateCcw, Save, Image as ImageIcon, Sparkles, Wand2, Maximize, Minimize } from "lucide-react";
+import { Loader2, RotateCcw, Save, Image as ImageIcon, Sparkles, Wand2, Maximize, Minimize, ExternalLink } from "lucide-react";
 import { useRef, useCallback } from "react";
 
 const TYPE_OPTIONS = ["Video", "Static", "GIF", "Carousel"];
@@ -107,7 +107,7 @@ export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailM
 
         {/* Media preview */}
         <div className="bg-muted rounded-lg flex items-center justify-center overflow-hidden relative group">
-          {creative.preview_url ? (
+          {creative.preview_url && !creative.preview_url.startsWith("http://facebook.com") && !creative.preview_url.includes("facebook.com/ads/") ? (
             <>
               <video
                 ref={videoRef}
@@ -116,6 +116,10 @@ export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailM
                 poster={creative.thumbnail_url || undefined}
                 className="w-full max-h-[400px] object-contain rounded-lg"
                 preload="metadata"
+                onError={() => {
+                  // If video fails to load, it might be a shareable link - open externally
+                  if (creative.preview_url) window.open(creative.preview_url, "_blank");
+                }}
               />
               <Button
                 size="icon"
@@ -127,16 +131,36 @@ export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailM
               </Button>
             </>
           ) : creative.thumbnail_url ? (
-            <img
-              src={creative.thumbnail_url}
-              alt={creative.ad_name}
-              className="w-full max-h-[400px] object-contain"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-            />
+            <div className="relative">
+              <img
+                src={creative.thumbnail_url}
+                alt={creative.ad_name}
+                className="w-full max-h-[400px] object-contain"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+              {creative.preview_url && (
+                <a
+                  href={creative.preview_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute bottom-2 right-2"
+                >
+                  <Button size="sm" variant="secondary" className="gap-1.5 text-xs">
+                    <ExternalLink className="h-3 w-3" />
+                    View Ad Preview
+                  </Button>
+                </a>
+              )}
+            </div>
           ) : (
             <div className="flex flex-col items-center gap-2 text-muted-foreground py-12">
               <ImageIcon className="h-8 w-8" />
               <span className="text-xs">No preview available</span>
+              {creative.preview_url && (
+                <a href={creative.preview_url} target="_blank" rel="noopener noreferrer" className="text-primary underline text-xs">
+                  View Ad Preview
+                </a>
+              )}
             </div>
           )}
         </div>
