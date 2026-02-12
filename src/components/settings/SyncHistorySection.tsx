@@ -6,9 +6,11 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2, XCircle, AlertTriangle, Clock, RefreshCw, History } from "lucide-react";
-import { useState } from "react";
+import { Loader2, CheckCircle2, XCircle, AlertTriangle, Clock, RefreshCw, History, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useMemo } from "react";
 import { useSyncHistory, useAccounts, useSync } from "@/hooks/useApi";
+
+const PAGE_SIZE = 10;
 
 const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; className: string }> = {
   completed: { label: "Completed", icon: CheckCircle2, className: "text-scale" },
@@ -19,9 +21,13 @@ const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; c
 
 export function SyncHistorySection({ accountId }: { accountId?: string }) {
   const [selectedLog, setSelectedLog] = useState<any>(null);
+  const [page, setPage] = useState(0);
   const { data: accounts } = useAccounts();
   const { data: logs, isLoading } = useSyncHistory(accountId);
   const syncMut = useSync();
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil((logs?.length || 0) / PAGE_SIZE)), [logs]);
+  const pagedLogs = useMemo(() => (logs || []).slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [logs, page]);
 
   const getAccountName = (id: string) => {
     const a = (accounts || []).find((a: any) => a.id === id);
@@ -77,7 +83,7 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {logs.map((log: any) => {
+              {pagedLogs.map((log: any) => {
                 const sc = statusConfig[log.status] || statusConfig.running;
                 const StatusIcon = sc.icon;
                 return (
@@ -102,6 +108,22 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
               })}
             </TableBody>
           </Table>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-2 border-t border-border">
+              <span className="text-[10px] text-muted-foreground">
+                {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, logs.length)} of {logs.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-xs font-mono px-1">{page + 1}/{totalPages}</span>
+                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
