@@ -4,6 +4,7 @@ import { MetricCard } from "@/components/MetricCard";
 import { TagSourceBadge } from "@/components/TagSourceBadge";
 import { CreativeDetailModal } from "@/components/CreativeDetailModal";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -31,9 +32,11 @@ const CreativesPage = () => {
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [delivery, setDelivery] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({});
+  const [dateFrom, setDateFrom] = useState<string | undefined>();
+  const [dateTo, setDateTo] = useState<string | undefined>();
   const [selectedCreative, setSelectedCreative] = useState<any>(null);
 
-  const allFilters = { ...filters, delivery };
+  const allFilters = { ...filters, delivery, ...(dateFrom ? { date_from: dateFrom } : {}), ...(dateTo ? { date_to: dateTo } : {}) };
   const { data: creatives, isLoading } = useCreatives(allFilters);
   const { data: filterOptions } = useCreativeFilters();
   const syncMut = useSync();
@@ -131,6 +134,15 @@ const CreativesPage = () => {
         <Button variant={!delivery ? "outline" : "ghost"} size="sm" className="h-7 text-xs" onClick={() => setDelivery("")}>All Ads</Button>
         <Button variant={delivery === "had_delivery" ? "outline" : "ghost"} size="sm" className="h-7 text-xs" onClick={() => setDelivery("had_delivery")}>Had Delivery</Button>
         <Button variant={delivery === "active" ? "outline" : "ghost"} size="sm" className="h-7 text-xs" onClick={() => setDelivery("active")}>Active Ads</Button>
+      </div>
+
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-xs text-muted-foreground mr-1">Date:</span>
+        <DateRangeFilter
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onChange={(from, to) => { setDateFrom(from); setDateTo(to); }}
+        />
       </div>
 
       <div className="flex items-center gap-2 mb-4 flex-wrap">

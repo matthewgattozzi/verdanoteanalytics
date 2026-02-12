@@ -92,6 +92,11 @@ serve(async (req) => {
       if (delivery === "had_delivery") query = query.gt("spend", 0);
       if (delivery === "active") query = query.eq("ad_status", "ACTIVE");
 
+      const dateFrom = url.searchParams.get("date_from");
+      const dateTo = url.searchParams.get("date_to");
+      if (dateFrom) query = query.gte("created_at", `${dateFrom}T00:00:00Z`);
+      if (dateTo) query = query.lte("created_at", `${dateTo}T23:59:59Z`);
+
       query = query.limit(limit);
 
       const { data, error } = await query;
