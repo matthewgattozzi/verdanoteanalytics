@@ -66,7 +66,7 @@ export function OnboardingBanner() {
         <X className="h-4 w-4" />
       </button>
 
-      <h2 className="text-sm font-semibold mb-1">Get started with Creative Analytics</h2>
+      <h2 className="text-sm font-semibold mb-1">Get started with Verdanote</h2>
       <p className="text-xs text-muted-foreground mb-4">Complete these steps to start analyzing your Meta ad creatives.</p>
 
       <div className="space-y-3">
