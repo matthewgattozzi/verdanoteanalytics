@@ -25,29 +25,6 @@ const AI_TOOL = {
   },
 };
 
-function buildMessages(creative: any): any[] {
-  const textPrompt = `Analyze this Meta ad creative:
-- Ad Name: ${creative.ad_name} | Type: ${creative.ad_type || "Unknown"} | Person: ${creative.person || "Unknown"}
-- Style: ${creative.style || "Unknown"} | Hook: ${creative.hook || "Unknown"} | Product: ${creative.product || "Unknown"}
-- Spend: $${creative.spend || 0} | ROAS: ${creative.roas || 0}x | CPA: $${creative.cpa || 0} | CTR: ${creative.ctr || 0}%
-- CPM: $${creative.cpm || 0} | Purchases: ${creative.purchases || 0} | Impressions: ${creative.impressions || 0}
-${creative.thumbnail_url || creative.preview_url ? "I've attached the creative visual. Incorporate what you see into your analysis — comment on colors, composition, text overlays, talent, branding, and anything that stands out." : "No visual asset available — analyze based on metadata only."}
-Provide analysis using the tool.`;
-
-  const content: any[] = [{ type: "text", text: textPrompt }];
-
-  // Attach thumbnail or preview image for visual analysis
-  const imageUrl = creative.thumbnail_url || creative.preview_url;
-  if (imageUrl) {
-    content.push({ type: "image_url", image_url: { url: imageUrl } });
-  }
-
-  return [
-    { role: "system", content: "You are a senior performance marketing creative strategist. When visuals are provided, analyze them in detail — comment on imagery, text overlays, composition, branding, and emotional appeal. Provide concise, actionable analysis." },
-    { role: "user", content },
-  ];
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -78,8 +55,8 @@ serve(async (req) => {
     const body = await req.json();
     const { ad_id, bulk } = body;
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     // Single creative analysis
     if (ad_id && !bulk) {
@@ -93,7 +70,7 @@ serve(async (req) => {
 
       await supabase.from("creatives").update({ analysis_status: "analyzing" }).eq("ad_id", ad_id);
 
-      const result = await analyzeOne(creative, ANTHROPIC_API_KEY);
+      const result = await analyzeOne(creative, LOVABLE_API_KEY);
       if (result.error) {
         await supabase.from("creatives").update({ analysis_status: "pending" }).eq("ad_id", ad_id);
         return new Response(JSON.stringify({ error: result.error }), {
@@ -139,7 +116,7 @@ serve(async (req) => {
 
       for (const creative of creatives) {
         try {
-          const result = await analyzeOne(creative, ANTHROPIC_API_KEY);
+          const result = await analyzeOne(creative, LOVABLE_API_KEY);
           if (result.error) {
             errors++;
             await supabase.from("creatives").update({ analysis_status: "pending" }).eq("ad_id", creative.ad_id);
@@ -180,77 +157,63 @@ serve(async (req) => {
   }
 });
 
-async function fetchImageAsBase64(url: string): Promise<{ data: string; mediaType: string } | null> {
-  try {
-    const resp = await fetch(url);
-    if (!resp.ok) return null;
-    const contentType = resp.headers.get("content-type") || "image/jpeg";
-    const buf = await resp.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-    return { data: base64, mediaType: contentType.split(";")[0] };
-  } catch (e) {
-    console.error("Failed to fetch image:", e);
-    return null;
-  }
-}
-
 async function analyzeOne(creative: any, apiKey: string): Promise<any> {
-  // Build Anthropic-format content
-  const userContent: any[] = [];
   const imageUrl = creative.thumbnail_url || creative.preview_url;
-  
-  // Fetch image and convert to base64 (Anthropic can't access fbcdn URLs directly)
-  let hasImage = false;
+
+  const userContent: any[] = [];
+
+  // Gemini can handle image URLs directly
   if (imageUrl) {
-    const img = await fetchImageAsBase64(imageUrl);
-    if (img) {
-      userContent.push({ type: "image", source: { type: "base64", media_type: img.mediaType, data: img.data } });
-      hasImage = true;
-    }
+    userContent.push({ type: "image_url", image_url: { url: imageUrl } });
   }
-  
+
   const textPrompt = `Analyze this Meta ad creative:
 - Ad Name: ${creative.ad_name} | Type: ${creative.ad_type || "Unknown"} | Person: ${creative.person || "Unknown"}
 - Style: ${creative.style || "Unknown"} | Hook: ${creative.hook || "Unknown"} | Product: ${creative.product || "Unknown"}
 - Spend: $${creative.spend || 0} | ROAS: ${creative.roas || 0}x | CPA: $${creative.cpa || 0} | CTR: ${creative.ctr || 0}%
 - CPM: $${creative.cpm || 0} | Purchases: ${creative.purchases || 0} | Impressions: ${creative.impressions || 0}
-${hasImage ? "I've attached the creative visual. Incorporate what you see into your analysis — comment on colors, composition, text overlays, talent, branding, and anything that stands out." : "No visual asset available — analyze based on metadata only."}
-
-Return your analysis as JSON with these exact keys: overview, hook_analysis, visual_notes, cta_strategy. Each should be 2-3 sentences.`;
+${imageUrl ? "I've attached the creative visual. Incorporate what you see into your analysis — comment on colors, composition, text overlays, talent, branding, and anything that stands out." : "No visual asset available — analyze based on metadata only."}
+Provide analysis using the tool.`;
   userContent.push({ type: "text", text: textPrompt });
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1024,
-      system: "You are a senior performance marketing creative strategist. When visuals are provided, analyze them in detail — comment on imagery, text overlays, composition, branding, and emotional appeal. Provide concise, actionable analysis. Always respond with valid JSON only.",
-      messages: [{ role: "user", content: userContent }],
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: "You are a senior performance marketing creative strategist. When visuals are provided, analyze them in detail — comment on imagery, text overlays, composition, branding, and emotional appeal. Provide concise, actionable analysis." },
+        { role: "user", content: userContent },
+      ],
+      tools: [AI_TOOL],
+      tool_choice: { type: "function", function: { name: "creative_analysis" } },
     }),
   });
 
   if (!response.ok) {
     const status = response.status;
-    if (status === 429) return { error: "Rate limit exceeded.", status: 429 };
-    if (status === 402) return { error: "Insufficient credits.", status: 402 };
+    if (status === 429) return { error: "Rate limit exceeded. Please try again later.", status: 429 };
+    if (status === 402) return { error: "Insufficient credits. Please add funds.", status: 402 };
     const errText = await response.text();
-    console.error("Anthropic API error:", status, errText);
-    return { error: `Anthropic API error: ${status}`, status };
+    console.error("AI gateway error:", status, errText);
+    return { error: `AI gateway error: ${status}`, status };
   }
 
   const aiResult = await response.json();
-  const text = aiResult.content?.map((b: any) => b.text).join("") || "";
-  
+
   try {
-    // Extract JSON from the response (handle markdown code blocks)
+    const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall?.function?.arguments) {
+      return JSON.parse(toolCall.function.arguments);
+    }
+    // Fallback: try parsing content as JSON
+    const text = aiResult.choices?.[0]?.message?.content || "";
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return { error: "AI did not return structured analysis" };
-    return JSON.parse(jsonMatch[0]);
+    if (jsonMatch) return JSON.parse(jsonMatch[0]);
+    return { error: "AI did not return structured analysis" };
   } catch {
     return { error: "Failed to parse AI response" };
   }
