@@ -64,7 +64,7 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // GET /creatives — list with filters
+    // GET /creatives — list with filters + pagination
     if (req.method === "GET" && !path) {
       const accountId = url.searchParams.get("account_id");
       const adType = url.searchParams.get("ad_type");
@@ -76,7 +76,8 @@ serve(async (req) => {
       const tagSource = url.searchParams.get("tag_source");
       const adStatus = url.searchParams.get("ad_status");
       const delivery = url.searchParams.get("delivery");
-      const limit = parseInt(url.searchParams.get("limit") || "1000");
+      const limit = Math.min(parseInt(url.searchParams.get("limit") || "100"), 500);
+      const offset = parseInt(url.searchParams.get("offset") || "0");
       const dateFrom = url.searchParams.get("date_from");
       const dateTo = url.searchParams.get("date_to");
 
@@ -115,7 +116,7 @@ serve(async (req) => {
         }
 
         if (relevantAdIds.length === 0) {
-          return new Response(JSON.stringify([]), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ data: [], total: 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
 
         // Fetch creative details for relevant ads only (batched)
@@ -159,12 +160,28 @@ serve(async (req) => {
         });
 
         result.sort((a: any, b: any) => (b.spend || 0) - (a.spend || 0));
-        return new Response(JSON.stringify(result.slice(0, limit)), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        const total = result.length;
+        return new Response(JSON.stringify({ data: result.slice(offset, offset + limit), total }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       // No date filter — use aggregated totals from creatives table
-      let query = supabase.from("creatives").select("*").order("spend", { ascending: false });
+      // First get total count
+      let countQuery = supabase.from("creatives").select("*", { count: "exact", head: true });
+      if (accountId) countQuery = countQuery.eq("account_id", accountId);
+      if (adType) countQuery = countQuery.eq("ad_type", adType);
+      if (person) countQuery = countQuery.eq("person", person);
+      if (style) countQuery = countQuery.eq("style", style);
+      if (hook) countQuery = countQuery.eq("hook", hook);
+      if (product) countQuery = countQuery.eq("product", product);
+      if (theme) countQuery = countQuery.eq("theme", theme);
+      if (tagSource) countQuery = countQuery.eq("tag_source", tagSource);
+      if (adStatus) countQuery = countQuery.eq("ad_status", adStatus);
+      if (delivery === "had_delivery") countQuery = countQuery.gt("spend", 0);
+      if (delivery === "active") countQuery = countQuery.eq("ad_status", "ACTIVE");
 
+      const { count } = await countQuery;
+
+      let query = supabase.from("creatives").select("*").order("spend", { ascending: false });
       if (accountId) query = query.eq("account_id", accountId);
       if (adType) query = query.eq("ad_type", adType);
       if (person) query = query.eq("person", person);
@@ -177,12 +194,12 @@ serve(async (req) => {
       if (delivery === "had_delivery") query = query.gt("spend", 0);
       if (delivery === "active") query = query.eq("ad_status", "ACTIVE");
 
-      query = query.limit(limit);
+      query = query.range(offset, offset + limit - 1);
 
       const { data, error } = await query;
       if (error) throw error;
 
-      return new Response(JSON.stringify(data), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ data: data || [], total: count || 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // PUT /creatives/:id — update tags

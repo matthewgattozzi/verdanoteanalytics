@@ -34,13 +34,14 @@ function determineFunnel(creative: any): "TOF" | "MOF" | "BOF" {
 const AnalyticsPage = () => {
   const { selectedAccountId, selectedAccount } = useAccountContext();
   const accountFilter = selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {};
-  const { data: creatives, isLoading } = useCreatives(accountFilter);
+  const { data: creativesResult, isLoading } = useCreatives(accountFilter);
+  const creatives = creativesResult?.data || [];
   const [sliceBy, setSliceBy] = useState("ad_type");
 
   const roasThreshold = parseFloat(selectedAccount?.winner_roas_threshold || "2.0");
   const spendThreshold = parseFloat(selectedAccount?.iteration_spend_threshold || "50");
 
-  const tagged = useMemo(() => (creatives || []).filter((c: any) => c.tag_source !== "untagged"), [creatives]);
+  const tagged = useMemo(() => creatives.filter((c: any) => c.tag_source !== "untagged"), [creatives]);
 
   // Win rate computation
   const winRateData = useMemo(() => {
@@ -186,7 +187,7 @@ const AnalyticsPage = () => {
     return <AppLayout><div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div></AppLayout>;
   }
 
-  const excludedCount = (creatives || []).length - tagged.length;
+  const excludedCount = creatives.length - tagged.length;
 
   return (
     <AppLayout>
