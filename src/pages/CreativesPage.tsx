@@ -24,8 +24,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { RefreshCw, LayoutGrid, List, Loader2, AlertTriangle, Sparkles, Download, Layers, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, useMemo, useCallback } from "react";
+import { RefreshCw, LayoutGrid, List, Loader2, AlertTriangle, Sparkles, Download, Layers, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { Input } from "@/components/ui/input";
 import { ColumnPicker, type ColumnDef } from "@/components/ColumnPicker";
 
 const TABLE_COLUMNS: ColumnDef[] = [
@@ -136,10 +137,23 @@ const CreativesPage = () => {
   const [dragSourceKey, setDragSourceKey] = useState<string | null>(null);
   const [dragTargetKey, setDragTargetKey] = useState<string | null>(null);
   const [page, setPage] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
   const { selectedAccountId } = useAccountContext();
 
+  // Debounce search input
+  useEffect(() => {
+    clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(0);
+    }, 400);
+    return () => clearTimeout(searchTimeout.current);
+  }, [searchInput]);
+
   const accountFilter = selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {};
-  const allFilters = { ...accountFilter, ...filters, delivery, ...(dateFrom ? { date_from: dateFrom } : {}), ...(dateTo ? { date_to: dateTo } : {}) };
+  const allFilters = { ...accountFilter, ...filters, delivery, ...(dateFrom ? { date_from: dateFrom } : {}), ...(dateTo ? { date_to: dateTo } : {}), ...(search ? { search } : {}) };
   const { data: creativesResult, isLoading } = useCreatives(allFilters, page);
   const creatives = creativesResult?.data || [];
   const totalCreatives = creativesResult?.total || 0;
@@ -331,6 +345,25 @@ const CreativesPage = () => {
         <MetricCard label="Avg ROAS" value={avgMetrics.roas} />
         <MetricCard label="Avg CPA" value={avgMetrics.cpa} />
         <MetricCard label="Avg CTR" value={avgMetrics.ctr} />
+      </div>
+
+      {/* Search */}
+      <div className="relative mb-3 max-w-sm">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <Input
+          placeholder="Search by ad name, code, or campaign…"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          className="h-8 text-xs pl-8 pr-8"
+        />
+        {searchInput && (
+          <button
+            onClick={() => setSearchInput("")}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
       {/* Delivery + Filters */}
