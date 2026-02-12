@@ -91,6 +91,7 @@ interface AIContextSectionProps {
   onSaveSettings: (updates: Record<string, any>) => Promise<void>;
   onApplyPromptsToAll?: () => void;
   applyingToAll?: boolean;
+  applyProgress?: { current: number; total: number };
   showApplyAll?: boolean;
 }
 
@@ -100,7 +101,7 @@ export function AIContextSection({
   account, primaryKpi, setPrimaryKpi, secondaryKpis, setSecondaryKpis,
   companyPdfUrl, setCompanyPdfUrl,
   creativePrompt, setCreativePrompt, insightsPrompt, setInsightsPrompt,
-  onSaveSettings, onApplyPromptsToAll, applyingToAll, showApplyAll,
+  onSaveSettings, onApplyPromptsToAll, applyingToAll, applyProgress, showApplyAll,
 }: AIContextSectionProps) {
   const [uploadingPdf, setUploadingPdf] = useState(false);
 
@@ -240,7 +241,7 @@ export function AIContextSection({
             className="w-full"
           >
             {applyingToAll ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
-            Copy prompts to all accounts
+            {applyingToAll && applyProgress ? `Updating ${applyProgress.current}/${applyProgress.total} accounts…` : "Copy prompts to all accounts"}
           </Button>
           <p className="text-[11px] text-muted-foreground mt-1.5 text-center">Applies both system prompts to every account.</p>
         </div>

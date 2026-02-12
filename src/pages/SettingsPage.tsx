@@ -90,26 +90,29 @@ const SettingsPage = () => {
   };
 
   const [applyingPrompts, setApplyingPrompts] = useState(false);
+  const [applyProgress, setApplyProgress] = useState({ current: 0, total: 0 });
 
   const handleApplyPromptsToAll = async () => {
+    const allAccounts = (accounts || []) as any[];
     const promptValues = {
       creative_analysis_prompt: creativePrompt === DEFAULT_CREATIVE_PROMPT ? null : creativePrompt || null,
       insights_prompt: insightsPrompt === DEFAULT_INSIGHTS_PROMPT ? null : insightsPrompt || null,
     };
     setApplyingPrompts(true);
+    setApplyProgress({ current: 0, total: allAccounts.length });
     let success = 0;
-    for (const acc of (accounts || []) as any[]) {
+    for (const acc of allAccounts) {
       try {
         await updateAccountSettings.mutateAsync({ id: acc.id, ...promptValues });
         success++;
-        // Small delay to avoid overwhelming the backend
+        setApplyProgress(p => ({ ...p, current: p.current + 1 }));
         await new Promise(r => setTimeout(r, 300));
       } catch (e) {
-        // continue to next account
+        setApplyProgress(p => ({ ...p, current: p.current + 1 }));
       }
     }
     setApplyingPrompts(false);
-    toast.success(`Prompts applied to ${success}/${(accounts || []).length} accounts`);
+    toast.success(`Prompts applied to ${success}/${allAccounts.length} accounts`);
   };
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -223,6 +226,7 @@ const SettingsPage = () => {
           }}
           onApplyPromptsToAll={handleApplyPromptsToAll}
           applyingToAll={applyingPrompts}
+          applyProgress={applyProgress}
           showApplyAll={accounts.length > 1}
         />
 
