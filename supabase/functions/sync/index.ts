@@ -356,17 +356,16 @@ serve(async (req) => {
         const apiErrors: { timestamp: string; message: string }[] = [];
 
         try {
-          // Phase 1: Fetch ads from Meta (aggregated)
+          // Phase 1: Fetch ads metadata from Meta (WITHOUT insights for speed)
           const sinceStr = startDate.toISOString().split("T")[0];
           const untilStr = endDate.toISOString().split("T")[0];
           const timeRange = JSON.stringify({ since: sinceStr, until: untilStr });
 
-          let adsPageLimit = 200; // Start larger — Meta will return what it can
+          let adsPageLimit = 500; // Without insights, Meta allows much larger pages
           let nextUrl: string | null =
             `https://graph.facebook.com/v21.0/${account.id}/ads?` +
             `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,video_id},` +
-            `preview_shareable_link,` +
-            `insights.time_range(${timeRange}){spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values}` +
+            `preview_shareable_link` +
             `&limit=${adsPageLimit}&access_token=${encodeURIComponent(token)}`;
 
           const fetchedAds: any[] = [];
@@ -387,14 +386,12 @@ serve(async (req) => {
             const data = await resp.json();
 
             if (data.error) {
-              // If "reduce data" error, retry with smaller limit
-              if (data.error.message?.includes("reduce the amount of data") && adsPageLimit > 10) {
-                adsPageLimit = Math.max(10, Math.floor(adsPageLimit / 2));
+              if (data.error.message?.includes("reduce the amount of data") && adsPageLimit > 25) {
+                adsPageLimit = Math.max(25, Math.floor(adsPageLimit / 2));
                 console.log(`Reducing page size to ${adsPageLimit} and retrying...`);
                 apiErrors.push({ timestamp: new Date().toISOString(), message: `Reduced page size to ${adsPageLimit}: ${data.error.message}` });
-                // Rebuild URL with smaller limit
                 nextUrl = nextUrl.replace(/&limit=\d+/, `&limit=${adsPageLimit}`);
-                await new Promise((r) => setTimeout(r, 2000)); // Back off before retry
+                await new Promise((r) => setTimeout(r, 2000));
                 continue;
               }
               console.error(`Meta API error:`, data.error);
@@ -408,18 +405,73 @@ serve(async (req) => {
             }
 
             nextUrl = data.paging?.next || null;
-
-            // Rate limiting — more aggressive with larger datasets
-            if (nextUrl) await new Promise((r) => setTimeout(r, 300));
+            if (nextUrl) await new Promise((r) => setTimeout(r, 500));
           }
 
           creativesFetched = fetchedAds.length;
+          console.log(`Total ads fetched: ${creativesFetched}`);
 
-          // Phase 1a: Skip video source URL fetching for speed — use shareable links instead
+          // Phase 1a: Fetch aggregated insights separately (in batches of 50 ad IDs)
+          const adIds = fetchedAds.map((ad: any) => ad.id);
+          const insightsMap = new Map<string, any>();
+
+          if (!isTimedOut() && adIds.length > 0) {
+            console.log(`Fetching aggregated insights for ${adIds.length} ads...`);
+            const INSIGHTS_BATCH = 50;
+            for (let i = 0; i < adIds.length; i += INSIGHTS_BATCH) {
+              if (isTimedOut()) {
+                console.log(`Timeout: stopped insights fetch at ${i}/${adIds.length}`);
+                apiErrors.push({ timestamp: new Date().toISOString(), message: `Timeout: insights fetched for ${i}/${adIds.length} ads` });
+                break;
+              }
+              const batch = adIds.slice(i, i + INSIGHTS_BATCH);
+              const filterParam = JSON.stringify([{ field: "ad.id", operator: "IN", value: batch }]);
+              const insightsUrl = `https://graph.facebook.com/v21.0/${account.id}/insights?` +
+                `time_range=${encodeURIComponent(timeRange)}` +
+                `&filtering=${encodeURIComponent(filterParam)}` +
+                `&level=ad` +
+                `&fields=ad_id,spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values` +
+                `&limit=500&access_token=${encodeURIComponent(token)}`;
+
+              metaApiCalls++;
+              const resp = await fetch(insightsUrl);
+              const data = await resp.json();
+
+              if (data.error) {
+                console.error(`Insights batch error:`, data.error);
+                apiErrors.push({ timestamp: new Date().toISOString(), message: `Insights error: ${data.error.message}` });
+              } else if (data.data) {
+                for (const row of data.data) {
+                  insightsMap.set(row.ad_id, row);
+                }
+              }
+
+              // Handle pagination within insights batch
+              let insightsNext = data.paging?.next || null;
+              while (insightsNext && !isTimedOut()) {
+                metaApiCalls++;
+                const nextResp = await fetch(insightsNext);
+                const nextData = await nextResp.json();
+                if (nextData.data) {
+                  for (const row of nextData.data) {
+                    insightsMap.set(row.ad_id, row);
+                  }
+                }
+                insightsNext = nextData.paging?.next || null;
+              }
+
+              console.log(`Insights batch ${Math.floor(i / INSIGHTS_BATCH) + 1}: ${insightsMap.size} total insights`);
+              if (i + INSIGHTS_BATCH < adIds.length) await new Promise((r) => setTimeout(r, 300));
+            }
+          } else if (adIds.length > 0) {
+            apiErrors.push({ timestamp: new Date().toISOString(), message: "Skipped insights fetch due to timeout" });
+          }
+
+          // Phase 1b: Skip video source URL fetching for speed
           const videoIdMap = new Map<string, string>();
           console.log(`Skipping video source URL fetching for faster sync`);
 
-          // Phase 1b: Get existing manual-tagged ad_ids
+          // Phase 1c: Get existing manual-tagged ad_ids
           const { data: manualAds } = await supabase
             .from("creatives")
             .select("ad_id")
@@ -432,7 +484,7 @@ serve(async (req) => {
           const manualUpdateBatch: any[] = [];
 
           for (const ad of fetchedAds) {
-            const insights = ad.insights?.data?.[0] || {};
+            const insights = insightsMap.get(ad.id) || {};
             const spend = parseFloat(insights.spend || "0");
             const roas = insights.purchase_roas?.[0]?.value ? parseFloat(insights.purchase_roas[0].value) : 0;
             const ctr = parseFloat(insights.ctr || "0");
@@ -456,7 +508,6 @@ serve(async (req) => {
             }
             const thumbStopRate = impressions > 0 ? (clicks / impressions) * 100 : 0;
 
-            // Resolve video preview URL
             const videoId = ad.creative?.video_id;
             const videoSourceUrl = videoId ? (videoIdMap.get(videoId) || null) : null;
             const shareableLink = ad.preview_shareable_link || null;
@@ -494,7 +545,7 @@ serve(async (req) => {
             else console.error("Batch upsert error:", error);
           }
 
-          // Batch update manual-tagged creatives (metrics only, parallel batches of 50)
+          // Batch update manual-tagged creatives (metrics only)
           for (let i = 0; i < manualUpdateBatch.length; i += 50) {
             const batch = manualUpdateBatch.slice(i, i + 50);
             await Promise.all(batch.map(({ ad_id, ...metrics }: any) =>
