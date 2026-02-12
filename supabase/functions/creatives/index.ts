@@ -38,15 +38,19 @@ serve(async (req) => {
 
   // Auth: require authenticated user with valid role
   const authHeader = req.headers.get("authorization");
+  console.log("Auth header present:", !!authHeader, "Method:", req.method, "URL:", req.url);
   if (!authHeader) {
+    console.log("No auth header found");
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
   const token = authHeader.replace("Bearer ", "");
+  console.log("Token length:", token.length, "Token prefix:", token.substring(0, 20));
   const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  console.log("Auth result - user:", user?.id, "error:", authError?.message);
   if (authError || !user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    return new Response(JSON.stringify({ error: "Unauthorized", detail: authError?.message }), {
       status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
