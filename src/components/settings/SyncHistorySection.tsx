@@ -3,6 +3,9 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -22,12 +25,25 @@ const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; c
 export function SyncHistorySection({ accountId }: { accountId?: string }) {
   const [selectedLog, setSelectedLog] = useState<any>(null);
   const [page, setPage] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const { data: accounts } = useAccounts();
   const { data: logs, isLoading } = useSyncHistory(accountId);
   const syncMut = useSync();
 
-  const totalPages = useMemo(() => Math.max(1, Math.ceil((logs?.length || 0) / PAGE_SIZE)), [logs]);
-  const pagedLogs = useMemo(() => (logs || []).slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [logs, page]);
+  const filteredLogs = useMemo(() => {
+    if (!logs) return [];
+    if (statusFilter === "all") return logs;
+    return logs.filter((l: any) => l.status === statusFilter);
+  }, [logs, statusFilter]);
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredLogs.length / PAGE_SIZE)), [filteredLogs]);
+  const pagedLogs = useMemo(() => filteredLogs.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [filteredLogs, page]);
+
+  // Reset page when filter changes
+  const handleStatusChange = (v: string) => {
+    setStatusFilter(v);
+    setPage(0);
+  };
 
   const getAccountName = (id: string) => {
     const a = (accounts || []).find((a: any) => a.id === id);
@@ -47,25 +63,41 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
           <h3 className="text-sm font-semibold">Sync History</h3>
           <p className="text-xs text-muted-foreground">Recent sync operations for this account.</p>
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => syncMut.mutate({ account_id: accountId || "all" })}
-          disabled={syncMut.isPending}
-        >
-          {syncMut.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
-          {syncMut.isPending ? "Syncing…" : "Resync"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select value={statusFilter} onValueChange={handleStatusChange}>
+            <SelectTrigger className="w-32 h-8 text-xs bg-background">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="completed_with_errors">Partial</SelectItem>
+              <SelectItem value="failed">Failed</SelectItem>
+              <SelectItem value="running">Running</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => syncMut.mutate({ account_id: accountId || "all" })}
+            disabled={syncMut.isPending}
+          >
+            {syncMut.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+            {syncMut.isPending ? "Syncing…" : "Resync"}
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-      ) : !logs?.length ? (
+      ) : !filteredLogs.length ? (
         <div className="glass-panel flex flex-col items-center justify-center py-12 text-center">
           <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
             <History className="h-5 w-5 text-muted-foreground" />
           </div>
-          <p className="text-sm text-muted-foreground">No sync history yet.</p>
+          <p className="text-sm text-muted-foreground">
+            {statusFilter !== "all" ? `No ${statusConfig[statusFilter]?.label.toLowerCase() || statusFilter} syncs found.` : "No sync history yet."}
+          </p>
         </div>
       ) : (
         <div className="glass-panel overflow-hidden">
@@ -111,7 +143,7 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-2 border-t border-border">
               <span className="text-[10px] text-muted-foreground">
-                {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, logs.length)} of {logs.length}
+                {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filteredLogs.length)} of {filteredLogs.length}
               </span>
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
