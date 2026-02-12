@@ -6,32 +6,32 @@
 
 @layer base {
   :root {
-    --background: 34 30% 96%;
-    --foreground: 20 25% 12%;
+    --background: 140 14% 96%;
+    --foreground: 150 20% 12%;
 
-    --card: 36 30% 99%;
-    --card-foreground: 20 25% 12%;
+    --card: 140 12% 99%;
+    --card-foreground: 150 20% 12%;
 
-    --popover: 36 30% 99%;
-    --popover-foreground: 20 25% 12%;
+    --popover: 140 12% 99%;
+    --popover-foreground: 150 20% 12%;
 
     --primary: 152 45% 28%;
     --primary-foreground: 140 20% 97%;
 
-    --secondary: 32 22% 91%;
-    --secondary-foreground: 20 18% 32%;
+    --secondary: 145 14% 91%;
+    --secondary-foreground: 150 14% 30%;
 
-    --muted: 32 18% 92%;
-    --muted-foreground: 20 12% 48%;
+    --muted: 145 10% 92%;
+    --muted-foreground: 150 8% 46%;
 
-    --accent: 32 25% 89%;
-    --accent-foreground: 20 25% 12%;
+    --accent: 145 16% 89%;
+    --accent-foreground: 150 20% 12%;
 
     --destructive: 2 50% 46%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 32 18% 84%;
-    --input: 32 18% 84%;
+    --border: 148 12% 84%;
+    --input: 148 12% 84%;
     --ring: 152 45% 28%;
 
     --radius: 0.5rem;
@@ -55,14 +55,14 @@
     --watch: 36 75% 48%;
     --kill: 2 50% 46%;
 
-    /* Sidebar — warm parchment */
-    --sidebar-background: 34 28% 94%;
-    --sidebar-foreground: 20 16% 38%;
+    /* Sidebar — sage green */
+    --sidebar-background: 142 14% 94%;
+    --sidebar-foreground: 150 12% 36%;
     --sidebar-primary: 152 45% 28%;
     --sidebar-primary-foreground: 140 20% 97%;
-    --sidebar-accent: 32 24% 88%;
-    --sidebar-accent-foreground: 20 25% 12%;
-    --sidebar-border: 32 18% 84%;
+    --sidebar-accent: 145 16% 88%;
+    --sidebar-accent-foreground: 150 20% 12%;
+    --sidebar-border: 148 12% 84%;
     --sidebar-ring: 152 45% 28%;
 
     /* Chart palette */
@@ -114,11 +114,11 @@
 @layer utilities {
   .glass-panel {
     @apply bg-card border border-border/50 rounded-lg;
-    box-shadow: 0 1px 3px 0 hsl(30 20% 50% / 0.06), 0 1px 2px -1px hsl(30 20% 50% / 0.04);
+    box-shadow: 0 1px 3px 0 hsl(150 14% 50% / 0.06), 0 1px 2px -1px hsl(150 14% 50% / 0.04);
   }
 
   .glass-panel:hover {
-    box-shadow: 0 2px 6px 0 hsl(30 20% 50% / 0.1), 0 1px 3px -1px hsl(30 20% 50% / 0.06);
+    box-shadow: 0 2px 6px 0 hsl(150 14% 50% / 0.1), 0 1px 3px -1px hsl(150 14% 50% / 0.06);
   }
 
   .metric-value {
