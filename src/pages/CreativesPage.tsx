@@ -24,7 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { RefreshCw, LayoutGrid, List, Loader2, AlertTriangle, Sparkles, Download, Layers } from "lucide-react";
+import { RefreshCw, LayoutGrid, List, Loader2, AlertTriangle, Sparkles, Download, Layers, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useMemo, useCallback } from "react";
 import { ColumnPicker, type ColumnDef } from "@/components/ColumnPicker";
 
@@ -91,7 +91,7 @@ const SORT_FIELD_MAP: Record<string, string> = {
   campaign: "campaign_name", adset: "adset_name", ad_status: "ad_status",
 };
 
-import { useCreatives, useCreativeFilters, useBulkAnalyze } from "@/hooks/useCreatives";
+import { useCreatives, useCreativeFilters, useBulkAnalyze, CREATIVES_PAGE_SIZE } from "@/hooks/useCreatives";
 import { useSync } from "@/hooks/useApi";
 import { exportCreativesCSV } from "@/lib/csv";
 import { useAccountContext } from "@/contexts/AccountContext";
@@ -135,27 +135,31 @@ const CreativesPage = () => {
   const [sort, setSort] = useState<SortConfig>({ key: "", direction: null });
   const [dragSourceKey, setDragSourceKey] = useState<string | null>(null);
   const [dragTargetKey, setDragTargetKey] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
   const { selectedAccountId } = useAccountContext();
 
   const accountFilter = selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {};
   const allFilters = { ...accountFilter, ...filters, delivery, ...(dateFrom ? { date_from: dateFrom } : {}), ...(dateTo ? { date_to: dateTo } : {}) };
-  const { data: creatives, isLoading } = useCreatives(allFilters);
+  const { data: creativesResult, isLoading } = useCreatives(allFilters, page);
+  const creatives = creativesResult?.data || [];
+  const totalCreatives = creativesResult?.total || 0;
+  const totalPages = Math.ceil(totalCreatives / CREATIVES_PAGE_SIZE);
   const { data: filterOptions } = useCreativeFilters();
   const syncMut = useSync();
   const bulkAnalyze = useBulkAnalyze();
 
   const unanalyzedCount = useMemo(() =>
-    (creatives || []).filter((c: any) => c.analysis_status !== "analyzed" && (c.spend || 0) > 0).length,
+    creatives.filter((c: any) => c.analysis_status !== "analyzed" && (c.spend || 0) > 0).length,
     [creatives]
   );
 
   const untaggedCount = useMemo(() =>
-    (creatives || []).filter((c: any) => c.tag_source === "untagged").length,
+    creatives.filter((c: any) => c.tag_source === "untagged").length,
     [creatives]
   );
 
   const avgMetrics = useMemo(() => {
-    const list = creatives || [];
+    const list = creatives;
     if (list.length === 0) return { roas: "—", cpa: "—", ctr: "—" };
     const withSpend = list.filter((c: any) => c.spend > 0);
     if (withSpend.length === 0) return { roas: "—", cpa: "—", ctr: "—" };
@@ -175,7 +179,7 @@ const CreativesPage = () => {
   }, []);
 
   const sortedCreatives = useMemo(() => {
-    const list = [...(creatives || [])].map((c: any) => ({
+    const list = [...creatives].map((c: any) => ({
       ...c,
       _cpmr: (Number(c.cpm) || 0) * (Number(c.frequency) || 0),
     }));
@@ -225,6 +229,7 @@ const CreativesPage = () => {
   };
 
   const updateFilter = (key: string, val: string) => {
+    setPage(0);
     setFilters((prev) => {
       const next = { ...prev };
       if (val === "__all__") { delete next[key]; } else { next[key] = val; }
@@ -310,7 +315,7 @@ const CreativesPage = () => {
                 Analyze ({unanalyzedCount})
               </Button>
             )}
-            {creatives?.length > 0 && (
+            {creatives.length > 0 && (
               <Button size="sm" variant="outline" onClick={() => exportCreativesCSV(creatives)}>
                 <Download className="h-3.5 w-3.5 mr-1.5" />
                 Export
@@ -322,7 +327,7 @@ const CreativesPage = () => {
 
       {/* Metrics */}
       <div className="grid grid-cols-4 gap-3 mb-4">
-        <MetricCard label="Total Creatives" value={creatives?.length ?? 0} />
+        <MetricCard label="Total Creatives" value={totalCreatives} />
         <MetricCard label="Avg ROAS" value={avgMetrics.roas} />
         <MetricCard label="Avg CPA" value={avgMetrics.cpa} />
         <MetricCard label="Avg CTR" value={avgMetrics.ctr} />
@@ -393,17 +398,17 @@ const CreativesPage = () => {
       </div>
 
       {/* Untagged warning */}
-      {untaggedCount > 0 && untaggedCount / (creatives?.length || 1) > 0.2 && (
+      {untaggedCount > 0 && untaggedCount / (creatives.length || 1) > 0.2 && (
         <div className="flex items-center gap-2 p-3 rounded-md bg-tag-untagged/10 border border-tag-untagged/20 mb-4 text-xs">
           <AlertTriangle className="h-4 w-4 text-tag-untagged flex-shrink-0" />
-          <span>{untaggedCount} creatives are untagged ({Math.round((untaggedCount / (creatives?.length || 1)) * 100)}%). Upload CSV mappings in Accounts or edit tags manually.</span>
+          <span>{untaggedCount} creatives are untagged ({Math.round((untaggedCount / (creatives.length || 1)) * 100)}%). Upload CSV mappings in Accounts or edit tags manually.</span>
         </div>
       )}
 
       {/* Content */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-      ) : !creatives?.length ? (
+      ) : creatives.length === 0 ? (
         <div className="glass-panel flex flex-col items-center justify-center py-20 text-center animate-fade-in">
           <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4"><LayoutGrid className="h-6 w-6 text-muted-foreground" /></div>
           <h3 className="text-lg font-medium mb-1">No creatives yet</h3>
@@ -544,6 +549,24 @@ const CreativesPage = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <span className="text-xs text-muted-foreground">
+            Showing {page * CREATIVES_PAGE_SIZE + 1}–{Math.min((page + 1) * CREATIVES_PAGE_SIZE, totalCreatives)} of {totalCreatives.toLocaleString()}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+              <ChevronLeft className="h-3.5 w-3.5 mr-1" />Prev
+            </Button>
+            <span className="text-xs text-muted-foreground">Page {page + 1} of {totalPages}</span>
+            <Button size="sm" variant="outline" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+              Next<ChevronRight className="h-3.5 w-3.5 ml-1" />
+            </Button>
+          </div>
         </div>
       )}
 

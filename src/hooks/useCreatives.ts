@@ -2,15 +2,28 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 
-export function useCreatives(filters: Record<string, string> = {}) {
+const PAGE_SIZE = 100;
+
+export function useCreatives(filters: Record<string, string> = {}, page = 0) {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
+  params.set("limit", String(PAGE_SIZE));
+  params.set("offset", String(page * PAGE_SIZE));
   const qs = params.toString();
-  return useQuery({
+  return useQuery<{ data: any[]; total: number }>({
     queryKey: ["creatives", qs],
-    queryFn: () => apiFetch("creatives", qs ? `?${qs}` : ""),
+    queryFn: async () => {
+      const result = await apiFetch("creatives", qs ? `?${qs}` : "");
+      // Handle both old format (array) and new format ({ data, total })
+      if (Array.isArray(result)) {
+        return { data: result, total: result.length };
+      }
+      return result;
+    },
   });
 }
+
+export const CREATIVES_PAGE_SIZE = PAGE_SIZE;
 
 export function useCreativeFilters() {
   return useQuery({
