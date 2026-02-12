@@ -51,17 +51,21 @@ export const ColumnPicker = ({ columns, visibleColumns, onToggle, columnOrder, o
 
   const groupOrder = ["Core", "Tags", "Performance", "Engagement", "Commerce", "Context"];
 
-  const handleDragStart = useCallback((key: string) => {
+  const handleDragStart = useCallback((e: React.DragEvent, key: string) => {
     dragRef.current = key;
     setDragKey(key);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", key);
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent, key: string) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
     setDragOverKey(key);
   }, []);
 
-  const handleDrop = useCallback((targetKey: string) => {
+  const handleDrop = useCallback((e: React.DragEvent, targetKey: string) => {
+    e.preventDefault();
     const sourceKey = dragRef.current;
     if (!sourceKey || sourceKey === targetKey) {
       setDragKey(null);
@@ -77,11 +81,13 @@ export const ColumnPicker = ({ columns, visibleColumns, onToggle, columnOrder, o
     onReorder(newOrder);
     setDragKey(null);
     setDragOverKey(null);
+    dragRef.current = null;
   }, [orderedKeys, onReorder]);
 
   const handleDragEnd = useCallback(() => {
     setDragKey(null);
     setDragOverKey(null);
+    dragRef.current = null;
   }, []);
 
   return (
@@ -106,22 +112,20 @@ export const ColumnPicker = ({ columns, visibleColumns, onToggle, columnOrder, o
                   <div
                     key={col.key}
                     draggable
-                    onDragStart={() => handleDragStart(col.key)}
+                    onDragStart={(e) => handleDragStart(e, col.key)}
                     onDragOver={(e) => handleDragOver(e, col.key)}
-                    onDrop={() => handleDrop(col.key)}
+                    onDrop={(e) => handleDrop(e, col.key)}
                     onDragEnd={handleDragEnd}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors select-none ${
                       dragOverKey === col.key && dragKey !== col.key ? "bg-primary/10 border border-primary/30" : "hover:bg-accent"
                     } ${dragKey === col.key ? "opacity-40" : ""}`}
                   >
                     <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50 cursor-grab flex-shrink-0" />
-                    <label className="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
-                      <Checkbox
-                        checked={visibleColumns.has(col.key)}
-                        onCheckedChange={() => onToggle(col.key)}
-                      />
-                      <span className="truncate">{col.label}</span>
-                    </label>
+                    <Checkbox
+                      checked={visibleColumns.has(col.key)}
+                      onCheckedChange={() => onToggle(col.key)}
+                    />
+                    <span className="truncate cursor-default flex-1">{col.label}</span>
                   </div>
                 ))}
               </div>

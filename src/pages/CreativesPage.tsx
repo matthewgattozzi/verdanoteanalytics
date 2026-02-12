@@ -215,9 +215,11 @@ const CreativesPage = () => {
     }).sort((a, b) => b.totalSpend - a.totalSpend);
   }, [sortedCreatives, groupBy]);
 
-  const fmt = (v: number | null, prefix = "", suffix = "") => {
-    if (v === null || v === undefined || v === 0) return "—";
-    return `${prefix}${Number(v).toLocaleString("en-US", { maximumFractionDigits: 2 })}${suffix}`;
+  const fmt = (v: number | null | undefined, prefix = "", suffix = "", decimals = 2) => {
+    if (v === null || v === undefined) return "—";
+    const n = Number(v);
+    if (isNaN(n)) return "—";
+    return `${prefix}${n.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}${suffix}`;
   };
 
   const updateFilter = (key: string, val: string) => {
@@ -464,18 +466,18 @@ const CreativesPage = () => {
                       cpa: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.cpa, "$")}</TableCell>,
                       cpm: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.cpm, "$")}</TableCell>,
                       cpc: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.cpc, "$")}</TableCell>,
-                      frequency: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.frequency)}</TableCell>,
+                      frequency: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.frequency, "", "", 1)}</TableCell>,
                       cpmr: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c._cpmr, "$")}</TableCell>,
                       ctr: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.ctr, "", "%")}</TableCell>,
-                      impressions: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.impressions)}</TableCell>,
-                      clicks: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.clicks)}</TableCell>,
+                      impressions: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.impressions, "", "", 0)}</TableCell>,
+                      clicks: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.clicks, "", "", 0)}</TableCell>,
                       hook_rate: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.thumb_stop_rate, "", "%")}</TableCell>,
                       hold_rate: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.hold_rate, "", "%")}</TableCell>,
-                      video_views: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.video_views)}</TableCell>,
-                      video_avg_play_time: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.video_avg_play_time, "", "s")}</TableCell>,
-                      purchases: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.purchases)}</TableCell>,
+                      video_views: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.video_views, "", "", 0)}</TableCell>,
+                      video_avg_play_time: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.video_avg_play_time, "", "s", 1)}</TableCell>,
+                      purchases: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.purchases, "", "", 0)}</TableCell>,
                       purchase_value: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.purchase_value, "$")}</TableCell>,
-                      adds_to_cart: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.adds_to_cart)}</TableCell>,
+                      adds_to_cart: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.adds_to_cart, "", "", 0)}</TableCell>,
                       cost_per_atc: () => <TableCell key={key} className="text-xs text-right font-mono">{fmt(c.cost_per_add_to_cart, "$")}</TableCell>,
                       campaign: () => <TableCell key={key} className="text-xs truncate max-w-[150px]">{c.campaign_name || "—"}</TableCell>,
                       adset: () => <TableCell key={key} className="text-xs truncate max-w-[150px]">{c.adset_name || "—"}</TableCell>,

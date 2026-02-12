@@ -78,7 +78,7 @@ serve(async (req) => {
       const tagSource = url.searchParams.get("tag_source");
       const adStatus = url.searchParams.get("ad_status");
       const delivery = url.searchParams.get("delivery");
-      const limit = parseInt(url.searchParams.get("limit") || "200");
+      const limit = parseInt(url.searchParams.get("limit") || "1000");
 
       if (accountId) query = query.eq("account_id", accountId);
       if (adType) query = query.eq("ad_type", adType);
