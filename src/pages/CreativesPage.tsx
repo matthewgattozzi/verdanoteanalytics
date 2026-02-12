@@ -160,6 +160,18 @@ const CreativesPage = () => {
     return () => clearTimeout(searchTimeout.current);
   }, [searchInput]);
 
+  // Sync filters to URL
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (search) params.set("q", search);
+    if (delivery) params.set("delivery", delivery);
+    if (dateFrom) params.set("from", dateFrom);
+    if (dateTo) params.set("to", dateTo);
+    if (groupBy !== "__none__") params.set("group", groupBy);
+    if (Object.keys(filters).length > 0) params.set("filters", JSON.stringify(filters));
+    setSearchParams(params, { replace: true });
+  }, [search, delivery, dateFrom, dateTo, groupBy, filters, setSearchParams]);
+
   const accountFilter = selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {};
   const allFilters = { ...accountFilter, ...filters, delivery, ...(dateFrom ? { date_from: dateFrom } : {}), ...(dateTo ? { date_to: dateTo } : {}), ...(search ? { search } : {}) };
   const { data: creativesResult, isLoading } = useCreatives(allFilters, page);
