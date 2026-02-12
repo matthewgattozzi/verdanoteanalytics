@@ -228,6 +228,7 @@ export type Database = {
           hold_rate: number | null
           hook: string | null
           impressions: number | null
+          notes: string | null
           person: string | null
           preview_url: string | null
           product: string | null
@@ -272,6 +273,7 @@ export type Database = {
           hold_rate?: number | null
           hook?: string | null
           impressions?: number | null
+          notes?: string | null
           person?: string | null
           preview_url?: string | null
           product?: string | null
@@ -316,6 +318,7 @@ export type Database = {
           hold_rate?: number | null
           hook?: string | null
           impressions?: number | null
+          notes?: string | null
           person?: string | null
           preview_url?: string | null
           product?: string | null

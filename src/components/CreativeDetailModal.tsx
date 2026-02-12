@@ -9,6 +9,7 @@ import { Image as ImageIcon, ExternalLink } from "lucide-react";
 import { CreativeMetrics } from "@/components/creative-detail/CreativeMetrics";
 import { CreativeTagEditor } from "@/components/creative-detail/CreativeTagEditor";
 import { CreativeAIAnalysis } from "@/components/creative-detail/CreativeAIAnalysis";
+import { CreativeNotes } from "@/components/creative-detail/CreativeNotes";
 
 interface CreativeDetailModalProps {
   creative: any;
@@ -72,6 +73,8 @@ export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailM
           <p><span className="font-medium text-foreground">Ad Set:</span> {creative.adset_name || "—"}</p>
         </div>
 
+        <Separator />
+        <CreativeNotes creative={creative} />
         <Separator />
         <CreativeTagEditor creative={creative} />
         <Separator />
