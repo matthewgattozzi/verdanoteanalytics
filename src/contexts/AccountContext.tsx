@@ -49,9 +49,21 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
   const isLoading = accountsLoading || (isClient && linkedAccountIds === null);
 
-  // Auto-select first account if none selected
+  // Auto-select first account if none selected, or clear stale selection
   useEffect(() => {
-    if (!isLoading && accounts?.length > 0 && !selectedAccountId) {
+    if (isLoading || !accounts?.length) return;
+
+    // Validate current selection exists in actual accounts (or is "all")
+    if (selectedAccountId && selectedAccountId !== "all") {
+      const exists = accounts.some((a: any) => a.id === selectedAccountId);
+      if (!exists) {
+        console.warn(`Stale account ID "${selectedAccountId}" not found — resetting`);
+        setSelectedAccountId(accounts[0].id);
+        return;
+      }
+    }
+
+    if (!selectedAccountId) {
       setSelectedAccountId(accounts[0].id);
     }
     // For clients with single account, lock to it
