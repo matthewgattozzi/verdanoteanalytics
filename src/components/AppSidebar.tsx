@@ -6,6 +6,7 @@ import {
   BarChart3,
   FileText,
   Zap,
+  History,
 } from "lucide-react";
 
 const navItems = [
@@ -13,6 +14,7 @@ const navItems = [
   { title: "Accounts", url: "/accounts", icon: Building2 },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Reports", url: "/reports", icon: FileText },
+  { title: "Sync History", url: "/sync-history", icon: History },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 

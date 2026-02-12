@@ -5,8 +5,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, Download } from "lucide-react";
+import { exportReportCSV } from "@/lib/csv";
 
 interface ReportDetailModalProps {
   report: any;
@@ -51,7 +53,12 @@ export function ReportDetailModal({ report, open, onClose }: ReportDetailModalPr
               <Badge variant="outline" className="text-xs">{report.date_range_days} days</Badge>
             )}
           </DialogTitle>
-          <p className="text-xs text-muted-foreground">Generated {new Date(report.created_at).toLocaleString()}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">Generated {new Date(report.created_at).toLocaleString()}</p>
+            <Button size="sm" variant="outline" onClick={() => exportReportCSV(report)}>
+              <Download className="h-3 w-3 mr-1" />Export CSV
+            </Button>
+          </div>
         </DialogHeader>
 
         {/* Metrics Grid */}

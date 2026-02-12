@@ -21,10 +21,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { RefreshCw, LayoutGrid, List, Loader2, AlertTriangle, Sparkles } from "lucide-react";
+import { RefreshCw, LayoutGrid, List, Loader2, AlertTriangle, Sparkles, Download } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useCreatives, useCreativeFilters, useBulkAnalyze } from "@/hooks/useCreatives";
 import { useSync } from "@/hooks/useApi";
+import { exportCreativesCSV } from "@/lib/csv";
 
 const CreativesPage = () => {
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
@@ -104,6 +105,12 @@ const CreativesPage = () => {
               <Button size="sm" variant="outline" onClick={() => bulkAnalyze.mutate(20)} disabled={bulkAnalyze.isPending}>
                 {bulkAnalyze.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1.5" />}
                 Analyze ({unanalyzedCount})
+              </Button>
+            )}
+            {creatives?.length > 0 && (
+              <Button size="sm" variant="outline" onClick={() => exportCreativesCSV(creatives)}>
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+                Export
               </Button>
             )}
           </div>
