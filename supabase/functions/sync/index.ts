@@ -130,9 +130,11 @@ function parseInsightsRow(row: any) {
     // Video views (3-second views)
     const vv = row.actions.find((a: any) => a.action_type === "video_view");
     if (vv) videoViews = parseInt(vv.value || "0");
+  }
 
-    // ThruPlays (for hold rate)
-    const tp = row.actions.find((a: any) => a.action_type === "video_thruplay" || a.action_type === "thruplay");
+  // ThruPlays from dedicated field (video_thruplay_watched_actions)
+  if (row.video_thruplay_watched_actions) {
+    const tp = row.video_thruplay_watched_actions.find((a: any) => a.action_type === "video_view");
     if (tp) thruPlays = parseInt(tp.value || "0");
   }
   if (row.action_values) {
@@ -342,7 +344,7 @@ serve(async (req) => {
           if (!isTimedOut()) {
             console.log("Phase 2: Fetching aggregated insights...");
 
-            const insightsFields = "ad_id,spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values,video_avg_time_watched_actions";
+            const insightsFields = "ad_id,spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values,video_avg_time_watched_actions,video_thruplay_watched_actions";
             const insightsUrl = `https://graph.facebook.com/v21.0/${account.id}/insights?` +
               `time_range=${encodeURIComponent(timeRange)}` +
               `&level=ad` +
