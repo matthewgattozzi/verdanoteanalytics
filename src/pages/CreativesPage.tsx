@@ -5,6 +5,8 @@ import { TagSourceBadge } from "@/components/TagSourceBadge";
 import { CreativeDetailModal } from "@/components/CreativeDetailModal";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
+import { InlineTagSelect } from "@/components/InlineTagSelect";
+import { SortableTableHead, type SortConfig } from "@/components/SortableTableHead";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -22,7 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { RefreshCw, LayoutGrid, List, Loader2, AlertTriangle, Sparkles, Download } from "lucide-react";
+import { RefreshCw, LayoutGrid, List, Loader2, AlertTriangle, Sparkles, Download, Layers } from "lucide-react";
 import { useState, useMemo, useCallback } from "react";
 import { ColumnPicker, type ColumnDef } from "@/components/ColumnPicker";
 
@@ -44,6 +46,24 @@ const TABLE_COLUMNS: ColumnDef[] = [
   { key: "campaign", label: "Campaign", defaultVisible: false },
   { key: "adset", label: "Ad Set", defaultVisible: false },
 ];
+
+const GROUP_BY_OPTIONS = [
+  { value: "__none__", label: "No grouping" },
+  { value: "ad_type", label: "Type" },
+  { value: "person", label: "Person" },
+  { value: "style", label: "Style" },
+  { value: "hook", label: "Hook" },
+  { value: "product", label: "Product" },
+  { value: "theme", label: "Theme" },
+];
+
+// Map column keys to creative data fields for sorting
+const SORT_FIELD_MAP: Record<string, string> = {
+  creative: "ad_name", type: "ad_type", person: "person", style: "style", hook: "hook",
+  spend: "spend", roas: "roas", cpa: "cpa", ctr: "ctr", impressions: "impressions",
+  clicks: "clicks", purchases: "purchases", cpm: "cpm", campaign: "campaign_name", adset: "adset_name",
+};
+
 import { useCreatives, useCreativeFilters, useBulkAnalyze } from "@/hooks/useCreatives";
 import { useSync } from "@/hooks/useApi";
 import { exportCreativesCSV } from "@/lib/csv";
@@ -66,6 +86,8 @@ const CreativesPage = () => {
   const [dateFrom, setDateFrom] = useState<string | undefined>();
   const [dateTo, setDateTo] = useState<string | undefined>();
   const [selectedCreative, setSelectedCreative] = useState<any>(null);
+  const [groupBy, setGroupBy] = useState("__none__");
+  const [sort, setSort] = useState<SortConfig>({ key: "", direction: null });
   const { selectedAccountId } = useAccountContext();
 
   const accountFilter = selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {};
@@ -97,6 +119,54 @@ const CreativesPage = () => {
     return { roas: `${avg("roas")}x`, cpa: `$${avg("cpa")}`, ctr: `${avg("ctr")}%` };
   }, [creatives]);
 
+  // Sorting
+  const handleSort = useCallback((key: string) => {
+    setSort(prev => ({
+      key,
+      direction: prev.key === key ? (prev.direction === "asc" ? "desc" : prev.direction === "desc" ? null : "asc") : "asc",
+    }));
+  }, []);
+
+  const sortedCreatives = useMemo(() => {
+    const list = [...(creatives || [])];
+    if (!sort.key || !sort.direction) return list;
+    const field = SORT_FIELD_MAP[sort.key] || sort.key;
+    const dir = sort.direction === "asc" ? 1 : -1;
+    return list.sort((a: any, b: any) => {
+      const va = a[field], vb = b[field];
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      if (typeof va === "number" || !isNaN(Number(va))) return (Number(va) - Number(vb)) * dir;
+      return String(va).localeCompare(String(vb)) * dir;
+    });
+  }, [creatives, sort]);
+
+  // Group-by aggregation
+  const groupedData = useMemo(() => {
+    if (groupBy === "__none__" || !sortedCreatives?.length) return null;
+    const groups: Record<string, any[]> = {};
+    sortedCreatives.forEach((c: any) => {
+      const key = c[groupBy] || "(none)";
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(c);
+    });
+    return Object.entries(groups).map(([name, items]) => {
+      const withSpend = items.filter(c => (Number(c.spend) || 0) > 0);
+      const totalSpend = items.reduce((s, c) => s + (Number(c.spend) || 0), 0);
+      const avgField = (field: string) => withSpend.length > 0
+        ? withSpend.reduce((s, c) => s + (Number(c[field]) || 0), 0) / withSpend.length : 0;
+      return {
+        name,
+        count: items.length,
+        totalSpend,
+        avgRoas: avgField("roas"),
+        avgCpa: avgField("cpa"),
+        avgCtr: avgField("ctr"),
+      };
+    }).sort((a, b) => b.totalSpend - a.totalSpend);
+  }, [sortedCreatives, groupBy]);
+
   const fmt = (v: number | null, prefix = "", suffix = "") => {
     if (v === null || v === undefined || v === 0) return "—";
     return `${prefix}${Number(v).toLocaleString("en-US", { maximumFractionDigits: 2 })}${suffix}`;
@@ -108,6 +178,22 @@ const CreativesPage = () => {
       if (val === "__all__") { delete next[key]; } else { next[key] = val; }
       return next;
     });
+  };
+
+  const renderSortableHead = (key: string, label: string, extraClass = "") => {
+    if (!visibleCols.has(key)) return null;
+    const numericCols = ["spend", "roas", "cpa", "ctr", "impressions", "clicks", "purchases", "cpm"];
+    const isRight = numericCols.includes(key);
+    return (
+      <SortableTableHead
+        key={key}
+        label={label}
+        sortKey={key}
+        currentSort={sort}
+        onSort={handleSort}
+        className={isRight ? "text-right" : extraClass}
+      />
+    );
   };
 
   return (
@@ -207,6 +293,23 @@ const CreativesPage = () => {
             </Select>
           </>
         )}
+
+        {/* Group By */}
+        {viewMode === "table" && (
+          <Select value={groupBy} onValueChange={setGroupBy}>
+            <SelectTrigger className="w-36 h-8 text-xs bg-background">
+              <div className="flex items-center gap-1.5">
+                <Layers className="h-3 w-3" />
+                <SelectValue placeholder="Group by" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {GROUP_BY_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Untagged warning */}
@@ -226,31 +329,59 @@ const CreativesPage = () => {
           <h3 className="text-lg font-medium mb-1">No creatives yet</h3>
           <p className="text-sm text-muted-foreground max-w-md">Add a Meta ad account in the Accounts tab and sync to pull in your creatives.</p>
         </div>
+      ) : groupBy !== "__none__" && groupedData ? (
+        /* Group-by aggregation view */
+        <div className="glass-panel overflow-hidden animate-fade-in">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs">{GROUP_BY_OPTIONS.find(o => o.value === groupBy)?.label}</TableHead>
+                <TableHead className="text-xs text-right">Count</TableHead>
+                <TableHead className="text-xs text-right">Total Spend</TableHead>
+                <TableHead className="text-xs text-right">Avg ROAS</TableHead>
+                <TableHead className="text-xs text-right">Avg CPA</TableHead>
+                <TableHead className="text-xs text-right">Avg CTR</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {groupedData.map((g) => (
+                <TableRow key={g.name}>
+                  <TableCell className="text-xs font-medium">{g.name}</TableCell>
+                  <TableCell className="text-xs text-right font-mono">{g.count}</TableCell>
+                  <TableCell className="text-xs text-right font-mono">${g.totalSpend.toLocaleString("en-US", { maximumFractionDigits: 0 })}</TableCell>
+                  <TableCell className="text-xs text-right font-mono">{g.avgRoas.toFixed(2)}x</TableCell>
+                  <TableCell className="text-xs text-right font-mono">${g.avgCpa.toFixed(2)}</TableCell>
+                  <TableCell className="text-xs text-right font-mono">{g.avgCtr.toFixed(2)}%</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       ) : viewMode === "table" ? (
         <div className="glass-panel overflow-hidden animate-fade-in">
           <Table>
             <TableHeader>
               <TableRow>
-                {visibleCols.has("creative") && <TableHead className="text-xs">Creative</TableHead>}
-                {visibleCols.has("type") && <TableHead className="text-xs">Type</TableHead>}
-                {visibleCols.has("person") && <TableHead className="text-xs">Person</TableHead>}
-                {visibleCols.has("style") && <TableHead className="text-xs">Style</TableHead>}
-                {visibleCols.has("hook") && <TableHead className="text-xs">Hook</TableHead>}
-                {visibleCols.has("spend") && <TableHead className="text-xs text-right">Spend</TableHead>}
-                {visibleCols.has("roas") && <TableHead className="text-xs text-right">ROAS</TableHead>}
-                {visibleCols.has("cpa") && <TableHead className="text-xs text-right">CPA</TableHead>}
-                {visibleCols.has("ctr") && <TableHead className="text-xs text-right">CTR</TableHead>}
-                {visibleCols.has("impressions") && <TableHead className="text-xs text-right">Impressions</TableHead>}
-                {visibleCols.has("clicks") && <TableHead className="text-xs text-right">Clicks</TableHead>}
-                {visibleCols.has("purchases") && <TableHead className="text-xs text-right">Purchases</TableHead>}
-                {visibleCols.has("cpm") && <TableHead className="text-xs text-right">CPM</TableHead>}
-                {visibleCols.has("campaign") && <TableHead className="text-xs">Campaign</TableHead>}
-                {visibleCols.has("adset") && <TableHead className="text-xs">Ad Set</TableHead>}
+                {renderSortableHead("creative", "Creative")}
+                {renderSortableHead("type", "Type")}
+                {renderSortableHead("person", "Person")}
+                {renderSortableHead("style", "Style")}
+                {renderSortableHead("hook", "Hook")}
+                {renderSortableHead("spend", "Spend")}
+                {renderSortableHead("roas", "ROAS")}
+                {renderSortableHead("cpa", "CPA")}
+                {renderSortableHead("ctr", "CTR")}
+                {renderSortableHead("impressions", "Impressions")}
+                {renderSortableHead("clicks", "Clicks")}
+                {renderSortableHead("purchases", "Purchases")}
+                {renderSortableHead("cpm", "CPM")}
+                {renderSortableHead("campaign", "Campaign")}
+                {renderSortableHead("adset", "Ad Set")}
                 {visibleCols.has("tags") && <TableHead className="text-xs">Tags</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {creatives.map((c: any) => (
+              {sortedCreatives.map((c: any) => (
                 <TableRow key={c.ad_id} className="cursor-pointer hover:bg-accent/50" onClick={() => setSelectedCreative(c)}>
                   {visibleCols.has("creative") && (
                     <TableCell>
@@ -260,10 +391,26 @@ const CreativesPage = () => {
                       </div>
                     </TableCell>
                   )}
-                  {visibleCols.has("type") && <TableCell className="text-xs">{c.ad_type || "—"}</TableCell>}
-                  {visibleCols.has("person") && <TableCell className="text-xs">{c.person || "—"}</TableCell>}
-                  {visibleCols.has("style") && <TableCell className="text-xs">{c.style || "—"}</TableCell>}
-                  {visibleCols.has("hook") && <TableCell className="text-xs">{c.hook || "—"}</TableCell>}
+                  {visibleCols.has("type") && (
+                    <TableCell>
+                      <InlineTagSelect adId={c.ad_id} field="ad_type" currentValue={c.ad_type} />
+                    </TableCell>
+                  )}
+                  {visibleCols.has("person") && (
+                    <TableCell>
+                      <InlineTagSelect adId={c.ad_id} field="person" currentValue={c.person} />
+                    </TableCell>
+                  )}
+                  {visibleCols.has("style") && (
+                    <TableCell>
+                      <InlineTagSelect adId={c.ad_id} field="style" currentValue={c.style} />
+                    </TableCell>
+                  )}
+                  {visibleCols.has("hook") && (
+                    <TableCell>
+                      <InlineTagSelect adId={c.ad_id} field="hook" currentValue={c.hook} />
+                    </TableCell>
+                  )}
                   {visibleCols.has("spend") && <TableCell className="text-xs text-right font-mono">{fmt(c.spend, "$")}</TableCell>}
                   {visibleCols.has("roas") && <TableCell className="text-xs text-right font-mono">{fmt(c.roas, "", "x")}</TableCell>}
                   {visibleCols.has("cpa") && <TableCell className="text-xs text-right font-mono">{fmt(c.cpa, "$")}</TableCell>}
@@ -282,7 +429,7 @@ const CreativesPage = () => {
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-3 animate-fade-in">
-          {creatives.map((c: any) => (
+          {sortedCreatives.map((c: any) => (
             <div key={c.ad_id} className="glass-panel p-3 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => setSelectedCreative(c)}>
               <div className="bg-muted rounded h-28 mb-2 flex items-center justify-center overflow-hidden">
                 {c.thumbnail_url ? (
