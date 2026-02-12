@@ -40,7 +40,7 @@ function ProtectedRoutes() {
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/user-settings" element={<UserSettingsPage />} />
-        <Route path="/sync-history" element={<Navigate to="/settings" replace />} />
+        
         <Route path="/saved-views" element={<SavedViewsPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
