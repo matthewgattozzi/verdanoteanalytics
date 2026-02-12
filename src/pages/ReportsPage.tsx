@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -27,10 +26,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, Plus, Trash2, Loader2, TrendingUp, TrendingDown, Eye } from "lucide-react";
+import { FileText, Plus, Trash2, Loader2, Eye, Download } from "lucide-react";
 import { useState } from "react";
 import { useReports, useGenerateReport, useDeleteReport, useAccounts } from "@/hooks/useApi";
 import { ReportDetailModal } from "@/components/ReportDetailModal";
+import { exportReportCSV } from "@/lib/csv";
 
 const ReportsPage = () => {
   const [showGenerate, setShowGenerate] = useState(false);
@@ -110,6 +110,9 @@ const ReportsPage = () => {
                   <TableCell className="text-xs text-right font-mono">{fmt(r.average_cpa, "$")}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" className="h-7 px-2" onClick={(e) => { e.stopPropagation(); exportReportCSV(r); }}>
+                        <Download className="h-3 w-3" />
+                      </Button>
                       <Button variant="ghost" size="sm" className="h-7 px-2" onClick={(e) => { e.stopPropagation(); setSelectedReport(r); }}>
                         <Eye className="h-3 w-3" />
                       </Button>
@@ -156,7 +159,6 @@ const ReportsPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Report Detail */}
       <ReportDetailModal report={selectedReport} open={!!selectedReport} onClose={() => setSelectedReport(null)} />
     </AppLayout>
   );
