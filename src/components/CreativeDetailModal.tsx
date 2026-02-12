@@ -93,16 +93,24 @@ export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailM
         </DialogHeader>
 
         {/* Media preview */}
-        <div className="bg-muted rounded-lg h-48 flex items-center justify-center overflow-hidden">
-          {creative.thumbnail_url ? (
+        <div className="bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+          {creative.preview_url ? (
+            <video
+              src={creative.preview_url}
+              controls
+              poster={creative.thumbnail_url || undefined}
+              className="w-full max-h-[400px] object-contain rounded-lg"
+              preload="metadata"
+            />
+          ) : creative.thumbnail_url ? (
             <img
               src={creative.thumbnail_url}
               alt={creative.ad_name}
-              className="h-full w-full object-contain"
+              className="w-full max-h-[400px] object-contain"
               onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
           ) : (
-            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+            <div className="flex flex-col items-center gap-2 text-muted-foreground py-12">
               <ImageIcon className="h-8 w-8" />
               <span className="text-xs">No preview available</span>
             </div>
