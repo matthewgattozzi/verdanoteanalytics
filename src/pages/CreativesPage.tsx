@@ -21,9 +21,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { RefreshCw, LayoutGrid, List, Loader2, AlertTriangle } from "lucide-react";
+import { RefreshCw, LayoutGrid, List, Loader2, AlertTriangle, Sparkles } from "lucide-react";
 import { useState, useMemo } from "react";
-import { useCreatives, useCreativeFilters } from "@/hooks/useCreatives";
+import { useCreatives, useCreativeFilters, useBulkAnalyze } from "@/hooks/useCreatives";
 import { useSync } from "@/hooks/useApi";
 
 const CreativesPage = () => {
@@ -36,6 +36,12 @@ const CreativesPage = () => {
   const { data: creatives, isLoading } = useCreatives(allFilters);
   const { data: filterOptions } = useCreativeFilters();
   const syncMut = useSync();
+  const bulkAnalyze = useBulkAnalyze();
+
+  const unanalyzedCount = useMemo(() =>
+    (creatives || []).filter((c: any) => c.analysis_status !== "analyzed" && (c.spend || 0) > 0).length,
+    [creatives]
+  );
 
   const untaggedCount = useMemo(() =>
     (creatives || []).filter((c: any) => c.tag_source === "untagged").length,
@@ -94,6 +100,12 @@ const CreativesPage = () => {
               {syncMut.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
               Sync
             </Button>
+            {unanalyzedCount > 0 && (
+              <Button size="sm" variant="outline" onClick={() => bulkAnalyze.mutate(20)} disabled={bulkAnalyze.isPending}>
+                {bulkAnalyze.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1.5" />}
+                Analyze ({unanalyzedCount})
+              </Button>
+            )}
           </div>
         }
       />
