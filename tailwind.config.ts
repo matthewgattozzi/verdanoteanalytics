@@ -16,7 +16,7 @@ export default {
       fontFamily: {
         sans: ["Source Serif 4", "Lora", "Georgia", "serif"],
         serif: ["Lora", "Georgia", "serif"],
-        mono: ["JetBrains Mono", "monospace"],
+        mono: ["IBM Plex Mono", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
