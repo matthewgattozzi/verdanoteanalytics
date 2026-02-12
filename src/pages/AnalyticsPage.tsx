@@ -52,21 +52,22 @@ const AnalyticsPage = () => {
   const spendThreshold = parseFloat(selectedAccount?.iteration_spend_threshold || "50");
 
   const tagged = useMemo(() => creatives.filter((c: any) => c.tag_source !== "untagged"), [creatives]);
+  const activeData = creatives; // Use all creatives for analytics, not just tagged
 
   // Win rate computation
   const winRateData = useMemo(() => {
-    if (tagged.length === 0) return null;
+    if (activeData.length === 0) return null;
 
     const medianCtr = (() => {
-      const vals = tagged.map((c: any) => Number(c.ctr) || 0).sort((a: number, b: number) => a - b);
+      const vals = activeData.map((c: any) => Number(c.ctr) || 0).sort((a: number, b: number) => a - b);
       return vals.length > 0 ? vals[Math.floor(vals.length / 2)] : 0;
     })();
     const medianThumbStop = (() => {
-      const vals = tagged.map((c: any) => Number(c.thumb_stop_rate) || 0).sort((a: number, b: number) => a - b);
+      const vals = activeData.map((c: any) => Number(c.thumb_stop_rate) || 0).sort((a: number, b: number) => a - b);
       return vals.length > 0 ? vals[Math.floor(vals.length / 2)] : 0;
     })();
     const medianHoldRate = (() => {
-      const vals = tagged.map((c: any) => Number(c.hold_rate) || 0).sort((a: number, b: number) => a - b);
+      const vals = activeData.map((c: any) => Number(c.hold_rate) || 0).sort((a: number, b: number) => a - b);
       return vals.length > 0 ? vals[Math.floor(vals.length / 2)] : 0;
     })();
 
@@ -85,14 +86,14 @@ const AnalyticsPage = () => {
       }
     };
 
-    const winners = tagged.filter(isWinner);
-    const totalSpend = tagged.reduce((s: number, c: any) => s + (Number(c.spend) || 0), 0);
-    const totalPurchaseValue = tagged.reduce((s: number, c: any) => s + (Number(c.purchase_value) || 0), 0);
+    const winners = activeData.filter(isWinner);
+    const totalSpend = activeData.reduce((s: number, c: any) => s + (Number(c.spend) || 0), 0);
+    const totalPurchaseValue = activeData.reduce((s: number, c: any) => s + (Number(c.purchase_value) || 0), 0);
     const blendedRoas = totalSpend > 0 ? totalPurchaseValue / totalSpend : 0;
 
     // Per-funnel breakdown
     const funnels: Record<string, { total: number; winners: number }> = { TOF: { total: 0, winners: 0 }, MOF: { total: 0, winners: 0 }, BOF: { total: 0, winners: 0 } };
-    tagged.forEach((c: any) => {
+    activeData.forEach((c: any) => {
       const f = determineFunnel(c);
       funnels[f].total++;
       if (isWinner(c)) funnels[f].winners++;
@@ -100,7 +101,7 @@ const AnalyticsPage = () => {
 
     // Slice by dimension
     const sliceMap: Record<string, { total: number; winners: number }> = {};
-    tagged.forEach((c: any) => {
+    activeData.forEach((c: any) => {
       const key = c[sliceBy] || "(none)";
       if (!sliceMap[key]) sliceMap[key] = { total: 0, winners: 0 };
       sliceMap[key].total++;
@@ -112,24 +113,24 @@ const AnalyticsPage = () => {
       .sort((a, b) => b.winRate - a.winRate);
 
     return {
-      total: tagged.length,
+      total: activeData.length,
       winners: winners.length,
-      winRate: tagged.length > 0 ? ((winners.length / tagged.length) * 100).toFixed(1) : "0",
+      winRate: activeData.length > 0 ? ((winners.length / activeData.length) * 100).toFixed(1) : "0",
       blendedRoas: blendedRoas.toFixed(2),
       funnels,
       breakdown,
     };
-  }, [tagged, sliceBy, roasThreshold, spendThreshold]);
+  }, [activeData, sliceBy, roasThreshold, spendThreshold]);
 
   // Kill/Scale
   const recommendations = useMemo(() => {
-    if (tagged.length === 0) return { scale: [], watch: [], kill: [] };
+    if (activeData.length === 0) return { scale: [], watch: [], kill: [] };
 
     const scale: any[] = [];
     const watch: any[] = [];
     const kill: any[] = [];
 
-    tagged.forEach((c: any) => {
+    activeData.forEach((c: any) => {
       const roas = Number(c.roas) || 0;
       const spend = Number(c.spend) || 0;
       const funnel = determineFunnel(c);
@@ -150,22 +151,22 @@ const AnalyticsPage = () => {
       watch: watch.slice(0, 10),
       kill: kill.sort((a, b) => (Number(a.roas) || 0) - (Number(b.roas) || 0)).slice(0, 10),
     };
-  }, [tagged, roasThreshold, spendThreshold]);
+  }, [activeData, roasThreshold, spendThreshold]);
 
   // Iteration priorities
   const iterations = useMemo(() => {
-    if (tagged.length === 0) return [];
+    if (activeData.length === 0) return [];
 
     // Find underperforming combos
     const hookGroups: Record<string, any[]> = {};
-    tagged.forEach((c: any) => {
+    activeData.forEach((c: any) => {
       if ((Number(c.spend) || 0) < spendThreshold) return;
       const key = c.hook || "(none)";
       if (!hookGroups[key]) hookGroups[key] = [];
       hookGroups[key].push(c);
     });
 
-    const allCtr = tagged.map((c: any) => Number(c.ctr) || 0);
+    const allCtr = activeData.map((c: any) => Number(c.ctr) || 0);
     const medianCtr = allCtr.sort((a, b) => a - b)[Math.floor(allCtr.length / 2)] || 0;
 
     const priorities: any[] = [];
@@ -191,21 +192,21 @@ const AnalyticsPage = () => {
     });
 
     return priorities.sort((a, b) => b.score - a.score).slice(0, 10);
-  }, [tagged, spendThreshold]);
+  }, [activeData, spendThreshold]);
 
   if (isLoading) {
     return <AppLayout><div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div></AppLayout>;
   }
 
-  const excludedCount = creatives.length - tagged.length;
+  const untaggedCount = creatives.length - tagged.length;
 
   return (
     <AppLayout>
       <PageHeader
         title="Analytics"
         description="Win rate analysis, kill/scale recommendations, and iteration priorities."
-        badge={excludedCount > 0 ? (
-          <Badge variant="outline" className="text-xs text-muted-foreground">{excludedCount} untagged excluded</Badge>
+        badge={untaggedCount > 0 ? (
+          <Badge variant="outline" className="text-xs text-muted-foreground">{untaggedCount} untagged</Badge>
         ) : undefined}
         actions={
           <SaveViewButton getConfig={() => ({
