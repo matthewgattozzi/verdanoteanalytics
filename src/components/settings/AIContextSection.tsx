@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RotateCcw } from "lucide-react";
+import { Loader2, RotateCcw, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -89,6 +89,9 @@ interface AIContextSectionProps {
   insightsPrompt: string;
   setInsightsPrompt: (v: string) => void;
   onSaveSettings: (updates: Record<string, any>) => Promise<void>;
+  onApplyPromptsToAll?: () => void;
+  applyingToAll?: boolean;
+  showApplyAll?: boolean;
 }
 
 export { DEFAULT_CREATIVE_PROMPT, DEFAULT_INSIGHTS_PROMPT };
@@ -97,7 +100,7 @@ export function AIContextSection({
   account, primaryKpi, setPrimaryKpi, secondaryKpis, setSecondaryKpis,
   companyPdfUrl, setCompanyPdfUrl,
   creativePrompt, setCreativePrompt, insightsPrompt, setInsightsPrompt,
-  onSaveSettings,
+  onSaveSettings, onApplyPromptsToAll, applyingToAll, showApplyAll,
 }: AIContextSectionProps) {
   const [uploadingPdf, setUploadingPdf] = useState(false);
 
@@ -225,6 +228,23 @@ export function AIContextSection({
           placeholder="Enter custom system prompt for AI insights…"
         />
       </div>
+
+      {/* Apply to all accounts */}
+      {showApplyAll && onApplyPromptsToAll && (
+        <div className="pt-2 border-t border-border">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onApplyPromptsToAll}
+            disabled={applyingToAll}
+            className="w-full"
+          >
+            {applyingToAll ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
+            Copy prompts to all accounts
+          </Button>
+          <p className="text-[11px] text-muted-foreground mt-1.5 text-center">Applies both system prompts to every account.</p>
+        </div>
+      )}
     </section>
   );
 }
