@@ -22,9 +22,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { History, Loader2, CheckCircle2, XCircle, AlertTriangle, Clock } from "lucide-react";
-import { useState } from "react";
-import { useSyncHistory, useAccounts } from "@/hooks/useApi";
+import { History, Loader2, CheckCircle2, XCircle, AlertTriangle, Clock, Timer } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useSyncHistory, useAccounts, useSyncSchedule } from "@/hooks/useApi";
 
 const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; className: string }> = {
   completed: { label: "Completed", icon: CheckCircle2, className: "text-scale" },
@@ -32,6 +32,44 @@ const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; c
   failed: { label: "Failed", icon: XCircle, className: "text-kill" },
   running: { label: "Running", icon: Clock, className: "text-primary" },
 };
+
+function NextSyncCountdown() {
+  const { data: schedule } = useSyncSchedule();
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!schedule || !schedule.enabled || schedule.hour_utc == null) {
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Timer className="h-3.5 w-3.5" />
+        <span>Auto-sync disabled</span>
+      </div>
+    );
+  }
+
+  const hourUtc = Number(schedule.hour_utc);
+  const next = new Date(now);
+  next.setUTCHours(hourUtc, 0, 0, 0);
+  if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+
+  const diffMs = next.getTime() - now.getTime();
+  const diffH = Math.floor(diffMs / 3_600_000);
+  const diffM = Math.floor((diffMs % 3_600_000) / 60_000);
+
+  const countdown = diffH > 0 ? `${diffH}h ${diffM}m` : `${diffM}m`;
+
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <Timer className="h-3.5 w-3.5" />
+      <span>Next sync in <span className="font-mono font-medium text-foreground">{countdown}</span></span>
+      <span className="text-[10px]">({next.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})</span>
+    </div>
+  );
+}
 
 const SyncHistoryPage = () => {
   const [accountFilter, setAccountFilter] = useState("");
@@ -57,13 +95,16 @@ const SyncHistoryPage = () => {
         title="Sync History"
         description="View the history of data syncs from your Meta ad accounts."
         actions={
-          <Select value={accountFilter} onValueChange={(v) => setAccountFilter(v === "__all__" ? "" : v)}>
-            <SelectTrigger className="w-44 h-8 text-xs bg-background"><SelectValue placeholder="All accounts" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">All accounts</SelectItem>
-              {(accounts || []).map((a: any) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-3">
+            <NextSyncCountdown />
+            <Select value={accountFilter} onValueChange={(v) => setAccountFilter(v === "__all__" ? "" : v)}>
+              <SelectTrigger className="w-44 h-8 text-xs bg-background"><SelectValue placeholder="All accounts" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All accounts</SelectItem>
+                {(accounts || []).map((a: any) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         }
       />
 
