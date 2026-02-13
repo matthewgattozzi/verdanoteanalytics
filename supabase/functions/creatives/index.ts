@@ -119,14 +119,24 @@ serve(async (req) => {
       const hasDateFilter = dateFrom || dateTo;
 
       if (hasDateFilter) {
-        // Query daily metrics first, then merge with creative details
-        let dmQuery = supabase.from("creative_daily_metrics").select("ad_id, spend, impressions, clicks, purchases, purchase_value, adds_to_cart, video_views, frequency, thumb_stop_rate, hold_rate, video_avg_play_time");
-        if (accountId) dmQuery = dmQuery.eq("account_id", accountId);
-        if (dateFrom) dmQuery = dmQuery.gte("date", dateFrom);
-        if (dateTo) dmQuery = dmQuery.lte("date", dateTo);
+        // Query daily metrics with pagination to handle >1000 rows
+        const dailyData: any[] = [];
+        let dmOffset = 0;
+        const DM_PAGE = 1000;
+        while (true) {
+          let dmQuery = supabase.from("creative_daily_metrics").select("ad_id, spend, impressions, clicks, purchases, purchase_value, adds_to_cart, video_views, frequency, thumb_stop_rate, hold_rate, video_avg_play_time");
+          if (accountId) dmQuery = dmQuery.eq("account_id", accountId);
+          if (dateFrom) dmQuery = dmQuery.gte("date", dateFrom);
+          if (dateTo) dmQuery = dmQuery.lte("date", dateTo);
+          dmQuery = dmQuery.range(dmOffset, dmOffset + DM_PAGE - 1);
 
-        const { data: dailyData, error: dmErr } = await dmQuery;
-        if (dmErr) throw dmErr;
+          const { data, error: dmErr } = await dmQuery;
+          if (dmErr) throw dmErr;
+          if (!data || data.length === 0) break;
+          dailyData.push(...data);
+          if (data.length < DM_PAGE) break;
+          dmOffset += DM_PAGE;
+        }
 
         // If no daily metrics exist for this date range, fall back to lifetime metrics
         if (!dailyData || dailyData.length === 0) {
