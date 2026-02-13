@@ -253,14 +253,16 @@ serve(async (req) => {
 
     // ─── POST /sync/cancel ─────────────────────────────────────────────
     if (req.method === "POST" && path === "cancel") {
-      const { data: runningSyncs } = await supabase.from("sync_logs").select("id").eq("status", "running");
+      // Cancel any sync marked as "running" — including stuck/timed-out ones
+      const { data: runningSyncs } = await supabase.from("sync_logs").select("id, started_at").eq("status", "running");
       if (!runningSyncs?.length) {
         return new Response(JSON.stringify({ message: "No running sync to cancel" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+      const now = new Date().toISOString();
       await supabase.from("sync_logs").update({
         status: "cancelled",
-        api_errors: JSON.stringify([{ timestamp: new Date().toISOString(), message: "Cancelled by user" }]),
-        completed_at: new Date().toISOString(),
+        api_errors: JSON.stringify([{ timestamp: now, message: "Cancelled by user" }]),
+        completed_at: now,
       }).in("id", runningSyncs.map((s: any) => s.id));
       return new Response(JSON.stringify({ cancelled: runningSyncs.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
