@@ -445,10 +445,12 @@ serve(async (req) => {
           if (!isTimedOut()) {
             console.log("Phase 4: Fetching daily breakdowns...");
 
+            // Use 30-day chunks for daily breakdowns to reduce API round-trips
+            const DAILY_CHUNK_DAYS = 30;
             const chunkStart = new Date(startDate);
             while (chunkStart < endDate && !isTimedOut()) {
               const chunkEnd = new Date(chunkStart);
-              chunkEnd.setDate(chunkEnd.getDate() + 13);
+              chunkEnd.setDate(chunkEnd.getDate() + DAILY_CHUNK_DAYS - 1);
               if (chunkEnd > endDate) chunkEnd.setTime(endDate.getTime());
 
               const chunkSince = chunkStart.toISOString().split("T")[0];
@@ -459,10 +461,11 @@ serve(async (req) => {
 
               const dailyUrl = `https://graph.facebook.com/v21.0/${account.id}/insights?` +
                 `time_range=${encodeURIComponent(chunkRange)}&time_increment=1&level=ad` +
-                `&fields=ad_id,spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values,video_avg_time_watched_actions` +
-                `&limit=200&access_token=${encodeURIComponent(metaToken)}`;
+                `&fields=ad_id,spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values,video_avg_time_watched_actions,video_thruplay_watched_actions` +
+                `&limit=500&access_token=${encodeURIComponent(metaToken)}`;
 
               let nextDailyUrl: string | null = dailyUrl;
+              let chunkRowCount = 0;
               while (nextDailyUrl && !isTimedOut()) {
                 const result = await metaFetch(nextDailyUrl, ctx);
                 if (result.error) break;
@@ -474,22 +477,30 @@ serve(async (req) => {
                       ...metrics,
                     });
                   }
-                  console.log(`  Daily rows: ${dailyRows.length}`);
+                  chunkRowCount += result.data.length;
                 }
                 nextDailyUrl = result.next;
-                if (nextDailyUrl) await new Promise(r => setTimeout(r, 300));
+                if (nextDailyUrl) await new Promise(r => setTimeout(r, 200));
               }
 
-              chunkStart.setDate(chunkStart.getDate() + 14);
-              if (chunkStart < endDate) await new Promise(r => setTimeout(r, 500));
+              console.log(`  Chunk rows: ${chunkRowCount}, total: ${dailyRows.length}`);
+
+              // Upsert this chunk immediately to avoid losing data on timeout
+              if (dailyRows.length > 0) {
+                const pendingRows = dailyRows.splice(0, dailyRows.length);
+                for (let i = 0; i < pendingRows.length; i += 200) {
+                  const batch = pendingRows.slice(i, i + 200);
+                  const { error } = await supabase.from("creative_daily_metrics").upsert(batch, { onConflict: "ad_id,date" });
+                  if (error) console.error("Daily upsert error:", error.message);
+                }
+              }
+
+              chunkStart.setDate(chunkStart.getDate() + DAILY_CHUNK_DAYS);
+              if (chunkStart < endDate) await new Promise(r => setTimeout(r, 300));
             }
 
-            for (let i = 0; i < dailyRows.length; i += 100) {
-              const chunk = dailyRows.slice(i, i + 100);
-              const { error } = await supabase.from("creative_daily_metrics").upsert(chunk, { onConflict: "ad_id,date" });
-              if (error) console.error("Daily upsert error:", error.message);
-            }
-            console.log(`Phase 4 complete: ${dailyRows.length} daily rows`);
+            // Daily rows already upserted per-chunk above
+            console.log(`Phase 4 complete: daily data ingested`);
           } else {
             ctx.apiErrors.push({ timestamp: new Date().toISOString(), message: "Skipped daily breakdowns due to timeout" });
           }
