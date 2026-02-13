@@ -41,7 +41,6 @@ function parseAdName(adName: string) {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const THUMBNAIL_BUCKET = "ad-thumbnails";
-const THUMBNAIL_BUCKET = "ad-thumbnails";
 
 async function cacheThumbnail(
   supabase: any,
