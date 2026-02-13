@@ -331,7 +331,7 @@ serve(async (req) => {
           } else {
             console.log("Phase 1: Fetching ads metadata...");
              const adsUrl = `https://graph.facebook.com/v21.0/${account.id}/ads?` +
-              `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,video_id},preview_shareable_link` +
+              `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,object_story_spec},preview_shareable_link` +
               `&limit=50&access_token=${encodeURIComponent(metaToken)}`;
 
             let nextAdsUrl: string | null = adsUrl;
@@ -390,89 +390,74 @@ serve(async (req) => {
             console.log(`Phase 2 complete: ${insightsMap.size} ad insights`);
           }
 
-          // ─── PHASE 2.5: Fetch video source URLs ──────────────────────
+          // ─── PHASE 2.5: Extract video URLs from object_story_spec ────
           const videoUrlMap = new Map<string, string>();
 
           if (!isTimedOut()) {
-            // Collect video ads either from freshly fetched ads or from DB
-            let videoAdEntries: { adId: string; videoId: string }[] = [];
-
+            // Extract video URLs from object_story_spec embedded in Phase 1 data
             if (!skipAdFetch && fetchedAds.length > 0) {
-              videoAdEntries = fetchedAds
-                .filter(ad => ad.creative?.video_id)
-                .map(ad => ({ adId: ad.id, videoId: ad.creative.video_id }));
+              let videoCount = 0;
+              for (const ad of fetchedAds) {
+                const spec = ad.creative?.object_story_spec;
+                if (!spec) continue;
+
+                // object_story_spec can contain video_data with video_url or call_to_action.value.link
+                const videoData = spec.video_data;
+                if (videoData) {
+                  // video_data.video_url is the direct playback URL (works with ads_read)
+                  if (videoData.video_url) {
+                    videoUrlMap.set(ad.id, videoData.video_url);
+                    videoCount++;
+                  } else if (videoData.call_to_action?.value?.link) {
+                    // Some video ads store the video link here
+                    const link = videoData.call_to_action.value.link;
+                    if (link.includes(".mp4") || link.includes("video")) {
+                      videoUrlMap.set(ad.id, link);
+                      videoCount++;
+                    }
+                  }
+                }
+              }
+              console.log(`Phase 2.5: Extracted ${videoCount} video URLs from object_story_spec`);
             } else if (skipAdFetch) {
-              // Query existing creatives that have ad_type containing 'Video' or where we might have video
-              // We need to check which ads have videos — fetch from Meta using the ad account's advideos endpoint
-              // Instead, let's re-fetch just the creative video_ids for existing ads
+              // For skipped ad fetch, query ads missing video_url and try to get object_story_spec
               const { data: existingAds } = await supabase.from("creatives")
                 .select("ad_id")
                 .eq("account_id", account.id)
                 .is("video_url", null);
-              
+
               if (existingAds && existingAds.length > 0) {
-                // Batch check which ads have video_id via Meta API
+                console.log(`Phase 2.5: Fetching object_story_spec for ${existingAds.length} ads missing video URLs...`);
+                let videoCount = 0;
+
                 for (let i = 0; i < existingAds.length && !isTimedOut(); i += 50) {
                   const batch = existingAds.slice(i, i + 50);
                   const adIds = batch.map(a => a.ad_id).join(",");
-                  const checkUrl = `https://graph.facebook.com/v21.0/?ids=${adIds}&fields=creative{video_id}&access_token=${encodeURIComponent(metaToken)}`;
-                  const result = await metaFetch(checkUrl, ctx);
-                  if (result.error) break;
-                  // Response for batch ID lookup is an object keyed by ad_id
-                  if (!result.data && !result.error) {
-                    // For batch ID requests, the response is the raw JSON object, not data array
-                    // We need to handle differently — use direct fetch
-                    ctx.metaApiCalls++;
-                    try {
-                      const resp = await fetch(checkUrl);
-                      const json = await resp.json();
-                      if (!json.error) {
-                        for (const [adId, adData] of Object.entries(json as Record<string, any>)) {
-                          if ((adData as any)?.creative?.video_id) {
-                            videoAdEntries.push({ adId, videoId: (adData as any).creative.video_id });
-                          }
-                        }
-                      }
-                    } catch (err) {
-                      console.log("Video ID check error:", err);
+                  const specUrl = `https://graph.facebook.com/v21.0/?ids=${adIds}&fields=creative{object_story_spec}&access_token=${encodeURIComponent(metaToken)}`;
+                  ctx.metaApiCalls++;
+                  try {
+                    const resp = await fetch(specUrl);
+                    const json = await resp.json();
+                    if (json.error) {
+                      console.log("object_story_spec fetch error:", json.error.message);
+                      ctx.apiErrors.push({ timestamp: new Date().toISOString(), message: `object_story_spec error: ${json.error.message}` });
+                      break;
                     }
+                    for (const [adId, adData] of Object.entries(json as Record<string, any>)) {
+                      const spec = (adData as any)?.creative?.object_story_spec;
+                      if (spec?.video_data?.video_url) {
+                        videoUrlMap.set(adId, spec.video_data.video_url);
+                        videoCount++;
+                      }
+                    }
+                  } catch (err) {
+                    console.log("object_story_spec network error:", err);
+                    break;
                   }
                   if (i + 50 < existingAds.length) await new Promise(r => setTimeout(r, 300));
                 }
+                console.log(`Phase 2.5 complete: ${videoCount} video URLs fetched via object_story_spec`);
               }
-            }
-
-            if (videoAdEntries.length > 0) {
-              console.log(`Phase 2.5: Fetching video URLs for ${videoAdEntries.length} video ads...`);
-              const uniqueVideoIds = [...new Set(videoAdEntries.map(e => e.videoId))];
-              
-              for (let i = 0; i < uniqueVideoIds.length && !isTimedOut(); i += 50) {
-                const batchIds = uniqueVideoIds.slice(i, i + 50);
-                const videoFetchUrl = `https://graph.facebook.com/v21.0/?ids=${batchIds.join(",")}&fields=source&access_token=${encodeURIComponent(metaToken)}`;
-                ctx.metaApiCalls++;
-                try {
-                  const resp = await fetch(videoFetchUrl);
-                  const json = await resp.json();
-                  if (json.error) {
-                    console.log("Video URL fetch error:", json.error.message);
-                    break;
-                  }
-                  for (const [videoId, videoData] of Object.entries(json as Record<string, any>)) {
-                    if (videoData?.source) {
-                      for (const entry of videoAdEntries) {
-                        if (entry.videoId === videoId) {
-                          videoUrlMap.set(entry.adId, videoData.source);
-                        }
-                      }
-                    }
-                  }
-                } catch (err) {
-                  console.log("Video URL fetch network error:", err);
-                  break;
-                }
-                if (i + 50 < uniqueVideoIds.length) await new Promise(r => setTimeout(r, 300));
-              }
-              console.log(`Phase 2.5 complete: ${videoUrlMap.size} video URLs fetched`);
             }
           }
 
