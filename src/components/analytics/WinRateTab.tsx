@@ -8,13 +8,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { BarChart3, TrendingUp, Target } from "lucide-react";
-
-const KPI_LABELS: Record<string, string> = {
-  roas: "ROAS",
-  cpa: "CPA",
-  ctr: "CTR",
-  thumb_stop_rate: "Hook Rate",
-};
+import { KPI_LABELS } from "@/lib/killScaleLogic";
 
 interface WinRateTabProps {
   creatives: any[];

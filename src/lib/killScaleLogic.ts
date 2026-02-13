@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-const KPI_LABELS: Record<string, string> = {
+export const KPI_LABELS: Record<string, string> = {
   roas: "ROAS",
   cpa: "CPA",
   ctr: "CTR",
