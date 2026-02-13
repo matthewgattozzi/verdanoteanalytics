@@ -86,6 +86,14 @@ async function sendReportToSlack(report: any) {
   catch (e) { console.error("Slack webhook error:", e); }
 }
 
+function resolveTemplate(template: string, accountName: string, cadence: string): string {
+  const now = new Date();
+  return template
+    .replace(/\{account\}/gi, accountName)
+    .replace(/\{cadence\}/gi, cadence.charAt(0).toUpperCase() + cadence.slice(1))
+    .replace(/\{date\}/gi, now.toLocaleDateString("en-US"));
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -96,39 +104,39 @@ serve(async (req) => {
     const dayOfWeek = now.getUTCDay(); // 0=Sun, 1=Mon
     const dayOfMonth = now.getUTCDate();
 
-    // Fetch accounts with active schedules
-    const { data: accounts, error: accErr } = await supabase
-      .from("ad_accounts")
-      .select("id, name, report_schedule, last_scheduled_report_at")
-      .in("report_schedule", ["weekly", "monthly"])
-      .eq("is_active", true);
+    // Fetch enabled schedules with account info
+    const { data: schedules, error: schedErr } = await supabase
+      .from("report_schedules")
+      .select("*, ad_accounts!inner(id, name, is_active)")
+      .eq("enabled", true);
 
-    if (accErr) throw accErr;
+    if (schedErr) throw schedErr;
 
     const generated: string[] = [];
 
-    for (const account of accounts || []) {
+    for (const schedule of schedules || []) {
+      const account = (schedule as any).ad_accounts;
+      if (!account?.is_active) continue;
+
       let shouldGenerate = false;
 
-      if (account.report_schedule === "weekly" && dayOfWeek === 1) {
-        // Weekly: generate on Mondays
-        const last = account.last_scheduled_report_at ? new Date(account.last_scheduled_report_at) : null;
-        if (!last || now.getTime() - last.getTime() > 5 * 24 * 60 * 60 * 1000) {
-          shouldGenerate = true;
-        }
-      } else if (account.report_schedule === "monthly" && dayOfMonth === 1) {
-        // Monthly: generate on 1st of month
-        const last = account.last_scheduled_report_at ? new Date(account.last_scheduled_report_at) : null;
-        if (!last || now.getTime() - last.getTime() > 25 * 24 * 60 * 60 * 1000) {
-          shouldGenerate = true;
-        }
+      if (schedule.cadence === "weekly" && dayOfWeek === 1) {
+        shouldGenerate = true;
+      } else if (schedule.cadence === "monthly" && dayOfMonth === 1) {
+        shouldGenerate = true;
       }
 
       if (!shouldGenerate) continue;
 
-      // Generate the report (same logic as reports edge function)
-      let query = supabase.from("creatives").select("*").eq("account_id", account.id);
-      const { data: creatives, error: fetchErr } = await query;
+      // Fetch creatives within date range
+      const dateRangeDays = schedule.date_range_days || (schedule.cadence === "weekly" ? 7 : 30);
+      const startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - dateRangeDays);
+
+      const { data: creatives, error: fetchErr } = await supabase
+        .from("creatives")
+        .select("*")
+        .eq("account_id", account.id);
       if (fetchErr) { console.error("Fetch error for", account.id, fetchErr); continue; }
 
       const list = creatives || [];
@@ -153,16 +161,14 @@ serve(async (req) => {
         roas: c.roas, cpa: c.cpa, spend: c.spend, ctr: c.ctr,
       });
 
-      const dates = list.map((c: any) => c.created_at).sort();
-      const dateStart = dates[0]?.split("T")[0] || null;
-      const dateEnd = dates[dates.length - 1]?.split("T")[0] || null;
-      const days = dateStart && dateEnd
-        ? Math.ceil((new Date(dateEnd).getTime() - new Date(dateStart).getTime()) / 86400000) + 1
-        : null;
+      const reportName = resolveTemplate(
+        schedule.report_name_template || `{cadence} Report - {account}`,
+        account.name,
+        schedule.cadence
+      );
 
-      const scheduleLabel = account.report_schedule === "weekly" ? "Weekly" : "Monthly";
       const report = {
-        report_name: `${scheduleLabel} Report – ${account.name} – ${now.toLocaleDateString("en-US")}`,
+        report_name: reportName,
         account_id: account.id,
         creative_count: list.length,
         total_spend: Math.round(totalSpend * 100) / 100,
@@ -176,21 +182,26 @@ serve(async (req) => {
         tags_untagged_count: tagCounts.untagged,
         top_performers: JSON.stringify(sorted.slice(0, 5).map(mapPerformer)),
         bottom_performers: JSON.stringify(sorted.slice(-5).reverse().map(mapPerformer)),
-        date_range_start: dateStart,
-        date_range_end: dateEnd,
-        date_range_days: days,
+        date_range_start: startDate.toISOString().split("T")[0],
+        date_range_end: now.toISOString().split("T")[0],
+        date_range_days: dateRangeDays,
         ...computeDiagnostics(withSpend),
       };
 
-      const { data: savedReport, error: insertErr } = await supabase.from("reports").insert(report).select().single();
-      if (insertErr) { console.error("Insert error for", account.id, insertErr); continue; }
+      // Save to app if enabled
+      let savedReport: any = null;
+      if (schedule.deliver_to_app) {
+        const { data, error: insertErr } = await supabase.from("reports").insert(report).select().single();
+        if (insertErr) { console.error("Insert error for", account.id, insertErr); continue; }
+        savedReport = data;
+      }
 
-      // Send to Slack
-      if (savedReport) await sendReportToSlack(savedReport);
+      // Send to Slack if enabled
+      if (schedule.deliver_to_slack) {
+        await sendReportToSlack(savedReport || report);
+      }
 
-      // Update last_scheduled_report_at
-      await supabase.from("ad_accounts").update({ last_scheduled_report_at: now.toISOString() }).eq("id", account.id);
-      generated.push(account.id);
+      generated.push(`${account.id}:${schedule.cadence}`);
     }
 
     return new Response(JSON.stringify({ generated, count: generated.length }), {
