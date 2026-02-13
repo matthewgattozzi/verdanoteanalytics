@@ -1,0 +1,1 @@
+ALTER TABLE public.reports ADD COLUMN iteration_suggestions text DEFAULT '[]';
