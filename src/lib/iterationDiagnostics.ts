@@ -134,10 +134,15 @@ export function diagnoseCreatives(
 
   for (const c of qualified) {
     const adType = (c.ad_type || "").toLowerCase();
-    const isImage = adType === "image" || adType === "carousel" || adType === "static";
-
+    const adName = (c.ad_name || "").toLowerCase();
     const hookRate = Number(c.thumb_stop_rate) || 0;
     const holdRate = Number(c.hold_rate) || 0;
+    // Detect image ads: explicit type, name hint, or zero hook+hold rates
+    const isImage =
+      adType === "image" || adType === "carousel" || adType === "static" ||
+      adName.includes("static") ||
+      (adType !== "video" && hookRate === 0 && holdRate === 0);
+
     const ctr = Number(c.ctr) || 0;
     const spend = Number(c.spend) || 0;
 
