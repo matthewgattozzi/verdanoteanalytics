@@ -99,7 +99,7 @@ const AnalyticsPage = () => {
         </TabsContent>
 
         <TabsContent value="iterations" className="animate-fade-in space-y-4">
-          <IterationsTab creatives={creatives} spendThreshold={spendThreshold} />
+          <IterationsTab creatives={creatives} spendThreshold={spendThreshold} onCreativeClick={setSelectedCreative} />
         </TabsContent>
 
         <TabsContent value="ai-insights" className="animate-fade-in">

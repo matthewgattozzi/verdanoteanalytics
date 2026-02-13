@@ -16,6 +16,7 @@ import {
 interface IterationsTabProps {
   creatives: any[];
   spendThreshold: number;
+  onCreativeClick?: (creative: any) => void;
 }
 
 type SortKey = "priority" | "spend" | "hookRate" | "holdRate" | "ctr";
@@ -104,11 +105,11 @@ function BenchmarkBar({ benchmarks }: { benchmarks: Benchmarks }) {
   );
 }
 
-function IterationCard({ item }: { item: DiagnosedCreative }) {
+function IterationCard({ item, onClick }: { item: DiagnosedCreative; onClick?: () => void }) {
   const meta = DIAGNOSTIC_META[item.diagnostic];
 
   return (
-    <div className="glass-panel p-4 flex flex-col gap-3">
+    <div className="glass-panel p-4 flex flex-col gap-3 cursor-pointer transition-shadow hover:shadow-md" onClick={onClick}>
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
@@ -181,7 +182,7 @@ function IterationCard({ item }: { item: DiagnosedCreative }) {
   );
 }
 
-export function IterationsTab({ creatives, spendThreshold }: IterationsTabProps) {
+export function IterationsTab({ creatives, spendThreshold, onCreativeClick }: IterationsTabProps) {
   const [diagnosticFilter, setDiagnosticFilter] = useState<DiagnosticType | "all">("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState<SortKey>("priority");
@@ -320,7 +321,14 @@ export function IterationsTab({ creatives, spendThreshold }: IterationsTabProps)
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {filtered.map((item) => (
-            <IterationCard key={item.ad_id} item={item} />
+            <IterationCard
+              key={item.ad_id}
+              item={item}
+              onClick={() => {
+                const original = creatives.find((c: any) => c.ad_id === item.ad_id);
+                if (original && onCreativeClick) onCreativeClick(original);
+              }}
+            />
           ))}
         </div>
       )}
