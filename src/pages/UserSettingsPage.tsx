@@ -12,9 +12,11 @@ import { AddAccountModal } from "@/components/user-settings/AddAccountModal";
 import { CreateUserModal } from "@/components/user-settings/CreateUserModal";
 import { ConfirmDeleteDialog } from "@/components/user-settings/ConfirmDeleteDialog";
 import { useUserSettingsPageState } from "@/hooks/useUserSettingsPageState";
+import { useIsSyncing } from "@/hooks/useIsSyncing";
 
 const UserSettingsPage = () => {
   const s = useUserSettingsPageState();
+  const isSyncing = useIsSyncing();
 
   if (s.loadingProfile) {
     return (
@@ -69,7 +71,7 @@ const UserSettingsPage = () => {
               <MetaConnectionSection metaStatus={s.metaStatus} metaUser={s.metaUser} onTestConnection={s.handleTestConnection} />
               <AdAccountsSection
                 accounts={s.accounts}
-                syncPending={s.sync.isPending}
+                syncPending={s.sync.isPending || isSyncing}
                 onSyncAll={() => s.sync.mutate({ account_id: "all" })}
                 onOpenAddModal={s.handleOpenAddModal}
                 onRename={s.setRenamingAccount}

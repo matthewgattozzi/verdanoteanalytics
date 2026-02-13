@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, XCircle, AlertTriangle, Clock, RefreshCw, History, ChevronLeft, ChevronRight, Ban } from "lucide-react";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useSyncHistory, useAccounts, useSync, useCancelSync } from "@/hooks/useApi";
+import { useIsSyncing } from "@/hooks/useIsSyncing";
 import { toast } from "sonner";
 
 const PAGE_SIZE = 10;
@@ -103,6 +104,7 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
   const { data: logs, isLoading } = useSyncHistory(accountId);
   const syncMut = useSync();
   const cancelMut = useCancelSync();
+  const isSyncing = useIsSyncing();
   const prevRunningIdsRef = useRef<Set<number>>(new Set());
 
   // Notify when a running sync completes or fails
@@ -191,10 +193,10 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
             size="sm"
             variant="outline"
             onClick={() => syncMut.mutate({ account_id: accountId || "all" })}
-            disabled={syncMut.isPending}
+            disabled={syncMut.isPending || isSyncing}
           >
-            {syncMut.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
-            {syncMut.isPending ? "Syncing…" : "Resync"}
+            {(syncMut.isPending || isSyncing) ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+            {(syncMut.isPending || isSyncing) ? "Syncing…" : "Resync"}
           </Button>
         </div>
       </div>
@@ -372,9 +374,9 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
                       syncMut.mutate({ account_id: selectedLog.account_id });
                       setSelectedLog(null);
                     }}
-                    disabled={syncMut.isPending}
+                    disabled={syncMut.isPending || isSyncing}
                   >
-                    {syncMut.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+                    {(syncMut.isPending || isSyncing) ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
                     Resync {getAccountName(selectedLog.account_id)}
                   </Button>
                 </div>
