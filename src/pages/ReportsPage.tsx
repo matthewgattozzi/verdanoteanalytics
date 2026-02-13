@@ -26,9 +26,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, Plus, Trash2, Loader2, Eye, Download, CalendarClock } from "lucide-react";
+import { FileText, Plus, Trash2, Loader2, Eye, Download, CalendarClock, Send } from "lucide-react";
 import { useState, useMemo } from "react";
-import { useReports, useGenerateReport, useDeleteReport, useAccounts, useUpdateAccountSettings } from "@/hooks/useApi";
+import { useReports, useGenerateReport, useDeleteReport, useAccounts, useUpdateAccountSettings, useSendReportToSlack } from "@/hooks/useApi";
 import { ReportDetailModal } from "@/components/ReportDetailModal";
 import { exportReportCSV } from "@/lib/csv";
 
@@ -44,6 +44,7 @@ const ReportsPage = () => {
   const generateMut = useGenerateReport();
   const deleteMut = useDeleteReport();
   const updateAccountMut = useUpdateAccountSettings();
+  const slackMut = useSendReportToSlack();
 
   // Find previous report for comparison
   const previousReport = useMemo(() => {
@@ -133,6 +134,9 @@ const ReportsPage = () => {
                   <TableCell className="text-xs text-right font-mono">{fmt(r.average_cpa, "$")}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" className="h-7 px-2" title="Send to Slack" onClick={(e) => { e.stopPropagation(); slackMut.mutate(r.id); }} disabled={slackMut.isPending}>
+                        <Send className="h-3 w-3" />
+                      </Button>
                       <Button variant="ghost" size="sm" className="h-7 px-2" onClick={(e) => { e.stopPropagation(); exportReportCSV(r); }}>
                         <Download className="h-3 w-3" />
                       </Button>

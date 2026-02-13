@@ -60,6 +60,71 @@ function computeDiagnostics(creatives: any[]) {
   return counts;
 }
 
+async function sendReportToSlack(report: any) {
+  const webhookUrl = Deno.env.get("SLACK_WEBHOOK_URL");
+  if (!webhookUrl) return;
+
+  const fmt = (v: number | null, pre = "", suf = "") =>
+    v === null || v === undefined ? "—" : `${pre}${Number(v).toLocaleString("en-US", { maximumFractionDigits: 2 })}${suf}`;
+
+  const diagItems = [
+    report.diag_weak_hook && `Weak Hook: ${report.diag_weak_hook}`,
+    report.diag_weak_body && `Weak Body: ${report.diag_weak_body}`,
+    report.diag_weak_cta && `Weak CTA: ${report.diag_weak_cta}`,
+    report.diag_weak_hook_body && `Weak Hook+Body: ${report.diag_weak_hook_body}`,
+    report.diag_landing_page && `Landing Page: ${report.diag_landing_page}`,
+    report.diag_all_weak && `Full Rebuild: ${report.diag_all_weak}`,
+    report.diag_weak_cta_image && `Weak CTR (Image): ${report.diag_weak_cta_image}`,
+  ].filter(Boolean);
+
+  const topPerformers = (() => { try { return JSON.parse(report.top_performers || "[]"); } catch { return []; } })();
+  const topList = topPerformers.slice(0, 3).map((p: any, i: number) =>
+    `${i + 1}. ${p.ad_name} — ${fmt(p.roas, "", "x")} ROAS, ${fmt(p.spend, "$")} spent`
+  ).join("\n");
+
+  const blocks = [
+    {
+      type: "header",
+      text: { type: "plain_text", text: `📊 ${report.report_name}`, emoji: true },
+    },
+    {
+      type: "section",
+      fields: [
+        { type: "mrkdwn", text: `*Creatives:* ${report.creative_count}` },
+        { type: "mrkdwn", text: `*Total Spend:* ${fmt(report.total_spend, "$")}` },
+        { type: "mrkdwn", text: `*Blended ROAS:* ${fmt(report.blended_roas, "", "x")}` },
+        { type: "mrkdwn", text: `*Avg CPA:* ${fmt(report.average_cpa, "$")}` },
+        { type: "mrkdwn", text: `*Avg CTR:* ${fmt(report.average_ctr, "", "%")}` },
+        { type: "mrkdwn", text: `*Win Rate:* ${fmt(report.win_rate, "", "%")}` },
+      ],
+    },
+  ];
+
+  if (topList) {
+    blocks.push({
+      type: "section",
+      fields: [{ type: "mrkdwn", text: `*🏆 Top Performers:*\n${topList}` }],
+    } as any);
+  }
+
+  if (diagItems.length > 0) {
+    blocks.push({
+      type: "section",
+      fields: [{ type: "mrkdwn", text: `*⚠️ Iteration Diagnostics (${report.diag_total_diagnosed} ads):*\n${diagItems.join(" · ")}` }],
+    } as any);
+  }
+
+  try {
+    await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ blocks }),
+    });
+  } catch (e) {
+    console.error("Slack webhook error:", e);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -168,6 +233,17 @@ serve(async (req) => {
       if (error) throw error;
 
       return new Response(JSON.stringify(data), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // POST /reports/slack/:id — send existing report to Slack
+    if (req.method === "POST" && path.startsWith("slack/")) {
+      const reportId = path.replace("slack/", "");
+      const { data: r, error } = await supabase.from("reports").select("*").eq("id", reportId).single();
+      if (error || !r) {
+        return new Response(JSON.stringify({ error: "Report not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      await sendReportToSlack(r);
+      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // DELETE /reports/:id
