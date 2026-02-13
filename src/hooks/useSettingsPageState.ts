@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -27,7 +27,7 @@ export function useSettingsPageState() {
   const [showCsvModal, setShowCsvModal] = useState<string | null>(null);
   const [csvPreview, setCsvPreview] = useState<any[]>([]);
   const [csvMappings, setCsvMappings] = useState<any[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
 
   const account = selectedAccountId === "all"
     ? null
@@ -160,7 +160,7 @@ export function useSettingsPageState() {
     toggleAccount, renameAccount, sync, updateAccountSettings, uploadMappings,
     // Modal state
     renamingAccount, setRenamingAccount,
-    showCsvModal, setShowCsvModal, csvPreview, setCsvPreview, csvMappings, setCsvMappings, fileInputRef,
+    showCsvModal, setShowCsvModal, csvPreview, setCsvPreview, csvMappings, setCsvMappings,
     // Form state
     dateRange, setDateRange, roasThreshold, setRoasThreshold, spendThreshold, setSpendThreshold,
     winnerKpi, setWinnerKpi, winnerKpiDirection, setWinnerKpiDirection,
