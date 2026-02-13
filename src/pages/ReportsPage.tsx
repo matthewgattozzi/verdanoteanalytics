@@ -38,6 +38,7 @@ import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useReports, useGenerateReport, useDeleteReport, useAccounts, useSendReportToSlack, useReportSchedules, useUpsertReportSchedule } from "@/hooks/useApi";
 import { exportReportCSV } from "@/lib/csv";
+import { useAuth } from "@/contexts/AuthContext";
 
 const CADENCES = [
   { key: "weekly", label: "Weekly", defaultDays: 7, description: "Runs every Monday" },
@@ -45,6 +46,7 @@ const CADENCES = [
 ] as const;
 
 const ReportsPage = () => {
+  const { isClient } = useAuth();
   const [showGenerate, setShowGenerate] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
   const [reportName, setReportName] = useState("");
@@ -116,16 +118,18 @@ const ReportsPage = () => {
         title="Reports"
         description="Generate and view snapshot reports of your creative performance."
         actions={
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => setShowSchedule(true)}>
-              <CalendarClock className="h-3.5 w-3.5 mr-1.5" />
-              Schedules
-            </Button>
-            <Button size="sm" onClick={() => setShowGenerate(true)}>
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Generate Report
-            </Button>
-          </div>
+          !isClient ? (
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => setShowSchedule(true)}>
+                <CalendarClock className="h-3.5 w-3.5 mr-1.5" />
+                Schedules
+              </Button>
+              <Button size="sm" onClick={() => setShowGenerate(true)}>
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                Generate Report
+              </Button>
+            </div>
+          ) : undefined
         }
       />
 
@@ -171,21 +175,27 @@ const ReportsPage = () => {
                   <TableCell className="text-xs text-right font-mono">{fmt(r.average_cpa, "$")}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" className="h-7 px-2" title="Copy public link" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}/public/reports/${r.id}`); import("sonner").then(m => m.toast.success("Public link copied!")); }}>
-                        <Link2 className="h-3 w-3" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-7 px-2" title="Send to Slack" onClick={(e) => { e.stopPropagation(); slackMut.mutate(r.id); }} disabled={slackMut.isPending}>
-                        <Send className="h-3 w-3" />
-                      </Button>
+                      {!isClient && (
+                        <Button variant="ghost" size="sm" className="h-7 px-2" title="Copy public link" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}/public/reports/${r.id}`); import("sonner").then(m => m.toast.success("Public link copied!")); }}>
+                          <Link2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                      {!isClient && (
+                        <Button variant="ghost" size="sm" className="h-7 px-2" title="Send to Slack" onClick={(e) => { e.stopPropagation(); slackMut.mutate(r.id); }} disabled={slackMut.isPending}>
+                          <Send className="h-3 w-3" />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="sm" className="h-7 px-2" onClick={(e) => { e.stopPropagation(); exportReportCSV(r); }}>
                         <Download className="h-3 w-3" />
                       </Button>
                       <Button variant="ghost" size="sm" className="h-7 px-2" onClick={(e) => { e.stopPropagation(); navigate(`/reports/${r.id}`); }}>
                         <Eye className="h-3 w-3" />
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive" onClick={(e) => { e.stopPropagation(); deleteMut.mutate(r.id); }} disabled={deleteMut.isPending}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      {!isClient && (
+                        <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive" onClick={(e) => { e.stopPropagation(); deleteMut.mutate(r.id); }} disabled={deleteMut.isPending}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
