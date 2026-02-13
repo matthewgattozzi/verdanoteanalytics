@@ -1,0 +1,1 @@
+ALTER TABLE public.ad_accounts ALTER COLUMN date_range_days SET DEFAULT 180;
