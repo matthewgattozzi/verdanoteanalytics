@@ -136,7 +136,7 @@ const CreativesPage = () => {
       const withSpend = items.filter(c => (Number(c.spend) || 0) > 0);
       const totalSpend = items.reduce((s, c) => s + (Number(c.spend) || 0), 0);
       const avgField = (field: string) => withSpend.length > 0 ? withSpend.reduce((s, c) => s + (Number(c[field]) || 0), 0) / withSpend.length : 0;
-      return { name, count: items.length, totalSpend, avgRoas: avgField("roas"), avgCpa: avgField("cpa"), avgCtr: avgField("ctr") };
+      return { name, count: items.length, totalSpend, avgRoas: avgField("roas"), avgCpa: avgField("cpa"), avgSpend: withSpend.length > 0 ? totalSpend / withSpend.length : 0 };
     }).sort((a, b) => b.totalSpend - a.totalSpend);
   }, [sortedCreatives, groupBy]);
 
