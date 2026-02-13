@@ -14,8 +14,7 @@ const BATCH_SIZE = 20;
 const VIDEO_BATCH_SIZE = 3;
 const MAX_TOTAL = 200;
 
-/** Fetch a fresh high-res image URL from Meta Graph API.
- *  Uses image_hash + Ad Account Images API for maximum resolution. */
+/** Fetch a fresh high-res image URL from Meta Graph API. */
 async function getFreshImageUrl(adId: string, accountId: string): Promise<string | null> {
   try {
     const res = await fetch(
@@ -30,37 +29,41 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
     if (!creative) return null;
 
     // Priority 1: Use image_hash to get full-res from Ad Account Images API
+    // Request url_128 (which despite the name is the full-res original URL)
     const imageHash = creative.image_hash ||
       creative.object_story_spec?.link_data?.image_hash ||
       creative.object_story_spec?.photo_data?.image_hash;
     if (imageHash) {
       const imgRes = await fetch(
-        `https://graph.facebook.com/v21.0/${accountId}/adimages?hashes=["${imageHash}"]&fields=url_128,url,permalink_url&access_token=${META_ACCESS_TOKEN}`
+        `https://graph.facebook.com/v21.0/${accountId}/adimages?hashes=["${imageHash}"]&fields=url,url_128,width,height,original_width,original_height&access_token=${META_ACCESS_TOKEN}`
       );
       if (imgRes.ok) {
         const imgData = await imgRes.json();
         const images = imgData?.data;
         if (images && images.length > 0) {
-          // permalink_url is the highest resolution available
-          const fullUrl = images[0].permalink_url || images[0].url || images[0].url_128;
-          if (fullUrl) {
-            console.log(`Got full-res image via image_hash for ${adId}`);
+          // 'url' field is the actual full-resolution image
+          const img = images[0];
+          const fullUrl = img.url || img.url_128;
+          const w = img.original_width || img.width || 0;
+          console.log(`image_hash for ${adId}: ${w}px wide, url length: ${fullUrl?.length}`);
+          if (fullUrl && fullUrl.length > 100) {
             return fullUrl;
           }
         }
       }
     }
 
-    // Priority 2: image from object_story_spec (often higher-res than image_url)
+    // Priority 2: image_url from creative (can be full-res for image ads)
+    if (creative.image_url) {
+      console.log(`Using image_url for ${adId}`);
+      return creative.image_url;
+    }
+
+    // Priority 3: image from object_story_spec
     const spec = creative.object_story_spec;
     if (spec) {
       const imageUrl = spec.link_data?.image_url || spec.photo_data?.url || spec.photo_data?.image_url;
       if (imageUrl) return imageUrl;
-    }
-
-    // Priority 3: image_url from creative
-    if (creative.image_url) {
-      return creative.image_url;
     }
 
     // Priority 4: thumbnail_url upscaled (fallback for video ads)
