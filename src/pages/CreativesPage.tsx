@@ -96,14 +96,15 @@ const CreativesPage = () => {
   const untaggedCount = useMemo(() => creatives.filter((c: any) => c.tag_source === "untagged").length, [creatives]);
 
   const avgMetrics = useMemo(() => {
-    if (creatives.length === 0) return { roas: "—", cpa: "—", ctr: "—" };
+    if (creatives.length === 0) return { roas: "—", cpa: "—", totalSpend: "—" };
     const withSpend = creatives.filter((c: any) => c.spend > 0);
-    if (withSpend.length === 0) return { roas: "—", cpa: "—", ctr: "—" };
+    if (withSpend.length === 0) return { roas: "—", cpa: "—", totalSpend: "—" };
     const avg = (field: string) => {
       const vals = withSpend.map((c: any) => Number(c[field]) || 0);
       return (vals.reduce((a: number, b: number) => a + b, 0) / vals.length).toFixed(2);
     };
-    return { roas: `${avg("roas")}x`, cpa: `$${avg("cpa")}`, ctr: `${avg("ctr")}%` };
+    const total = withSpend.reduce((s: number, c: any) => s + (Number(c.spend) || 0), 0);
+    return { roas: `${avg("roas")}x`, cpa: `$${avg("cpa")}`, totalSpend: `$${total.toLocaleString("en-US", { maximumFractionDigits: 0 })}` };
   }, [creatives]);
 
   const handleSort = useCallback((key: string) => {
@@ -187,7 +188,7 @@ const CreativesPage = () => {
         <MetricCard label="Total Creatives" value={totalCreatives} />
         <MetricCard label="Avg ROAS" value={avgMetrics.roas} />
         <MetricCard label="Avg CPA" value={avgMetrics.cpa} />
-        <MetricCard label="Avg CTR" value={avgMetrics.ctr} />
+        <MetricCard label="Ad Spend" value={avgMetrics.totalSpend} />
       </div>
 
       <div className="relative mb-3 max-w-sm">
