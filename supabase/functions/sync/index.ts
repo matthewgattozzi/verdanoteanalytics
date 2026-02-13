@@ -586,45 +586,8 @@ serve(async (req) => {
 
           await saveProgress("running");
 
-          // ─── PHASE 3.5: Cache thumbnails & videos to storage ────────
-          if (!isTimedOut()) {
-            console.log("Phase 3.5: Caching media to storage...");
-
-            // Cache thumbnails
-            const { data: creativesWithMetaThumb } = await supabase.from("creatives")
-              .select("ad_id, thumbnail_url")
-              .eq("account_id", account.id)
-              .not("thumbnail_url", "is", null);
-
-            let thumbCached = 0, thumbSkipped = 0;
-            const thumbToCache = (creativesWithMetaThumb || []).filter((c: any) =>
-              c.thumbnail_url && !c.thumbnail_url.includes("/storage/v1/object/public/")
-            );
-            console.log(`  ${thumbToCache.length} thumbnails need caching`);
-
-            for (let i = 0; i < thumbToCache.length && !isTimedOut(); i += 10) {
-              const batch = thumbToCache.slice(i, i + 10);
-              const results = await Promise.allSettled(
-                batch.map(async (c: any) => {
-                  const storageUrl = await cacheThumbnail(supabase, account.id, c.ad_id, c.thumbnail_url);
-                  if (storageUrl) {
-                    await supabase.from("creatives").update({ thumbnail_url: storageUrl }).eq("ad_id", c.ad_id);
-                    return true;
-                  }
-                  return false;
-                })
-              );
-              thumbCached += results.filter((r: any) => r.status === "fulfilled" && r.value).length;
-              thumbSkipped += results.filter((r: any) => r.status === "rejected" || (r.status === "fulfilled" && !r.value)).length;
-              if (i + 10 < thumbToCache.length) await new Promise(r => setTimeout(r, 200));
-            }
-            console.log(`  Thumbnails: ${thumbCached} cached, ${thumbSkipped} skipped`);
-
-            // Video caching is handled by the background refresh-thumbnails cron job
-            // to avoid sync timeouts for large accounts
-
-            console.log(`Phase 3.5 complete: ${thumbCached} thumbnails cached`);
-          }
+          // Thumbnail & video caching is handled by the background refresh-thumbnails cron job
+          // to keep sync fast and avoid timeouts
 
           // ─── PHASE 4: Daily breakdowns ───────────────────────────────
           const dailyRows: any[] = [];
