@@ -135,31 +135,49 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
 }
 
 /** Fetch a fresh video source URL from Meta Graph API */
+/** Fetch a fresh video source URL from Meta Graph API */
 async function getFreshVideoUrl(adId: string): Promise<string | null> {
   try {
+    // Get creative with object_story_spec and video_id
     const res = await fetch(
-      `https://graph.facebook.com/v21.0/${adId}?fields=creative{object_story_spec}&access_token=${META_ACCESS_TOKEN}`
+      `https://graph.facebook.com/v21.0/${adId}?fields=creative{object_story_spec,video_id}&access_token=${META_ACCESS_TOKEN}`
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.log(`Meta video API failed for ${adId}: ${res.status}`);
+      return null;
+    }
     const data = await res.json();
-    const spec = data?.creative?.object_story_spec;
+    const creative = data?.creative;
+    if (!creative) return null;
 
-    // Try video_data.video_url first (direct playback URL)
+    const spec = creative.object_story_spec;
+
+    // Collect all possible video_ids
+    const videoIds: string[] = [];
+    if (creative.video_id) videoIds.push(creative.video_id);
+    if (spec?.video_data?.video_id) videoIds.push(spec.video_data.video_id);
+    if (spec?.template_data?.video_data?.video_id) videoIds.push(spec.template_data.video_data.video_id);
+
+    // Try video_data.video_url first (direct playback URL from spec — may be fresh CDN link)  
     if (spec?.video_data?.video_url) {
+      console.log(`Found video_url in spec for ${adId}`);
       return spec.video_data.video_url;
     }
 
-    // Try to get video source from video_id
-    const videoData = spec?.video_data || spec?.template_data?.video_data;
-    if (videoData?.video_id) {
+    // Try each video_id — request source (requires pages_read_engagement but worth trying)
+    for (const vid of [...new Set(videoIds)]) {
       const vidRes = await fetch(
-        `https://graph.facebook.com/v21.0/${videoData.video_id}?fields=source&access_token=${META_ACCESS_TOKEN}`
+        `https://graph.facebook.com/v21.0/${vid}?fields=source&access_token=${META_ACCESS_TOKEN}`
       );
       if (vidRes.ok) {
         const vidData = await vidRes.json();
-        return vidData?.source || null;
+        if (vidData?.source) {
+          console.log(`Got video source from video_id ${vid} for ${adId}`);
+          return vidData.source;
+        }
       }
     }
+
     return null;
   } catch (e) {
     console.log(`Meta video API error for ${adId}:`, e);
@@ -228,19 +246,22 @@ serve(async (req) => {
 
     const { data: uncachedThumbs } = await thumbQuery.limit(MAX_TOTAL);
 
-    // Find ads missing video_url (need to fetch from Meta API)
+    // Find ads missing video_url — only actual video ads, exclude already-checked ones
+    // Use 'no-video' as sentinel for ads we've checked and confirmed have no accessible video
     const { data: missingVideos } = await supabase
       .from("creatives")
       .select("ad_id, account_id")
       .is("video_url", null)
+      .gt("video_views", 0)
       .limit(100);
 
-    // Find uncached videos (have video_url but not in storage)
+    // Find uncached videos (have video_url but not in storage, excluding sentinel)
     const { data: uncachedVideos } = await supabase
       .from("creatives")
       .select("ad_id, account_id, video_url")
       .not("video_url", "is", null)
       .not("video_url", "like", `%/storage/v1/object/public/%`)
+      .neq("video_url", "no-video")
       .limit(50);
 
     const thumbs = uncachedThumbs || [];
@@ -278,25 +299,30 @@ serve(async (req) => {
     }
 
     // Process ads missing video_url — try to fetch from Meta API
-    let videosFetched = 0;
+    let videosFetched = 0, videosMarkedNA = 0;
     for (let i = 0; i < noVideos.length; i += BATCH_SIZE) {
       const batch = noVideos.slice(i, i + BATCH_SIZE);
       const results = await Promise.allSettled(
         batch.map(async (c: any) => {
           const freshUrl = await getFreshVideoUrl(c.ad_id);
-          if (!freshUrl) return false;
+          if (!freshUrl) {
+            // Mark as checked so we don't retry on next run
+            await supabase.from("creatives").update({ video_url: "no-video" }).eq("ad_id", c.ad_id);
+            return "marked";
+          }
           // Cache directly to storage
           const storageUrl = await downloadAndCache(supabase, VIDEO_BUCKET, c.account_id, c.ad_id, freshUrl, "video");
           if (storageUrl) {
             await supabase.from("creatives").update({ video_url: storageUrl }).eq("ad_id", c.ad_id);
-            return true;
+            return "cached";
           }
           // If caching failed, at least store the direct URL
           await supabase.from("creatives").update({ video_url: freshUrl }).eq("ad_id", c.ad_id);
-          return true;
+          return "cached";
         })
       );
-      videosFetched += results.filter((r: any) => r.status === "fulfilled" && r.value).length;
+      videosFetched += results.filter((r: any) => r.status === "fulfilled" && r.value === "cached").length;
+      videosMarkedNA += results.filter((r: any) => r.status === "fulfilled" && r.value === "marked").length;
       if (i + BATCH_SIZE < noVideos.length) await new Promise(r => setTimeout(r, 500));
     }
 
@@ -321,11 +347,11 @@ serve(async (req) => {
       if (i + VIDEO_BATCH_SIZE < videos.length) await new Promise(r => setTimeout(r, 500));
     }
 
-    console.log(`Done — Thumbs: ${thumbCached} cached, ${thumbFailed} failed | Videos fetched: ${videosFetched}, cached: ${videoCached}, failed: ${videoFailed}`);
+    console.log(`Done — Thumbs: ${thumbCached} cached, ${thumbFailed} failed | Videos fetched: ${videosFetched}, marked N/A: ${videosMarkedNA}, cached: ${videoCached}, failed: ${videoFailed}`);
 
     return new Response(JSON.stringify({
       thumbnails: { cached: thumbCached, failed: thumbFailed, total: thumbs.length },
-      videos: { fetched: videosFetched, cached: videoCached, failed: videoFailed, total: videos.length + noVideos.length },
+      videos: { fetched: videosFetched, markedNA: videosMarkedNA, cached: videoCached, failed: videoFailed, total: videos.length + noVideos.length },
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
