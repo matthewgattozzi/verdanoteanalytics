@@ -129,7 +129,7 @@ export function useUserSettingsPageState() {
       if (result.connected) {
         setAvailableAccounts(result.accounts || []);
       } else {
-        toast.error("Meta token not configured.");
+        toast.error(result.error || "Meta token not configured.");
         setShowAddModal(false);
       }
     } catch {
