@@ -9,7 +9,7 @@ interface GroupRow {
   totalSpend: number;
   avgRoas: number;
   avgCpa: number;
-  avgCtr: number;
+  avgSpend: number;
 }
 
 interface CreativesGroupTableProps {
@@ -28,7 +28,7 @@ export function CreativesGroupTable({ groupBy, data }: CreativesGroupTableProps)
             <TableHead className="text-xs text-right">Total Spend</TableHead>
             <TableHead className="text-xs text-right">Avg ROAS</TableHead>
             <TableHead className="text-xs text-right">Avg CPA</TableHead>
-            <TableHead className="text-xs text-right">Avg CTR</TableHead>
+            <TableHead className="text-xs text-right">Ad Spend</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -39,7 +39,7 @@ export function CreativesGroupTable({ groupBy, data }: CreativesGroupTableProps)
               <TableCell className="text-xs text-right">${g.totalSpend.toLocaleString("en-US", { maximumFractionDigits: 0 })}</TableCell>
               <TableCell className="text-xs text-right">{g.avgRoas.toFixed(2)}x</TableCell>
               <TableCell className="text-xs text-right">${g.avgCpa.toFixed(2)}</TableCell>
-              <TableCell className="text-xs text-right">{g.avgCtr.toFixed(2)}%</TableCell>
+              <TableCell className="text-xs text-right">${g.avgSpend.toLocaleString("en-US", { maximumFractionDigits: 0 })}</TableCell>
             </TableRow>
           ))}
         </TableBody>
