@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { SyncStatusBanner } from "@/components/SyncStatusBanner";
 import { PageHeader } from "@/components/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, User, Shield } from "lucide-react";
@@ -31,6 +32,7 @@ const UserSettingsPage = () => {
   return (
     <AppLayout>
       <PageHeader title="User Settings" description="Manage your profile, security, and admin preferences." />
+      <SyncStatusBanner />
 
       <div className="max-w-2xl">
         <Tabs defaultValue="profile" className="space-y-6">
