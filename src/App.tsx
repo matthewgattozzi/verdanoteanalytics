@@ -41,11 +41,9 @@ function ProtectedRoutes() {
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/reports/:id" element={<ReportDetailPage />} />
-        {!isClient && <Route path="/settings" element={<SettingsPage />} />}
+        <Route path="/settings" element={isClient ? <Navigate to="/" replace /> : <SettingsPage />} />
         <Route path="/user-settings" element={<UserSettingsPage />} />
-        
         <Route path="/saved-views" element={<SavedViewsPage />} />
-        <Route path="/settings" element={<Navigate to="/" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AccountProvider>

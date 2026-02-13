@@ -83,13 +83,13 @@ export function useCreativesPageState() {
   }, []);
 
   // Build API filters
-  const accountFilter = selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {};
   const allFilters = useMemo(() => ({
-    ...accountFilter, ...filters,
+    ...(selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {}),
+    ...filters,
     ...(dateFrom ? { date_from: dateFrom } : {}),
     ...(dateTo ? { date_to: dateTo } : {}),
     ...(search ? { search } : {}),
-  }), [accountFilter, filters, dateFrom, dateTo, search]);
+  }), [selectedAccountId, filters, dateFrom, dateTo, search]);
 
   return {
     viewMode, setViewMode,
