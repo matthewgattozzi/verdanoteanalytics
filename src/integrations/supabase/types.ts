@@ -445,6 +445,53 @@ export type Database = {
         }
         Relationships: []
       }
+      report_schedules: {
+        Row: {
+          account_id: string
+          cadence: string
+          created_at: string
+          date_range_days: number
+          deliver_to_app: boolean
+          deliver_to_slack: boolean
+          enabled: boolean
+          id: string
+          report_name_template: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          cadence: string
+          created_at?: string
+          date_range_days?: number
+          deliver_to_app?: boolean
+          deliver_to_slack?: boolean
+          enabled?: boolean
+          id?: string
+          report_name_template?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          cadence?: string
+          created_at?: string
+          date_range_days?: number
+          deliver_to_app?: boolean
+          deliver_to_slack?: boolean
+          enabled?: boolean
+          id?: string
+          report_name_template?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_schedules_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ad_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           account_id: string | null

@@ -5,9 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -28,10 +30,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { FileText, Plus, Trash2, Loader2, Eye, Download, CalendarClock, Send } from "lucide-react";
-import { useState, useMemo } from "react";
-import { useReports, useGenerateReport, useDeleteReport, useAccounts, useUpdateAccountSettings, useSendReportToSlack } from "@/hooks/useApi";
+import { useState, useMemo, useCallback } from "react";
+import { useReports, useGenerateReport, useDeleteReport, useAccounts, useSendReportToSlack, useReportSchedules, useUpsertReportSchedule } from "@/hooks/useApi";
 import { ReportDetailModal } from "@/components/ReportDetailModal";
 import { exportReportCSV } from "@/lib/csv";
+
+const CADENCES = [
+  { key: "weekly", label: "Weekly", defaultDays: 7, description: "Runs every Monday" },
+  { key: "monthly", label: "Monthly", defaultDays: 30, description: "Runs on the 1st" },
+] as const;
 
 const ReportsPage = () => {
   const [showGenerate, setShowGenerate] = useState(false);
@@ -42,10 +49,42 @@ const ReportsPage = () => {
 
   const { data: reports, isLoading } = useReports();
   const { data: accounts } = useAccounts();
+  const { data: schedules } = useReportSchedules();
   const generateMut = useGenerateReport();
   const deleteMut = useDeleteReport();
-  const updateAccountMut = useUpdateAccountSettings();
   const slackMut = useSendReportToSlack();
+  const upsertScheduleMut = useUpsertReportSchedule();
+
+  const getSchedule = useCallback((accountId: string, cadence: string) => {
+    return schedules?.find((s: any) => s.account_id === accountId && s.cadence === cadence);
+  }, [schedules]);
+
+  const handleToggleSchedule = (accountId: string, cadence: string, enabled: boolean) => {
+    const existing = getSchedule(accountId, cadence);
+    upsertScheduleMut.mutate({
+      account_id: accountId,
+      cadence,
+      enabled,
+      report_name_template: existing?.report_name_template || `{cadence} Report - {account}`,
+      date_range_days: existing?.date_range_days || (cadence === "weekly" ? 7 : 30),
+      deliver_to_app: existing?.deliver_to_app ?? true,
+      deliver_to_slack: existing?.deliver_to_slack ?? false,
+    });
+  };
+
+  const handleUpdateSchedule = (accountId: string, cadence: string, field: string, value: any) => {
+    const existing = getSchedule(accountId, cadence);
+    upsertScheduleMut.mutate({
+      account_id: accountId,
+      cadence,
+      enabled: existing?.enabled ?? true,
+      report_name_template: existing?.report_name_template || `{cadence} Report - {account}`,
+      date_range_days: existing?.date_range_days || (cadence === "weekly" ? 7 : 30),
+      deliver_to_app: existing?.deliver_to_app ?? true,
+      deliver_to_slack: existing?.deliver_to_slack ?? false,
+      [field]: value,
+    });
+  };
 
   // Find previous report for comparison
   const previousReport = useMemo(() => {
@@ -55,7 +94,6 @@ const ReportsPage = () => {
     );
     const currentIdx = sorted.findIndex((r: any) => r.id === selectedReport.id);
     if (currentIdx < 0 || currentIdx >= sorted.length - 1) return undefined;
-    // Find next older report with same account_id (or both null)
     for (let i = currentIdx + 1; i < sorted.length; i++) {
       if (sorted[i].account_id === selectedReport.account_id) return sorted[i];
     }
@@ -161,6 +199,7 @@ const ReportsPage = () => {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Generate Report</DialogTitle>
+            <DialogDescription>Create a new snapshot report of your creative performance.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
@@ -196,40 +235,78 @@ const ReportsPage = () => {
 
       {/* Schedule Dialog */}
       <Dialog open={showSchedule} onOpenChange={setShowSchedule}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CalendarClock className="h-4 w-4" />
               Report Schedules
             </DialogTitle>
+            <DialogDescription>Configure automatic report generation per account. Use templates: {"{account}"}, {"{cadence}"}, {"{date}"}.</DialogDescription>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">Set automatic report generation per account. Weekly reports run every Monday, monthly on the 1st.</p>
-          <div className="space-y-3 max-h-80 overflow-y-auto">
-            {(accounts || []).map((a: any) => {
-              const schedules = (a.report_schedule || "none").split(",").filter((s: string) => s !== "none");
-              const toggleSchedule = (type: string, checked: boolean) => {
-                let next = checked
-                  ? [...schedules, type]
-                  : schedules.filter((s: string) => s !== type);
-                const val = next.length ? next.join(",") : "none";
-                updateAccountMut.mutate({ id: a.id, report_schedule: val } as any);
-              };
-              return (
-                <div key={a.id} className="flex items-center justify-between gap-3 p-2.5 rounded-md border bg-card">
-                  <div className="text-xs font-medium truncate flex-1">{a.name}</div>
-                  <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-1.5 cursor-pointer">
-                      <Checkbox checked={schedules.includes("weekly")} onCheckedChange={(checked) => toggleSchedule("weekly", !!checked)} />
-                      <span className="text-xs">Weekly</span>
-                    </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer">
-                      <Checkbox checked={schedules.includes("monthly")} onCheckedChange={(checked) => toggleSchedule("monthly", !!checked)} />
-                      <span className="text-xs">Monthly</span>
-                    </label>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+            {(accounts || []).map((a: any) => (
+              <div key={a.id} className="rounded-lg border bg-card p-3 space-y-3">
+                <div className="text-sm font-medium">{a.name}</div>
+                {CADENCES.map(({ key, label, defaultDays, description }) => {
+                  const schedule = getSchedule(a.id, key);
+                  const enabled = schedule?.enabled ?? false;
+                  return (
+                    <div key={key} className="rounded-md border bg-background p-2.5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-medium">{label}</span>
+                          <span className="text-[10px] text-muted-foreground ml-1.5">{description}</span>
+                        </div>
+                        <Switch
+                          checked={enabled}
+                          onCheckedChange={(checked) => handleToggleSchedule(a.id, key, checked)}
+                        />
+                      </div>
+                      {enabled && (
+                        <div className="space-y-2 pt-1 border-t">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Report Name Template</Label>
+                            <Input
+                              className="h-7 text-xs bg-card"
+                              value={schedule?.report_name_template || `{cadence} Report - {account}`}
+                              onChange={(e) => handleUpdateSchedule(a.id, key, "report_name_template", e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Date Range (days)</Label>
+                            <Input
+                              type="number"
+                              className="h-7 text-xs bg-card w-24"
+                              value={schedule?.date_range_days ?? defaultDays}
+                              onChange={(e) => handleUpdateSchedule(a.id, key, "date_range_days", parseInt(e.target.value) || defaultDays)}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Delivery</Label>
+                            <div className="flex items-center gap-4">
+                              <label className="flex items-center gap-1.5 cursor-pointer">
+                                <Checkbox
+                                  checked={schedule?.deliver_to_app ?? true}
+                                  onCheckedChange={(checked) => handleUpdateSchedule(a.id, key, "deliver_to_app", !!checked)}
+                                />
+                                <span className="text-xs">Save in app</span>
+                              </label>
+                              <label className="flex items-center gap-1.5 cursor-pointer">
+                                <Checkbox
+                                  checked={schedule?.deliver_to_slack ?? false}
+                                  onCheckedChange={(checked) => handleUpdateSchedule(a.id, key, "deliver_to_slack", !!checked)}
+                                />
+                                <span className="text-xs">Send to Slack</span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
             {!(accounts || []).length && (
               <p className="text-xs text-muted-foreground text-center py-4">No accounts found.</p>
             )}
