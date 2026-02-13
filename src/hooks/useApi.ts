@@ -171,7 +171,7 @@ export function useReports() {
 export function useGenerateReport() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (params: { report_name: string; account_id?: string }) =>
+    mutationFn: (params: { report_name: string; account_id?: string; date_start?: string; date_end?: string }) =>
       apiFetch("reports", "", { method: "POST", body: JSON.stringify(params) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["reports"] });

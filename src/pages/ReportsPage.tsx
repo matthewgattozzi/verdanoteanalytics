@@ -29,7 +29,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, Plus, Trash2, Loader2, Eye, Download, CalendarClock, Send } from "lucide-react";
+import { FileText, Plus, Trash2, Loader2, Eye, Download, CalendarClock, Send, CalendarIcon } from "lucide-react";
+import { format, subDays } from "date-fns";
+import { cn } from "@/lib/utils";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState, useMemo, useCallback } from "react";
 import { useReports, useGenerateReport, useDeleteReport, useAccounts, useSendReportToSlack, useReportSchedules, useUpsertReportSchedule } from "@/hooks/useApi";
 import { ReportDetailModal } from "@/components/ReportDetailModal";
@@ -46,6 +50,8 @@ const ReportsPage = () => {
   const [reportName, setReportName] = useState("");
   const [accountId, setAccountId] = useState("");
   const [selectedReport, setSelectedReport] = useState<any>(null);
+  const [dateStart, setDateStart] = useState<Date>(subDays(new Date(), 7));
+  const [dateEnd, setDateEnd] = useState<Date>(new Date());
 
   const { data: reports, isLoading } = useReports();
   const { data: accounts } = useAccounts();
@@ -102,8 +108,13 @@ const ReportsPage = () => {
 
   const handleGenerate = () => {
     generateMut.mutate(
-      { report_name: reportName || `Report ${new Date().toLocaleDateString()}`, account_id: accountId || undefined },
-      { onSuccess: () => { setShowGenerate(false); setReportName(""); setAccountId(""); } }
+      {
+        report_name: reportName || `Report ${new Date().toLocaleDateString()}`,
+        account_id: accountId || undefined,
+        date_start: format(dateStart, "yyyy-MM-dd"),
+        date_end: format(dateEnd, "yyyy-MM-dd"),
+      },
+      { onSuccess: () => { setShowGenerate(false); setReportName(""); setAccountId(""); setDateStart(subDays(new Date(), 7)); setDateEnd(new Date()); } }
     );
   };
 
@@ -215,6 +226,34 @@ const ReportsPage = () => {
                   {(accounts || []).map((a: any) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Date Range</Label>
+              <div className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("h-8 text-xs flex-1 justify-start", !dateStart && "text-muted-foreground")}>
+                      <CalendarIcon className="h-3 w-3 mr-1.5" />
+                      {dateStart ? format(dateStart, "MMM d, yyyy") : "Start"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={dateStart} onSelect={(d) => d && setDateStart(d)} disabled={(d) => d > new Date()} className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+                <span className="text-xs text-muted-foreground">to</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("h-8 text-xs flex-1 justify-start", !dateEnd && "text-muted-foreground")}>
+                      <CalendarIcon className="h-3 w-3 mr-1.5" />
+                      {dateEnd ? format(dateEnd, "MMM d, yyyy") : "End"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={dateEnd} onSelect={(d) => d && setDateEnd(d)} disabled={(d) => d > new Date()} className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
           </div>
           <DialogFooter>

@@ -83,10 +83,7 @@ async function sendReportToSlack(report: any) {
   ).join("\n");
 
   const blocks = [
-    {
-      type: "header",
-      text: { type: "plain_text", text: `📊 ${report.report_name}`, emoji: true },
-    },
+    { type: "header", text: { type: "plain_text", text: `📊 ${report.report_name}`, emoji: true } },
     {
       type: "section",
       fields: [
@@ -100,29 +97,111 @@ async function sendReportToSlack(report: any) {
     },
   ];
 
-  if (topList) {
-    blocks.push({
-      type: "section",
-      fields: [{ type: "mrkdwn", text: `*🏆 Top Performers:*\n${topList}` }],
-    } as any);
+  if (topList) blocks.push({ type: "section", fields: [{ type: "mrkdwn", text: `*🏆 Top Performers:*\n${topList}` }] } as any);
+  if (diagItems.length > 0) blocks.push({ type: "section", fields: [{ type: "mrkdwn", text: `*⚠️ Iteration Diagnostics (${report.diag_total_diagnosed} ads):*\n${diagItems.join(" · ")}` }] } as any);
+
+  try { await fetch(webhookUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ blocks }) }); }
+  catch (e) { console.error("Slack webhook error:", e); }
+}
+
+// Aggregate daily metrics per ad_id within a date range, returning enriched creative objects
+async function aggregateDailyMetrics(supabase: any, accountId: string | null, dateStart: string, dateEnd: string) {
+  // Fetch daily metrics within range
+  let dmQuery = supabase
+    .from("creative_daily_metrics")
+    .select("*")
+    .gte("date", dateStart)
+    .lte("date", dateEnd);
+  if (accountId) dmQuery = dmQuery.eq("account_id", accountId);
+
+  // Paginate to handle >1000 rows
+  const allMetrics: any[] = [];
+  let offset = 0;
+  const batchSize = 1000;
+  while (true) {
+    const { data, error } = await dmQuery.range(offset, offset + batchSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    allMetrics.push(...data);
+    if (data.length < batchSize) break;
+    offset += batchSize;
   }
 
-  if (diagItems.length > 0) {
-    blocks.push({
-      type: "section",
-      fields: [{ type: "mrkdwn", text: `*⚠️ Iteration Diagnostics (${report.diag_total_diagnosed} ads):*\n${diagItems.join(" · ")}` }],
-    } as any);
+  // Aggregate per ad_id
+  const byAd: Record<string, any> = {};
+  for (const m of allMetrics) {
+    if (!byAd[m.ad_id]) {
+      byAd[m.ad_id] = {
+        ad_id: m.ad_id, account_id: m.account_id,
+        spend: 0, impressions: 0, clicks: 0, purchases: 0, purchase_value: 0,
+        adds_to_cart: 0, video_views: 0,
+        _days: 0, _ctr_sum: 0, _cpm_sum: 0, _cpc_sum: 0, _cpa_sum: 0, _roas_sum: 0,
+        _tsr_sum: 0, _hr_sum: 0, _freq_sum: 0, _vat_sum: 0, _cpac_sum: 0,
+      };
+    }
+    const a = byAd[m.ad_id];
+    a.spend += Number(m.spend || 0);
+    a.impressions += Number(m.impressions || 0);
+    a.clicks += Number(m.clicks || 0);
+    a.purchases += Number(m.purchases || 0);
+    a.purchase_value += Number(m.purchase_value || 0);
+    a.adds_to_cart += Number(m.adds_to_cart || 0);
+    a.video_views += Number(m.video_views || 0);
+    a._days++;
+    a._ctr_sum += Number(m.ctr || 0);
+    a._cpm_sum += Number(m.cpm || 0);
+    a._cpc_sum += Number(m.cpc || 0);
+    a._cpa_sum += Number(m.cpa || 0);
+    a._roas_sum += Number(m.roas || 0);
+    a._tsr_sum += Number(m.thumb_stop_rate || 0);
+    a._hr_sum += Number(m.hold_rate || 0);
+    a._freq_sum += Number(m.frequency || 0);
+    a._vat_sum += Number(m.video_avg_play_time || 0);
+    a._cpac_sum += Number(m.cost_per_add_to_cart || 0);
   }
 
-  try {
-    await fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ blocks }),
-    });
-  } catch (e) {
-    console.error("Slack webhook error:", e);
+  // Compute averages and fetch creative metadata
+  const adIds = Object.keys(byAd);
+  if (adIds.length === 0) return [];
+
+  // Fetch creative metadata in batches
+  const creativeMap: Record<string, any> = {};
+  for (let i = 0; i < adIds.length; i += 100) {
+    const batch = adIds.slice(i, i + 100);
+    const { data: crs } = await supabase
+      .from("creatives")
+      .select("ad_id, ad_name, unique_code, ad_type, tag_source, person, style, hook, product, theme, campaign_name, adset_name")
+      .in("ad_id", batch);
+    for (const c of crs || []) creativeMap[c.ad_id] = c;
   }
+
+  return adIds.map(adId => {
+    const a = byAd[adId];
+    const meta = creativeMap[adId] || {};
+    const days = a._days || 1;
+    return {
+      ...meta,
+      ad_id: adId,
+      account_id: a.account_id,
+      spend: a.spend,
+      impressions: a.impressions,
+      clicks: a.clicks,
+      purchases: a.purchases,
+      purchase_value: a.purchase_value,
+      adds_to_cart: a.adds_to_cart,
+      video_views: a.video_views,
+      ctr: a.impressions > 0 ? (a.clicks / a.impressions) * 100 : 0,
+      cpm: a.impressions > 0 ? (a.spend / a.impressions) * 1000 : 0,
+      cpc: a.clicks > 0 ? a.spend / a.clicks : 0,
+      cpa: a.purchases > 0 ? a.spend / a.purchases : 0,
+      roas: a.spend > 0 ? a.purchase_value / a.spend : 0,
+      thumb_stop_rate: a._tsr_sum / days,
+      hold_rate: a._hr_sum / days,
+      frequency: a._freq_sum / days,
+      video_avg_play_time: a._vat_sum / days,
+      cost_per_add_to_cart: a.adds_to_cart > 0 ? a.spend / a.adds_to_cart : 0,
+    };
+  }).filter(c => c.spend > 0);
 }
 
 serve(async (req) => {
@@ -130,83 +209,69 @@ serve(async (req) => {
 
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-  // Auth: require builder or employee role
+  // Auth
   const authHeader = req.headers.get("authorization");
   if (!authHeader) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
   const token = authHeader.replace("Bearer ", "");
   const { data: { user }, error: authError } = await supabase.auth.getUser(token);
   if (authError || !user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
   const { data: userRole } = await supabase.from("user_roles").select("role").eq("user_id", user.id).single();
   if (!userRole || !["builder", "employee"].includes(userRole.role)) {
-    return new Response(JSON.stringify({ error: "Forbidden" }), {
-      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   const url = new URL(req.url);
   const path = url.pathname.replace(/^\/reports\/?/, "").replace(/\/$/, "");
 
   try {
-    // GET /reports — list all reports
+    // GET /reports
     if (req.method === "GET" && !path) {
       const { data, error } = await supabase.from("reports").select("*").order("created_at", { ascending: false });
       if (error) throw error;
       return new Response(JSON.stringify(data), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // POST /reports — generate a new report
+    // POST /reports — generate report using daily metrics
     if (req.method === "POST" && !path) {
       const body = await req.json();
-      const { report_name, account_id } = body;
+      const { report_name, account_id, date_start, date_end } = body;
 
-      // Fetch creatives that had delivery (spend > 0)
-      let query = supabase.from("creatives").select("*").gt("spend", 0);
-      if (account_id) query = query.eq("account_id", account_id);
-      const { data: creatives, error: fetchErr } = await query;
-      if (fetchErr) throw fetchErr;
+      const dateStart = date_start || new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
+      const dateEnd = date_end || new Date().toISOString().split("T")[0];
+      const days = Math.ceil((new Date(dateEnd).getTime() - new Date(dateStart).getTime()) / 86400000) + 1;
 
-      const list = creatives || [];
-      const withSpend = list;
+      // Aggregate from daily metrics
+      const list = await aggregateDailyMetrics(supabase, account_id || null, dateStart, dateEnd);
 
-      const totalSpend = withSpend.reduce((s: number, c: any) => s + Number(c.spend || 0), 0);
+      const totalSpend = list.reduce((s: number, c: any) => s + Number(c.spend || 0), 0);
       const avgField = (field: string) => {
-        if (withSpend.length === 0) return 0;
-        return withSpend.reduce((s: number, c: any) => s + Number(c[field] || 0), 0) / withSpend.length;
+        if (list.length === 0) return 0;
+        return list.reduce((s: number, c: any) => s + Number(c[field] || 0), 0) / list.length;
       };
 
-      const winners = withSpend.filter((c: any) => Number(c.roas || 0) > 1);
-      const winRate = withSpend.length > 0 ? (winners.length / withSpend.length) * 100 : 0;
+      const winners = list.filter((c: any) => Number(c.roas || 0) > 1);
+      const winRate = list.length > 0 ? (winners.length / list.length) * 100 : 0;
 
       const tagCounts = { parsed: 0, csv_match: 0, manual: 0, untagged: 0 };
       list.forEach((c: any) => {
-        if (c.tag_source in tagCounts) tagCounts[c.tag_source as keyof typeof tagCounts]++;
+        const src = c.tag_source || "untagged";
+        if (src in tagCounts) tagCounts[src as keyof typeof tagCounts]++;
       });
 
-      const sorted = [...withSpend].sort((a: any, b: any) => Number(b.roas || 0) - Number(a.roas || 0));
+      const sorted = [...list].sort((a: any, b: any) => Number(b.roas || 0) - Number(a.roas || 0));
       const mapPerformer = (c: any) => ({
-        ad_id: c.ad_id, ad_name: c.ad_name, unique_code: c.unique_code,
-        roas: c.roas, cpa: c.cpa, spend: c.spend, ctr: c.ctr,
+        ad_id: c.ad_id, ad_name: c.ad_name || c.ad_id, unique_code: c.unique_code,
+        roas: Math.round(Number(c.roas || 0) * 1000) / 1000,
+        cpa: Math.round(Number(c.cpa || 0) * 100) / 100,
+        spend: Math.round(Number(c.spend || 0) * 100) / 100,
+        ctr: Math.round(Number(c.ctr || 0) * 1000) / 1000,
       });
-      const topPerformers = sorted.slice(0, 5).map(mapPerformer);
-      const bottomPerformers = sorted.slice(-5).reverse().map(mapPerformer);
 
-      const dates = list.map((c: any) => c.created_at).sort();
-      const dateStart = dates[0]?.split("T")[0] || null;
-      const dateEnd = dates[dates.length - 1]?.split("T")[0] || null;
-      const days = dateStart && dateEnd
-        ? Math.ceil((new Date(dateEnd).getTime() - new Date(dateStart).getTime()) / 86400000) + 1
-        : null;
-
-      // Iteration diagnostics
-      const diagCounts = computeDiagnostics(withSpend);
+      const diagCounts = computeDiagnostics(list);
 
       const report = {
         report_name: report_name || `Report ${new Date().toLocaleDateString()}`,
@@ -221,8 +286,8 @@ serve(async (req) => {
         tags_csv_count: tagCounts.csv_match,
         tags_manual_count: tagCounts.manual,
         tags_untagged_count: tagCounts.untagged,
-        top_performers: JSON.stringify(topPerformers),
-        bottom_performers: JSON.stringify(bottomPerformers),
+        top_performers: JSON.stringify(sorted.slice(0, 5).map(mapPerformer)),
+        bottom_performers: JSON.stringify(sorted.slice(-5).reverse().map(mapPerformer)),
         date_range_start: dateStart,
         date_range_end: dateEnd,
         date_range_days: days,
@@ -235,7 +300,7 @@ serve(async (req) => {
       return new Response(JSON.stringify(data), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // POST /reports/slack/:id — send existing report to Slack
+    // POST /reports/slack/:id
     if (req.method === "POST" && path.startsWith("slack/")) {
       const reportId = path.replace("slack/", "");
       const { data: r, error } = await supabase.from("reports").select("*").eq("id", reportId).single();

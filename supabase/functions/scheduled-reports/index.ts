@@ -94,6 +94,79 @@ function resolveTemplate(template: string, accountName: string, cadence: string)
     .replace(/\{date\}/gi, now.toLocaleDateString("en-US"));
 }
 
+// Aggregate daily metrics per ad_id within a date range
+async function aggregateDailyMetrics(supabase: any, accountId: string, dateStart: string, dateEnd: string) {
+  const allMetrics: any[] = [];
+  let offset = 0;
+  const batchSize = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from("creative_daily_metrics")
+      .select("*")
+      .eq("account_id", accountId)
+      .gte("date", dateStart)
+      .lte("date", dateEnd)
+      .range(offset, offset + batchSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    allMetrics.push(...data);
+    if (data.length < batchSize) break;
+    offset += batchSize;
+  }
+
+  const byAd: Record<string, any> = {};
+  for (const m of allMetrics) {
+    if (!byAd[m.ad_id]) {
+      byAd[m.ad_id] = {
+        ad_id: m.ad_id, account_id: m.account_id,
+        spend: 0, impressions: 0, clicks: 0, purchases: 0, purchase_value: 0,
+        adds_to_cart: 0, video_views: 0, _days: 0,
+        _tsr_sum: 0, _hr_sum: 0,
+      };
+    }
+    const a = byAd[m.ad_id];
+    a.spend += Number(m.spend || 0);
+    a.impressions += Number(m.impressions || 0);
+    a.clicks += Number(m.clicks || 0);
+    a.purchases += Number(m.purchases || 0);
+    a.purchase_value += Number(m.purchase_value || 0);
+    a.adds_to_cart += Number(m.adds_to_cart || 0);
+    a.video_views += Number(m.video_views || 0);
+    a._days++;
+    a._tsr_sum += Number(m.thumb_stop_rate || 0);
+    a._hr_sum += Number(m.hold_rate || 0);
+  }
+
+  const adIds = Object.keys(byAd);
+  if (adIds.length === 0) return [];
+
+  const creativeMap: Record<string, any> = {};
+  for (let i = 0; i < adIds.length; i += 100) {
+    const batch = adIds.slice(i, i + 100);
+    const { data: crs } = await supabase
+      .from("creatives")
+      .select("ad_id, ad_name, unique_code, ad_type, tag_source")
+      .in("ad_id", batch);
+    for (const c of crs || []) creativeMap[c.ad_id] = c;
+  }
+
+  return adIds.map(adId => {
+    const a = byAd[adId];
+    const meta = creativeMap[adId] || {};
+    const days = a._days || 1;
+    return {
+      ...meta, ad_id: adId, account_id: a.account_id,
+      spend: a.spend, impressions: a.impressions, clicks: a.clicks,
+      purchases: a.purchases, purchase_value: a.purchase_value,
+      ctr: a.impressions > 0 ? (a.clicks / a.impressions) * 100 : 0,
+      cpa: a.purchases > 0 ? a.spend / a.purchases : 0,
+      roas: a.spend > 0 ? a.purchase_value / a.spend : 0,
+      thumb_stop_rate: a._tsr_sum / days,
+      hold_rate: a._hr_sum / days,
+    };
+  }).filter(c => c.spend > 0);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -101,10 +174,9 @@ serve(async (req) => {
 
   try {
     const now = new Date();
-    const dayOfWeek = now.getUTCDay(); // 0=Sun, 1=Mon
+    const dayOfWeek = now.getUTCDay();
     const dayOfMonth = now.getUTCDate();
 
-    // Fetch enabled schedules with account info
     const { data: schedules, error: schedErr } = await supabase
       .from("report_schedules")
       .select("*, ad_accounts!inner(id, name, is_active)")
@@ -119,52 +191,47 @@ serve(async (req) => {
       if (!account?.is_active) continue;
 
       let shouldGenerate = false;
-
-      if (schedule.cadence === "weekly" && dayOfWeek === 1) {
-        shouldGenerate = true;
-      } else if (schedule.cadence === "monthly" && dayOfMonth === 1) {
-        shouldGenerate = true;
-      }
+      if (schedule.cadence === "weekly" && dayOfWeek === 1) shouldGenerate = true;
+      else if (schedule.cadence === "monthly" && dayOfMonth === 1) shouldGenerate = true;
 
       if (!shouldGenerate) continue;
 
-      // Fetch creatives that had delivery (spend > 0)
-      const { data: creatives, error: fetchErr } = await supabase
-        .from("creatives")
-        .select("*")
-        .eq("account_id", account.id)
-        .gt("spend", 0);
-      if (fetchErr) { console.error("Fetch error for", account.id, fetchErr); continue; }
-
-      const list = creatives || [];
-      const withSpend = list;
       const dateRangeDays = schedule.date_range_days || (schedule.cadence === "weekly" ? 7 : 30);
+      const endDate = now.toISOString().split("T")[0];
       const startDate = new Date(now);
       startDate.setDate(startDate.getDate() - dateRangeDays);
-      const totalSpend = withSpend.reduce((s: number, c: any) => s + Number(c.spend || 0), 0);
+      const startDateStr = startDate.toISOString().split("T")[0];
+
+      // Use daily metrics for date-scoped aggregation
+      const list = await aggregateDailyMetrics(supabase, account.id, startDateStr, endDate);
+
+      const totalSpend = list.reduce((s: number, c: any) => s + Number(c.spend || 0), 0);
       const avgField = (field: string) => {
-        if (withSpend.length === 0) return 0;
-        return withSpend.reduce((s: number, c: any) => s + Number(c[field] || 0), 0) / withSpend.length;
+        if (list.length === 0) return 0;
+        return list.reduce((s: number, c: any) => s + Number(c[field] || 0), 0) / list.length;
       };
 
-      const winners = withSpend.filter((c: any) => Number(c.roas || 0) > 1);
-      const winRate = withSpend.length > 0 ? (winners.length / withSpend.length) * 100 : 0;
+      const winners = list.filter((c: any) => Number(c.roas || 0) > 1);
+      const winRate = list.length > 0 ? (winners.length / list.length) * 100 : 0;
 
       const tagCounts = { parsed: 0, csv_match: 0, manual: 0, untagged: 0 };
       list.forEach((c: any) => {
-        if (c.tag_source in tagCounts) tagCounts[c.tag_source as keyof typeof tagCounts]++;
+        const src = c.tag_source || "untagged";
+        if (src in tagCounts) tagCounts[src as keyof typeof tagCounts]++;
       });
 
-      const sorted = [...withSpend].sort((a: any, b: any) => Number(b.roas || 0) - Number(a.roas || 0));
+      const sorted = [...list].sort((a: any, b: any) => Number(b.roas || 0) - Number(a.roas || 0));
       const mapPerformer = (c: any) => ({
-        ad_id: c.ad_id, ad_name: c.ad_name, unique_code: c.unique_code,
-        roas: c.roas, cpa: c.cpa, spend: c.spend, ctr: c.ctr,
+        ad_id: c.ad_id, ad_name: c.ad_name || c.ad_id, unique_code: c.unique_code,
+        roas: Math.round(Number(c.roas || 0) * 1000) / 1000,
+        cpa: Math.round(Number(c.cpa || 0) * 100) / 100,
+        spend: Math.round(Number(c.spend || 0) * 100) / 100,
+        ctr: Math.round(Number(c.ctr || 0) * 1000) / 1000,
       });
 
       const reportName = resolveTemplate(
         schedule.report_name_template || `{cadence} Report - {account}`,
-        account.name,
-        schedule.cadence
+        account.name, schedule.cadence
       );
 
       const report = {
@@ -182,13 +249,12 @@ serve(async (req) => {
         tags_untagged_count: tagCounts.untagged,
         top_performers: JSON.stringify(sorted.slice(0, 5).map(mapPerformer)),
         bottom_performers: JSON.stringify(sorted.slice(-5).reverse().map(mapPerformer)),
-        date_range_start: startDate.toISOString().split("T")[0],
-        date_range_end: now.toISOString().split("T")[0],
+        date_range_start: startDateStr,
+        date_range_end: endDate,
         date_range_days: dateRangeDays,
-        ...computeDiagnostics(withSpend),
+        ...computeDiagnostics(list),
       };
 
-      // Save to app if enabled
       let savedReport: any = null;
       if (schedule.deliver_to_app) {
         const { data, error: insertErr } = await supabase.from("reports").insert(report).select().single();
@@ -196,7 +262,6 @@ serve(async (req) => {
         savedReport = data;
       }
 
-      // Send to Slack if enabled
       if (schedule.deliver_to_slack) {
         await sendReportToSlack(savedReport || report);
       }
