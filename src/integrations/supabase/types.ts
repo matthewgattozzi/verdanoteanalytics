@@ -27,9 +27,11 @@ export type Database = {
           is_active: boolean
           iteration_spend_threshold: number
           kill_threshold: number
+          last_scheduled_report_at: string | null
           last_synced_at: string | null
           name: string
           primary_kpi: string | null
+          report_schedule: string
           scale_threshold: number
           secondary_kpis: string | null
           untagged_count: number
@@ -51,9 +53,11 @@ export type Database = {
           is_active?: boolean
           iteration_spend_threshold?: number
           kill_threshold?: number
+          last_scheduled_report_at?: string | null
           last_synced_at?: string | null
           name: string
           primary_kpi?: string | null
+          report_schedule?: string
           scale_threshold?: number
           secondary_kpis?: string | null
           untagged_count?: number
@@ -75,9 +79,11 @@ export type Database = {
           is_active?: boolean
           iteration_spend_threshold?: number
           kill_threshold?: number
+          last_scheduled_report_at?: string | null
           last_synced_at?: string | null
           name?: string
           primary_kpi?: string | null
+          report_schedule?: string
           scale_threshold?: number
           secondary_kpis?: string | null
           untagged_count?: number

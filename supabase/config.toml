@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.ai-insights]
 verify_jwt = false
+
+[functions.scheduled-reports]
+verify_jwt = false
