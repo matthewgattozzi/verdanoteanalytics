@@ -1,0 +1,2 @@
+ALTER TABLE sync_logs DROP CONSTRAINT IF EXISTS sync_logs_status_check;
+ALTER TABLE sync_logs ADD CONSTRAINT sync_logs_status_check CHECK (status IN ('running', 'completed', 'failed', 'completed_with_errors', 'cancelled'));
