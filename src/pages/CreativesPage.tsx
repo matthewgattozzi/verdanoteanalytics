@@ -14,10 +14,10 @@ import { SaveViewButton } from "@/components/SaveViewButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { RefreshCw, LayoutGrid, List, Loader2, AlertTriangle, Sparkles, Download, Search, X } from "lucide-react";
+import { RefreshCw, LayoutGrid, List, Loader2, AlertTriangle, Download, Search, X } from "lucide-react";
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { type SortConfig } from "@/components/SortableTableHead";
-import { useCreatives, useCreativeFilters, useBulkAnalyze, CREATIVES_PAGE_SIZE } from "@/hooks/useCreatives";
+import { useCreatives, useCreativeFilters, CREATIVES_PAGE_SIZE } from "@/hooks/useCreatives";
 import { useSync } from "@/hooks/useApi";
 import { exportCreativesCSV } from "@/lib/csv";
 import { useAccountContext } from "@/contexts/AccountContext";
@@ -90,10 +90,6 @@ const CreativesPage = () => {
   const totalPages = Math.ceil(totalCreatives / CREATIVES_PAGE_SIZE);
   const { data: filterOptions } = useCreativeFilters();
   const syncMut = useSync();
-  const bulkAnalyze = useBulkAnalyze();
-
-  const unanalyzedCount = useMemo(() => creatives.filter((c: any) => c.analysis_status !== "analyzed" && (c.spend || 0) > 0).length, [creatives]);
-  const untaggedCount = useMemo(() => creatives.filter((c: any) => c.tag_source === "untagged").length, [creatives]);
 
   const avgMetrics = useMemo(() => {
     if (creatives.length === 0) return { roas: "—", cpa: "—", totalSpend: "—" };
@@ -162,11 +158,6 @@ const CreativesPage = () => {
             <Button size="sm" onClick={() => syncMut.mutate({ account_id: "all" })} disabled={syncMut.isPending}>
               {syncMut.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}Sync
             </Button>
-            {unanalyzedCount > 0 && (
-              <Button size="sm" variant="outline" onClick={() => bulkAnalyze.mutate(20)} disabled={bulkAnalyze.isPending}>
-                {bulkAnalyze.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1.5" />}Analyze ({unanalyzedCount})
-              </Button>
-            )}
             {creatives.length > 0 && (
               <Button size="sm" variant="outline" onClick={() => exportCreativesCSV(creatives)}><Download className="h-3.5 w-3.5 mr-1.5" />Export</Button>
             )}
