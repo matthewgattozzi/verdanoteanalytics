@@ -67,7 +67,7 @@ function computeDiagnostics(creatives: any[]) {
       else if (hd === "weak") diag = "weak_body";
       else if (ct === "weak") diag = "weak_cta";
     }
-    if (diag) {
+    if (diag && i.spend >= 100) {
       (counts as any)[`diag_${diag}`]++;
       counts.diag_total_diagnosed++;
       suggestions.push({
