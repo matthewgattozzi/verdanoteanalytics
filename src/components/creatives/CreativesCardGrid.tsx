@@ -1,10 +1,34 @@
 import { TagSourceBadge } from "@/components/TagSourceBadge";
 import { LayoutGrid, Video } from "lucide-react";
+import { useState } from "react";
 import { fmt } from "./constants";
 
 interface CreativesCardGridProps {
   creatives: any[];
   onSelect: (creative: any) => void;
+}
+
+function CardThumbnail({ src, alt }: { src: string; alt: string }) {
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  if (error || !src) {
+    return <LayoutGrid className="h-6 w-6 text-muted-foreground" />;
+  }
+
+  return (
+    <>
+      {!loaded && <div className="absolute inset-0 animate-pulse bg-muted-foreground/10 rounded" />}
+      <img
+        src={src}
+        alt={alt}
+        className={`h-full w-full object-cover transition-opacity duration-200 ${loaded ? "opacity-100" : "opacity-0"}`}
+        loading="lazy"
+        onLoad={() => setLoaded(true)}
+        onError={() => setError(true)}
+      />
+    </>
+  );
 }
 
 export function CreativesCardGrid({ creatives, onSelect }: CreativesCardGridProps) {
@@ -14,7 +38,7 @@ export function CreativesCardGrid({ creatives, onSelect }: CreativesCardGridProp
         <div key={c.ad_id} className="glass-panel p-3 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => onSelect(c)}>
           <div className="bg-muted rounded h-28 mb-2 flex items-center justify-center overflow-hidden relative">
             {c.thumbnail_url ? (
-              <img src={c.thumbnail_url} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              <CardThumbnail src={c.thumbnail_url} alt={c.ad_name || ""} />
             ) : (
               <LayoutGrid className="h-6 w-6 text-muted-foreground" />
             )}

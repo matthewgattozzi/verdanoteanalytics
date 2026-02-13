@@ -467,26 +467,52 @@ serve(async (req) => {
           // ─── PHASE 2.5: Extract video URLs from object_story_spec ────
           const videoUrlMap = new Map<string, string>();
 
+          /** Try to extract a video URL from an object_story_spec. */
+          function extractVideoFromSpec(spec: any): string | null {
+            if (!spec) return null;
+            // Direct video_data.video_url
+            if (spec.video_data?.video_url) return spec.video_data.video_url;
+            // call_to_action link that looks like a video
+            const ctaLink = spec.video_data?.call_to_action?.value?.link;
+            if (ctaLink && (ctaLink.includes(".mp4") || ctaLink.includes("video"))) return ctaLink;
+            // template_data (Advantage+ / dynamic creatives)
+            if (spec.template_data?.video_data?.video_url) return spec.template_data.video_data.video_url;
+            return null;
+          }
+
+          /** Try fetching video source directly from Meta video endpoint (requires pages_read_engagement). */
+          async function tryVideoSourceById(videoId: string): Promise<string | null> {
+            if (!videoId) return null;
+            try {
+              const vidRes = await fetch(
+                `https://graph.facebook.com/v21.0/${videoId}?fields=source&access_token=${encodeURIComponent(metaToken)}`
+              );
+              if (vidRes.ok) {
+                const vidData = await vidRes.json();
+                if (vidData?.source) return vidData.source;
+              }
+            } catch (_) { /* ignore */ }
+            return null;
+          }
+
           if (!isTimedOut()) {
             // Extract video URLs from object_story_spec embedded in Phase 1 data
             if (!skipAdFetch && fetchedAds.length > 0) {
               let videoCount = 0;
               for (const ad of fetchedAds) {
                 const spec = ad.creative?.object_story_spec;
-                if (!spec) continue;
-
-                // object_story_spec can contain video_data with video_url or call_to_action.value.link
-                const videoData = spec.video_data;
-                if (videoData) {
-                  // video_data.video_url is the direct playback URL (works with ads_read)
-                  if (videoData.video_url) {
-                    videoUrlMap.set(ad.id, videoData.video_url);
-                    videoCount++;
-                  } else if (videoData.call_to_action?.value?.link) {
-                    // Some video ads store the video link here
-                    const link = videoData.call_to_action.value.link;
-                    if (link.includes(".mp4") || link.includes("video")) {
-                      videoUrlMap.set(ad.id, link);
+                const url = extractVideoFromSpec(spec);
+                if (url) {
+                  videoUrlMap.set(ad.id, url);
+                  videoCount++;
+                } else {
+                  // Fallback: try video_id from spec
+                  const videoId = spec?.video_data?.video_id || spec?.template_data?.video_data?.video_id;
+                  if (videoId && !isTimedOut()) {
+                    const src = await tryVideoSourceById(videoId);
+                    ctx.metaApiCalls++;
+                    if (src) {
+                      videoUrlMap.set(ad.id, src);
                       videoCount++;
                     }
                   }
@@ -519,8 +545,9 @@ serve(async (req) => {
                     }
                     for (const [adId, adData] of Object.entries(json as Record<string, any>)) {
                       const spec = (adData as any)?.creative?.object_story_spec;
-                      if (spec?.video_data?.video_url) {
-                        videoUrlMap.set(adId, spec.video_data.video_url);
+                      const url = extractVideoFromSpec(spec);
+                      if (url) {
+                        videoUrlMap.set(adId, url);
                         videoCount++;
                       }
                     }
