@@ -1,7 +1,6 @@
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import { Loader2, Sparkles } from "lucide-react";
 import { SaveViewButton } from "@/components/SaveViewButton";
 import { CreativeDetailModal } from "@/components/CreativeDetailModal";
@@ -14,7 +13,8 @@ import { useAccountContext } from "@/contexts/AccountContext";
 import { AIInsightsTab } from "@/components/AIInsightsTab";
 import { TrendsTab } from "@/components/analytics/TrendsTab";
 import { WinRateTab } from "@/components/analytics/WinRateTab";
-import { KillScaleTab } from "@/components/analytics/KillScaleTab";
+import { ScaleTab } from "@/components/analytics/ScaleTab";
+import { KillTab } from "@/components/analytics/KillTab";
 import { IterationsTab } from "@/components/analytics/IterationsTab";
 
 const AnalyticsPage = () => {
@@ -41,6 +41,14 @@ const AnalyticsPage = () => {
   const roasThreshold = parseFloat(selectedAccount?.winner_roas_threshold || "2.0");
   const spendThreshold = parseFloat(selectedAccount?.iteration_spend_threshold || "50");
 
+  const killScaleConfig = useMemo(() => ({
+    winnerKpi: selectedAccount?.winner_kpi || "roas",
+    winnerKpiDirection: selectedAccount?.winner_kpi_direction || "gte",
+    scaleAt: parseFloat(selectedAccount?.scale_threshold || "0") || (parseFloat(selectedAccount?.winner_kpi_threshold || "0") || roasThreshold),
+    killAt: parseFloat(selectedAccount?.kill_threshold || "0") || (parseFloat(selectedAccount?.winner_kpi_threshold || "0") || roasThreshold) * 0.5,
+    spendThreshold,
+  }), [selectedAccount, roasThreshold, spendThreshold]);
+
   // Filter trend data by date range
   const filteredTrendData = useMemo(() => {
     if (!trendData) return undefined;
@@ -59,7 +67,7 @@ const AnalyticsPage = () => {
     <AppLayout>
       <PageHeader
         title="Analytics"
-        description="Win rate analysis, kill/scale recommendations, and iteration priorities."
+        description="Win rate analysis, scale & kill recommendations, and iteration priorities."
         actions={
           <div className="flex items-center gap-2">
             <DateRangeFilter dateFrom={dateFrom} dateTo={dateTo} onChange={(from, to) => { setDateFrom(from); setDateTo(to); }} />
@@ -78,8 +86,9 @@ const AnalyticsPage = () => {
         <TabsList className="bg-muted/50">
           <TabsTrigger value="trends">Trends</TabsTrigger>
           <TabsTrigger value="winrate">Win Rate</TabsTrigger>
-          <TabsTrigger value="killscale">Kill / Scale</TabsTrigger>
-          <TabsTrigger value="iterations">Iteration Priorities</TabsTrigger>
+          <TabsTrigger value="scale">Scale</TabsTrigger>
+          <TabsTrigger value="kill">Kill</TabsTrigger>
+          <TabsTrigger value="iterations">Iterations</TabsTrigger>
           <TabsTrigger value="ai-insights" className="gap-1.5">
             <Sparkles className="h-3.5 w-3.5" />
             AI Insights
@@ -94,8 +103,12 @@ const AnalyticsPage = () => {
           <WinRateTab creatives={creatives} roasThreshold={roasThreshold} spendThreshold={spendThreshold} defaultSlice={defaultSlice} winnerKpi={selectedAccount?.winner_kpi} winnerKpiDirection={selectedAccount?.winner_kpi_direction} winnerKpiThreshold={parseFloat(selectedAccount?.winner_kpi_threshold || "0") || undefined} />
         </TabsContent>
 
-        <TabsContent value="killscale" className="animate-fade-in space-y-4">
-          <KillScaleTab creatives={creatives} roasThreshold={roasThreshold} spendThreshold={spendThreshold} winnerKpi={selectedAccount?.winner_kpi} winnerKpiDirection={selectedAccount?.winner_kpi_direction} winnerKpiThreshold={parseFloat(selectedAccount?.winner_kpi_threshold || "0") || undefined} scaleThreshold={parseFloat(selectedAccount?.scale_threshold || "0") || undefined} killThreshold={parseFloat(selectedAccount?.kill_threshold || "0") || undefined} onCreativeClick={setSelectedCreative} />
+        <TabsContent value="scale" className="animate-fade-in space-y-4">
+          <ScaleTab creatives={creatives} config={killScaleConfig} onCreativeClick={setSelectedCreative} />
+        </TabsContent>
+
+        <TabsContent value="kill" className="animate-fade-in space-y-4">
+          <KillTab creatives={creatives} config={killScaleConfig} onCreativeClick={setSelectedCreative} />
         </TabsContent>
 
         <TabsContent value="iterations" className="animate-fade-in space-y-4">
