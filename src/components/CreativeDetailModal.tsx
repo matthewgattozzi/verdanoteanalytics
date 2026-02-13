@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Image as ImageIcon, ExternalLink } from "lucide-react";
 import { CreativeMetrics } from "@/components/creative-detail/CreativeMetrics";
 import { CreativeTagEditor } from "@/components/creative-detail/CreativeTagEditor";
-import { CreativeAIAnalysis } from "@/components/creative-detail/CreativeAIAnalysis";
+import { CreativeIterationAnalysis } from "@/components/creative-detail/CreativeIterationAnalysis";
 import { CreativeNotes } from "@/components/creative-detail/CreativeNotes";
 
 interface CreativeDetailModalProps {
@@ -78,7 +78,7 @@ export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailM
         <Separator />
         <CreativeTagEditor creative={creative} />
         <Separator />
-        <CreativeAIAnalysis creative={creative} />
+        <CreativeIterationAnalysis creative={creative} />
       </DialogContent>
     </Dialog>
   );
