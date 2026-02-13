@@ -121,7 +121,7 @@ function ChartSVG({ data, height, color, fmt }: { data: { date: string; value: n
       ))}
       {chart.xLabels.map((p, i) => (
         <text key={i} x={p.x} y={height - 4} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={7} fontFamily="monospace">
-          {format(new Date(p.date), "MMM d")}
+          {format(new Date(p.date + "T12:00:00"), "MMM d")}
         </text>
       ))}
     </svg>
