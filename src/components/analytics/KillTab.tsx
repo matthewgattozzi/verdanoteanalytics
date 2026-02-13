@@ -29,8 +29,10 @@ export function KillTab({ creatives, config, onCreativeClick }: KillTabProps) {
               <div key={c.ad_id} className="glass-panel p-3 border-l-2 border-l-kill cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => onCreativeClick?.(c)}>
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-muted-foreground">{c.unique_code}</span>
-                    <span className="text-xs font-medium">{c.ad_name}</span>
+                    {c.unique_code && !c.ad_name?.startsWith(c.unique_code) && (
+                      <span className="text-xs font-mono text-muted-foreground">{c.unique_code}</span>
+                    )}
+                    <span className="text-xs font-medium truncate">{c.ad_name}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {c.ad_type && <Badge variant="outline" className="text-[10px]">{c.ad_type}</Badge>}
