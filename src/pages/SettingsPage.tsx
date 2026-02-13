@@ -49,6 +49,9 @@ const SettingsPage = () => {
   const [dateRange, setDateRange] = useState("");
   const [roasThreshold, setRoasThreshold] = useState("");
   const [spendThreshold, setSpendThreshold] = useState("");
+  const [winnerKpi, setWinnerKpi] = useState("roas");
+  const [winnerKpiDirection, setWinnerKpiDirection] = useState("gte");
+  const [winnerKpiThreshold, setWinnerKpiThreshold] = useState("2.0");
   const [primaryKpi, setPrimaryKpi] = useState("");
   const [secondaryKpis, setSecondaryKpis] = useState("");
   const [companyPdfUrl, setCompanyPdfUrl] = useState<string | null>(null);
@@ -60,6 +63,9 @@ const SettingsPage = () => {
     setDateRange(String(account.date_range_days || 30));
     setRoasThreshold(String(account.winner_roas_threshold || 2.0));
     setSpendThreshold(String(account.iteration_spend_threshold || 50));
+    setWinnerKpi(account.winner_kpi || "roas");
+    setWinnerKpiDirection(account.winner_kpi_direction || "gte");
+    setWinnerKpiThreshold(String(account.winner_kpi_threshold ?? account.winner_roas_threshold ?? 2.0));
     setPrimaryKpi(account.primary_kpi || "Purchase ROAS > 1.5x");
     setSecondaryKpis(account.secondary_kpis || "CTR, Hook Rate, Volume");
     setCompanyPdfUrl((account as any).company_pdf_url || null);
@@ -75,6 +81,9 @@ const SettingsPage = () => {
       date_range_days: parseInt(dateRange) || 30,
       winner_roas_threshold: parseFloat(roasThreshold) || 2.0,
       iteration_spend_threshold: parseFloat(spendThreshold) || 50,
+      winner_kpi: winnerKpi,
+      winner_kpi_direction: winnerKpiDirection,
+      winner_kpi_threshold: parseFloat(winnerKpiThreshold) || 2.0,
       primary_kpi: primaryKpi || null,
       secondary_kpis: secondaryKpis || null,
       creative_analysis_prompt: creativePrompt === DEFAULT_CREATIVE_PROMPT ? null : creativePrompt || null,
@@ -243,6 +252,12 @@ const SettingsPage = () => {
           setRoasThreshold={setRoasThreshold}
           spendThreshold={spendThreshold}
           setSpendThreshold={setSpendThreshold}
+          winnerKpi={winnerKpi}
+          setWinnerKpi={setWinnerKpi}
+          winnerKpiDirection={winnerKpiDirection}
+          setWinnerKpiDirection={setWinnerKpiDirection}
+          winnerKpiThreshold={winnerKpiThreshold}
+          setWinnerKpiThreshold={setWinnerKpiThreshold}
           onSave={handleSave}
           onApplyToAll={handleApplyToAll}
           saving={updateAccountSettings.isPending}

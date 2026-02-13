@@ -32,6 +32,9 @@ export type Database = {
           secondary_kpis: string | null
           untagged_count: number
           updated_at: string
+          winner_kpi: string
+          winner_kpi_direction: string
+          winner_kpi_threshold: number
           winner_roas_threshold: number
         }
         Insert: {
@@ -51,6 +54,9 @@ export type Database = {
           secondary_kpis?: string | null
           untagged_count?: number
           updated_at?: string
+          winner_kpi?: string
+          winner_kpi_direction?: string
+          winner_kpi_threshold?: number
           winner_roas_threshold?: number
         }
         Update: {
@@ -70,6 +76,9 @@ export type Database = {
           secondary_kpis?: string | null
           untagged_count?: number
           updated_at?: string
+          winner_kpi?: string
+          winner_kpi_direction?: string
+          winner_kpi_threshold?: number
           winner_roas_threshold?: number
         }
         Relationships: []
