@@ -5,7 +5,8 @@ import { TagSourceBadge } from "@/components/TagSourceBadge";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Image as ImageIcon, ExternalLink } from "lucide-react";
+import { Image as ImageIcon, ExternalLink, Play } from "lucide-react";
+import { useState } from "react";
 import { CreativeMetrics } from "@/components/creative-detail/CreativeMetrics";
 import { CreativeTagEditor } from "@/components/creative-detail/CreativeTagEditor";
 import { CreativeIterationAnalysis } from "@/components/creative-detail/CreativeIterationAnalysis";
@@ -15,6 +16,76 @@ interface CreativeDetailModalProps {
   creative: any;
   open: boolean;
   onClose: () => void;
+}
+
+function MediaPreview({ creative }: { creative: any }) {
+  const [showVideo, setShowVideo] = useState(false);
+  const hasVideo = !!creative.video_url;
+
+  if (hasVideo && showVideo) {
+    return (
+      <div className="bg-muted rounded-lg overflow-hidden relative">
+        <video
+          src={creative.video_url}
+          controls
+          autoPlay
+          className="w-full max-h-[400px]"
+          poster={creative.thumbnail_url || undefined}
+        />
+        {creative.preview_url && (
+          <a href={creative.preview_url} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2">
+            <Button size="sm" variant="secondary" className="gap-1.5 text-xs">
+              <ExternalLink className="h-3 w-3" />View Ad Preview
+            </Button>
+          </a>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-muted rounded-lg flex items-center justify-center overflow-hidden relative group">
+      {creative.thumbnail_url ? (
+        <div className="relative w-full">
+          <img
+            src={creative.thumbnail_url}
+            alt={creative.ad_name}
+            className="w-full max-h-[400px] object-contain"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+          {hasVideo && (
+            <button
+              onClick={() => setShowVideo(true)}
+              className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+            >
+              <div className="h-14 w-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                <Play className="h-6 w-6 text-foreground ml-0.5" />
+              </div>
+            </button>
+          )}
+          {creative.preview_url && (
+            <a href={creative.preview_url} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2">
+              <Button size="sm" variant="secondary" className="gap-1.5 text-xs">
+                <ExternalLink className="h-3 w-3" />View Ad Preview
+              </Button>
+            </a>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-2 text-muted-foreground py-12">
+          <ImageIcon className="h-8 w-8" />
+          <span className="text-xs">No preview available</span>
+          {creative.preview_url && (
+            <a href={creative.preview_url} target="_blank" rel="noopener noreferrer">
+              <Button size="sm" variant="secondary" className="gap-1.5 text-xs mt-1">
+                <ExternalLink className="h-3 w-3" />View Ad Preview
+              </Button>
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailModalProps) {
@@ -32,37 +103,7 @@ export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailM
         </DialogHeader>
 
         {/* Media preview */}
-        <div className="bg-muted rounded-lg flex items-center justify-center overflow-hidden relative group">
-          {creative.thumbnail_url ? (
-            <div className="relative w-full">
-              <img
-                src={creative.thumbnail_url}
-                alt={creative.ad_name}
-                className="w-full max-h-[400px] object-contain"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-              />
-              {creative.preview_url && (
-                <a href={creative.preview_url} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2">
-                  <Button size="sm" variant="secondary" className="gap-1.5 text-xs">
-                    <ExternalLink className="h-3 w-3" />View Ad Preview
-                  </Button>
-                </a>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-2 text-muted-foreground py-12">
-              <ImageIcon className="h-8 w-8" />
-              <span className="text-xs">No preview available</span>
-              {creative.preview_url && (
-                <a href={creative.preview_url} target="_blank" rel="noopener noreferrer">
-                  <Button size="sm" variant="secondary" className="gap-1.5 text-xs mt-1">
-                    <ExternalLink className="h-3 w-3" />View Ad Preview
-                  </Button>
-                </a>
-              )}
-            </div>
-          )}
-        </div>
+        <MediaPreview creative={creative} />
 
         <CreativeMetrics creative={creative} />
 

@@ -331,7 +331,7 @@ serve(async (req) => {
           } else {
             console.log("Phase 1: Fetching ads metadata...");
             const adsUrl = `https://graph.facebook.com/v21.0/${account.id}/ads?` +
-              `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,thumbnail_width:1080,thumbnail_height:1080},preview_shareable_link` +
+              `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,thumbnail_width:1080,thumbnail_height:1080,video_id},preview_shareable_link` +
               `&limit=50&access_token=${encodeURIComponent(metaToken)}`;
 
             let nextAdsUrl: string | null = adsUrl;
@@ -390,6 +390,46 @@ serve(async (req) => {
             console.log(`Phase 2 complete: ${insightsMap.size} ad insights`);
           }
 
+          // ─── PHASE 2.5: Fetch video source URLs ──────────────────────
+          const videoUrlMap = new Map<string, string>();
+
+          if (!isTimedOut() && !skipAdFetch && fetchedAds.length > 0) {
+            const videoAds = fetchedAds.filter(ad => ad.creative?.video_id);
+            if (videoAds.length > 0) {
+              console.log(`Phase 2.5: Fetching video URLs for ${videoAds.length} video ads...`);
+              // Batch fetch video source URLs (50 at a time) using direct fetch
+              for (let i = 0; i < videoAds.length && !isTimedOut(); i += 50) {
+                const batch = videoAds.slice(i, i + 50);
+                const videoIds = [...new Set(batch.map(ad => ad.creative.video_id))];
+                const videoFetchUrl = `https://graph.facebook.com/v21.0/?ids=${videoIds.join(",")}&fields=source&access_token=${encodeURIComponent(metaToken)}`;
+                ctx.metaApiCalls++;
+                try {
+                  const resp = await fetch(videoFetchUrl);
+                  const json = await resp.json();
+                  if (json.error) {
+                    console.log("Video URL fetch error:", json.error.message);
+                    break;
+                  }
+                  // Response is an object keyed by video_id: { "123": { source: "..." }, ... }
+                  for (const [videoId, videoData] of Object.entries(json as Record<string, any>)) {
+                    if (videoData?.source) {
+                      for (const ad of batch) {
+                        if (ad.creative?.video_id === videoId) {
+                          videoUrlMap.set(ad.id, videoData.source);
+                        }
+                      }
+                    }
+                  }
+                } catch (err) {
+                  console.log("Video URL fetch network error:", err);
+                  break;
+                }
+                if (i + 50 < videoAds.length) await new Promise(r => setTimeout(r, 300));
+              }
+              console.log(`Phase 2.5 complete: ${videoUrlMap.size} video URLs fetched`);
+            }
+          }
+
           // ─── PHASE 3: Upsert creatives ───────────────────────────────
           // Get manual-tagged ad IDs to preserve
           const { data: manualAds } = await supabase.from("creatives").select("ad_id")
@@ -420,6 +460,7 @@ serve(async (req) => {
                 adset_name: ad.adset?.name || null,
                 thumbnail_url: ad.creative?.thumbnail_url || null,
                 preview_url: ad.preview_shareable_link || null,
+                video_url: videoUrlMap.get(ad.id) || null,
                 ...metrics,
               };
 
