@@ -198,6 +198,19 @@ export function useDeleteReport() {
   });
 }
 
+export function useSendReportToSlack() {
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch("reports", `slack/${id}`, { method: "POST" }),
+    onSuccess: () => {
+      toast.success("Report sent to Slack");
+    },
+    onError: (e: Error) => {
+      toast.error("Error sending to Slack", { description: e.message });
+    },
+  });
+}
+
 // User management hooks (builder only)
 export function useUsers() {
   return useQuery({

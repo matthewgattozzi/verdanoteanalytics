@@ -51,6 +51,41 @@ function computeDiagnostics(creatives: any[]) {
   return counts;
 }
 
+async function sendReportToSlack(report: any) {
+  const webhookUrl = Deno.env.get("SLACK_WEBHOOK_URL");
+  if (!webhookUrl) return;
+  const fmt = (v: number | null, pre = "", suf = "") =>
+    v === null || v === undefined ? "—" : `${pre}${Number(v).toLocaleString("en-US", { maximumFractionDigits: 2 })}${suf}`;
+  const diagItems = [
+    report.diag_weak_hook && `Weak Hook: ${report.diag_weak_hook}`,
+    report.diag_weak_body && `Weak Body: ${report.diag_weak_body}`,
+    report.diag_weak_cta && `Weak CTA: ${report.diag_weak_cta}`,
+    report.diag_weak_hook_body && `Weak Hook+Body: ${report.diag_weak_hook_body}`,
+    report.diag_landing_page && `Landing Page: ${report.diag_landing_page}`,
+    report.diag_all_weak && `Full Rebuild: ${report.diag_all_weak}`,
+    report.diag_weak_cta_image && `Weak CTR (Image): ${report.diag_weak_cta_image}`,
+  ].filter(Boolean);
+  const topPerformers = (() => { try { return JSON.parse(report.top_performers || "[]"); } catch { return []; } })();
+  const topList = topPerformers.slice(0, 3).map((p: any, i: number) =>
+    `${i + 1}. ${p.ad_name} — ${fmt(p.roas, "", "x")} ROAS, ${fmt(p.spend, "$")} spent`
+  ).join("\n");
+  const blocks: any[] = [
+    { type: "header", text: { type: "plain_text", text: `📊 ${report.report_name}`, emoji: true } },
+    { type: "section", fields: [
+      { type: "mrkdwn", text: `*Creatives:* ${report.creative_count}` },
+      { type: "mrkdwn", text: `*Total Spend:* ${fmt(report.total_spend, "$")}` },
+      { type: "mrkdwn", text: `*Blended ROAS:* ${fmt(report.blended_roas, "", "x")}` },
+      { type: "mrkdwn", text: `*Avg CPA:* ${fmt(report.average_cpa, "$")}` },
+      { type: "mrkdwn", text: `*Avg CTR:* ${fmt(report.average_ctr, "", "%")}` },
+      { type: "mrkdwn", text: `*Win Rate:* ${fmt(report.win_rate, "", "%")}` },
+    ]},
+  ];
+  if (topList) blocks.push({ type: "section", fields: [{ type: "mrkdwn", text: `*🏆 Top Performers:*\n${topList}` }] });
+  if (diagItems.length > 0) blocks.push({ type: "section", fields: [{ type: "mrkdwn", text: `*⚠️ Diagnostics (${report.diag_total_diagnosed}):*\n${diagItems.join(" · ")}` }] });
+  try { await fetch(webhookUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ blocks }) }); }
+  catch (e) { console.error("Slack webhook error:", e); }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -147,8 +182,11 @@ serve(async (req) => {
         ...computeDiagnostics(withSpend),
       };
 
-      const { error: insertErr } = await supabase.from("reports").insert(report);
+      const { data: savedReport, error: insertErr } = await supabase.from("reports").insert(report).select().single();
       if (insertErr) { console.error("Insert error for", account.id, insertErr); continue; }
+
+      // Send to Slack
+      if (savedReport) await sendReportToSlack(savedReport);
 
       // Update last_scheduled_report_at
       await supabase.from("ad_accounts").update({ last_scheduled_report_at: now.toISOString() }).eq("id", account.id);
