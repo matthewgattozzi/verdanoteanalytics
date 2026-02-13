@@ -185,8 +185,8 @@ const CreativesPage = () => {
       />
 
       <div className="grid grid-cols-4 gap-3 mb-4">
-        <MetricCard label="Total Creatives" value={totalCreatives} />
         <MetricCard label="Ad Spend" value={avgMetrics.totalSpend} />
+        <MetricCard label="Total Creatives" value={totalCreatives} />
         <MetricCard label="Avg CPA" value={avgMetrics.cpa} />
         <MetricCard label="Avg ROAS" value={avgMetrics.roas} />
       </div>
