@@ -208,6 +208,20 @@ serve(async (req) => {
       return new Response(JSON.stringify(data), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // ─── POST /sync/cancel ─────────────────────────────────────────────
+    if (req.method === "POST" && path === "cancel") {
+      const { data: runningSyncs } = await supabase.from("sync_logs").select("id").eq("status", "running");
+      if (!runningSyncs?.length) {
+        return new Response(JSON.stringify({ message: "No running sync to cancel" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      await supabase.from("sync_logs").update({
+        status: "cancelled",
+        api_errors: JSON.stringify([{ timestamp: new Date().toISOString(), message: "Cancelled by user" }]),
+        completed_at: new Date().toISOString(),
+      }).in("id", runningSyncs.map((s: any) => s.id));
+      return new Response(JSON.stringify({ cancelled: runningSyncs.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // ─── POST /sync ────────────────────────────────────────────────────
     if (req.method === "POST" && !path) {
       const body = await req.json();
@@ -251,11 +265,20 @@ serve(async (req) => {
 
       const HARD_DEADLINE_MS = 8 * 60 * 1000;
       const syncStartGlobal = Date.now();
+      let cancelledFlag = false;
+      const isCancelled = async () => {
+        if (cancelledFlag) return true;
+        // Check every call if status changed to cancelled
+        const { data: logCheck } = await supabase.from("sync_logs").select("status").eq("status", "cancelled").limit(1);
+        if (logCheck?.length) { cancelledFlag = true; return true; }
+        return false;
+      };
       const isTimedOut = () => (Date.now() - syncStartGlobal) > HARD_DEADLINE_MS;
       const allResults = [];
 
       for (const account of accounts) {
-        if (isTimedOut()) break;
+        if (isTimedOut() || cancelledFlag) break;
+        if (await isCancelled()) break;
 
         const startedAt = Date.now();
         const dateRangeDays = sync_type === "initial" ? 90 : (account.date_range_days || 14);
