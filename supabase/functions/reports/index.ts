@@ -167,14 +167,14 @@ serve(async (req) => {
       const body = await req.json();
       const { report_name, account_id } = body;
 
-      // Fetch creatives
-      let query = supabase.from("creatives").select("*");
+      // Fetch creatives that had delivery (spend > 0)
+      let query = supabase.from("creatives").select("*").gt("spend", 0);
       if (account_id) query = query.eq("account_id", account_id);
       const { data: creatives, error: fetchErr } = await query;
       if (fetchErr) throw fetchErr;
 
       const list = creatives || [];
-      const withSpend = list.filter((c: any) => (c.spend || 0) > 0);
+      const withSpend = list;
 
       const totalSpend = withSpend.reduce((s: number, c: any) => s + Number(c.spend || 0), 0);
       const avgField = (field: string) => {
