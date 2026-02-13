@@ -91,7 +91,7 @@ const AnalyticsPage = () => {
         </TabsContent>
 
         <TabsContent value="winrate" className="animate-fade-in space-y-4">
-          <WinRateTab creatives={creatives} roasThreshold={roasThreshold} spendThreshold={spendThreshold} defaultSlice={defaultSlice} />
+          <WinRateTab creatives={creatives} roasThreshold={roasThreshold} spendThreshold={spendThreshold} defaultSlice={defaultSlice} winnerKpi={selectedAccount?.winner_kpi} winnerKpiDirection={selectedAccount?.winner_kpi_direction} winnerKpiThreshold={parseFloat(selectedAccount?.winner_kpi_threshold || "0") || undefined} />
         </TabsContent>
 
         <TabsContent value="killscale" className="animate-fade-in space-y-4">

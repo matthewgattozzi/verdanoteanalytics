@@ -9,23 +9,42 @@ import {
 } from "@/components/ui/table";
 import { BarChart3, TrendingUp, Target } from "lucide-react";
 
+const KPI_LABELS: Record<string, string> = {
+  roas: "ROAS",
+  cpa: "CPA",
+  ctr: "CTR",
+  thumb_stop_rate: "Hook Rate",
+};
+
 interface WinRateTabProps {
   creatives: any[];
   roasThreshold: number;
   spendThreshold: number;
   defaultSlice?: string;
+  winnerKpi?: string;
+  winnerKpiDirection?: string;
+  winnerKpiThreshold?: number;
 }
 
-export function WinRateTab({ creatives, roasThreshold, spendThreshold, defaultSlice = "ad_type" }: WinRateTabProps) {
+export function WinRateTab({
+  creatives, roasThreshold, spendThreshold, defaultSlice = "ad_type",
+  winnerKpi = "roas", winnerKpiDirection = "gte", winnerKpiThreshold,
+}: WinRateTabProps) {
   const [sliceBy, setSliceBy] = useState(defaultSlice);
+
+  // Use the new KPI threshold, falling back to legacy roasThreshold
+  const threshold = winnerKpiThreshold ?? roasThreshold;
 
   const winRateData = useMemo(() => {
     if (creatives.length === 0) return null;
 
     const isWinner = (c: any) => {
-      const roas = Number(c.roas) || 0;
+      const kpiValue = Number(c[winnerKpi]) || 0;
       const spend = Number(c.spend) || 0;
-      return roas >= roasThreshold && spend > spendThreshold;
+      const meetsThreshold = winnerKpiDirection === "lte"
+        ? kpiValue <= threshold && kpiValue > 0
+        : kpiValue >= threshold;
+      return meetsThreshold && spend > spendThreshold;
     };
 
     const winners = creatives.filter(isWinner);
@@ -52,7 +71,10 @@ export function WinRateTab({ creatives, roasThreshold, spendThreshold, defaultSl
       blendedRoas: blendedRoas.toFixed(2),
       breakdown,
     };
-  }, [creatives, sliceBy, roasThreshold, spendThreshold]);
+  }, [creatives, sliceBy, winnerKpi, winnerKpiDirection, threshold, spendThreshold]);
+
+  const kpiLabel = KPI_LABELS[winnerKpi] || winnerKpi;
+  const dirSymbol = winnerKpiDirection === "lte" ? "≤" : "≥";
 
   return (
     <div className="space-y-4">
@@ -63,8 +85,9 @@ export function WinRateTab({ creatives, roasThreshold, spendThreshold, defaultSl
         <MetricCard label="Blended ROAS" value={winRateData ? `${winRateData.blendedRoas}x` : "—"} />
       </div>
 
-
-
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <span>Winner: <span className="font-medium text-foreground">{kpiLabel} {dirSymbol} {threshold}</span> &amp; spend &gt; ${spendThreshold}</span>
+      </div>
 
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground">Slice by:</span>
