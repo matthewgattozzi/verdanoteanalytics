@@ -26,14 +26,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, Plus, Trash2, Loader2, Eye, Download } from "lucide-react";
+import { FileText, Plus, Trash2, Loader2, Eye, Download, CalendarClock } from "lucide-react";
 import { useState, useMemo } from "react";
-import { useReports, useGenerateReport, useDeleteReport, useAccounts } from "@/hooks/useApi";
+import { useReports, useGenerateReport, useDeleteReport, useAccounts, useUpdateAccountSettings } from "@/hooks/useApi";
 import { ReportDetailModal } from "@/components/ReportDetailModal";
 import { exportReportCSV } from "@/lib/csv";
 
 const ReportsPage = () => {
   const [showGenerate, setShowGenerate] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
   const [reportName, setReportName] = useState("");
   const [accountId, setAccountId] = useState("");
   const [selectedReport, setSelectedReport] = useState<any>(null);
@@ -42,6 +43,7 @@ const ReportsPage = () => {
   const { data: accounts } = useAccounts();
   const generateMut = useGenerateReport();
   const deleteMut = useDeleteReport();
+  const updateAccountMut = useUpdateAccountSettings();
 
   // Find previous report for comparison
   const previousReport = useMemo(() => {
@@ -76,10 +78,16 @@ const ReportsPage = () => {
         title="Reports"
         description="Generate and view snapshot reports of your creative performance."
         actions={
-          <Button size="sm" onClick={() => setShowGenerate(true)}>
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            Generate Report
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setShowSchedule(true)}>
+              <CalendarClock className="h-3.5 w-3.5 mr-1.5" />
+              Schedules
+            </Button>
+            <Button size="sm" onClick={() => setShowGenerate(true)}>
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Generate Report
+            </Button>
+          </div>
         }
       />
 
@@ -180,6 +188,40 @@ const ReportsPage = () => {
         open={!!selectedReport}
         onClose={() => setSelectedReport(null)}
       />
+
+      {/* Schedule Dialog */}
+      <Dialog open={showSchedule} onOpenChange={setShowSchedule}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarClock className="h-4 w-4" />
+              Report Schedules
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">Set automatic report generation per account. Weekly reports run every Monday, monthly on the 1st.</p>
+          <div className="space-y-3 max-h-80 overflow-y-auto">
+            {(accounts || []).map((a: any) => (
+              <div key={a.id} className="flex items-center justify-between gap-3 p-2.5 rounded-md border bg-card">
+                <div className="text-xs font-medium truncate flex-1">{a.name}</div>
+                <Select
+                  value={a.report_schedule || "none"}
+                  onValueChange={(val) => updateAccountMut.mutate({ id: a.id, report_schedule: val } as any)}
+                >
+                  <SelectTrigger className="w-28 h-7 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Off</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+            {!(accounts || []).length && (
+              <p className="text-xs text-muted-foreground text-center py-4">No accounts found.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };
