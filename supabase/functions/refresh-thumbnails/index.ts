@@ -86,13 +86,36 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
       }
     }
 
-    // Priority 3: image_url from creative (can be full-res for image ads)
+    // Priority 3: Try fetching creative directly for full_picture
+    if (creative.id) {
+      const creativeRes = await fetch(
+        `https://graph.facebook.com/v21.0/${creative.id}?fields=effective_object_story_id,image_url&access_token=${META_ACCESS_TOKEN}`
+      );
+      if (creativeRes.ok) {
+        const creativeData = await creativeRes.json();
+        // If we have a story ID, fetch the full_picture from the post
+        if (creativeData.effective_object_story_id) {
+          const postRes = await fetch(
+            `https://graph.facebook.com/v21.0/${creativeData.effective_object_story_id}?fields=full_picture&access_token=${META_ACCESS_TOKEN}`
+          );
+          if (postRes.ok) {
+            const postData = await postRes.json();
+            if (postData.full_picture) {
+              console.log(`Post full_picture for ${adId}`);
+              return postData.full_picture;
+            }
+          }
+        }
+      }
+    }
+
+    // Priority 4: image_url from creative
     if (creative.image_url) {
       console.log(`Using image_url for ${adId}`);
       return creative.image_url;
     }
 
-    // Priority 4: image from object_story_spec
+    // Priority 5: image from object_story_spec
     if (spec) {
       const imageUrl = spec.link_data?.image_url || spec.photo_data?.url || spec.photo_data?.image_url;
       if (imageUrl) return imageUrl;
@@ -158,6 +181,10 @@ async function downloadAndCache(
       return null;
     }
     const blob = await resp.arrayBuffer();
+    if (type === "image" && blob.byteLength < 5000) {
+      console.log(`Skipping tiny image for ${adId}: ${blob.byteLength} bytes`);
+      return null;
+    }
     if (type === "video" && blob.byteLength > 200 * 1024 * 1024) return null;
     const contentType = resp.headers.get("content-type") || (type === "video" ? "video/mp4" : "image/jpeg");
     const ext = type === "video"
