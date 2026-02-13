@@ -387,6 +387,9 @@ serve(async (req) => {
                 thumb_stop_rate: 0, hold_rate: 0, video_avg_play_time: 0, adds_to_cart: 0, cost_per_add_to_cart: 0, video_views: 0,
               };
 
+              // Skip ads with zero spend — only store creatives that had delivery
+              if (metrics.spend <= 0) continue;
+
               const creativeData = {
                 ad_id: ad.id, account_id: account.id, ad_name: ad.name,
                 ad_status: ad.status || "UNKNOWN",

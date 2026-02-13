@@ -7,8 +7,6 @@ import { Layers } from "lucide-react";
 import { GROUP_BY_OPTIONS } from "./constants";
 
 interface CreativesFiltersProps {
-  delivery: string;
-  setDelivery: (v: string) => void;
   dateFrom?: string;
   dateTo?: string;
   onDateChange: (from?: string, to?: string) => void;
@@ -21,18 +19,11 @@ interface CreativesFiltersProps {
 }
 
 export function CreativesFilters({
-  delivery, setDelivery, dateFrom, dateTo, onDateChange,
+  dateFrom, dateTo, onDateChange,
   filters, updateFilter, filterOptions, groupBy, setGroupBy, viewMode,
 }: CreativesFiltersProps) {
   return (
     <>
-      <div className="flex items-center gap-2 mb-2 flex-wrap">
-        <span className="text-xs text-muted-foreground mr-1">Delivery:</span>
-        <Button variant={!delivery ? "outline" : "ghost"} size="sm" className="h-7 text-xs" onClick={() => setDelivery("")}>All Ads</Button>
-        <Button variant={delivery === "had_delivery" ? "outline" : "ghost"} size="sm" className="h-7 text-xs" onClick={() => setDelivery("had_delivery")}>Had Delivery</Button>
-        <Button variant={delivery === "active" ? "outline" : "ghost"} size="sm" className="h-7 text-xs" onClick={() => setDelivery("active")}>Active Ads</Button>
-      </div>
-
       <div className="flex items-center gap-2 mb-2">
         <span className="text-xs text-muted-foreground mr-1">Date:</span>
         <DateRangeFilter dateFrom={dateFrom} dateTo={dateTo} onChange={onDateChange} />

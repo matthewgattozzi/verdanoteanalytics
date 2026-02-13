@@ -27,7 +27,7 @@ function levelFor(value: number, p25: number, p75: number): MetricLevel {
 }
 
 export function CreativeIterationAnalysis({ creative }: Props) {
-  const { data: allCreatives = [] } = useAllCreatives({ account_id: creative.account_id, delivery: "had_delivery" });
+  const { data: allCreatives = [] } = useAllCreatives({ account_id: creative.account_id });
   
   const analysis = useMemo(() => {
     if (allCreatives.length < 3) return null;
