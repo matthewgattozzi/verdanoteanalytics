@@ -92,6 +92,12 @@ serve(async (req) => {
       if (body.company_pdf_url !== undefined) updateFields.company_pdf_url = body.company_pdf_url;
       if (body.creative_analysis_prompt !== undefined) updateFields.creative_analysis_prompt = body.creative_analysis_prompt;
       if (body.insights_prompt !== undefined) updateFields.insights_prompt = body.insights_prompt;
+      if (body.report_schedule !== undefined) updateFields.report_schedule = body.report_schedule;
+      if (body.winner_kpi !== undefined) updateFields.winner_kpi = body.winner_kpi;
+      if (body.winner_kpi_direction !== undefined) updateFields.winner_kpi_direction = body.winner_kpi_direction;
+      if (body.winner_kpi_threshold !== undefined) updateFields.winner_kpi_threshold = body.winner_kpi_threshold;
+      if (body.scale_threshold !== undefined) updateFields.scale_threshold = body.scale_threshold;
+      if (body.kill_threshold !== undefined) updateFields.kill_threshold = body.kill_threshold;
 
       const { data, error } = await supabase
         .from("ad_accounts")
