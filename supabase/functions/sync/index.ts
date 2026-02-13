@@ -330,8 +330,8 @@ serve(async (req) => {
             creativesFetched = existingCount || 0;
           } else {
             console.log("Phase 1: Fetching ads metadata...");
-            const adsUrl = `https://graph.facebook.com/v21.0/${account.id}/ads?` +
-              `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,thumbnail_width:1080,thumbnail_height:1080,video_id},preview_shareable_link` +
+             const adsUrl = `https://graph.facebook.com/v21.0/${account.id}/ads?` +
+              `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,video_id},preview_shareable_link` +
               `&limit=50&access_token=${encodeURIComponent(metaToken)}`;
 
             let nextAdsUrl: string | null = adsUrl;
@@ -393,15 +393,62 @@ serve(async (req) => {
           // ─── PHASE 2.5: Fetch video source URLs ──────────────────────
           const videoUrlMap = new Map<string, string>();
 
-          if (!isTimedOut() && !skipAdFetch && fetchedAds.length > 0) {
-            const videoAds = fetchedAds.filter(ad => ad.creative?.video_id);
-            if (videoAds.length > 0) {
-              console.log(`Phase 2.5: Fetching video URLs for ${videoAds.length} video ads...`);
-              // Batch fetch video source URLs (50 at a time) using direct fetch
-              for (let i = 0; i < videoAds.length && !isTimedOut(); i += 50) {
-                const batch = videoAds.slice(i, i + 50);
-                const videoIds = [...new Set(batch.map(ad => ad.creative.video_id))];
-                const videoFetchUrl = `https://graph.facebook.com/v21.0/?ids=${videoIds.join(",")}&fields=source&access_token=${encodeURIComponent(metaToken)}`;
+          if (!isTimedOut()) {
+            // Collect video ads either from freshly fetched ads or from DB
+            let videoAdEntries: { adId: string; videoId: string }[] = [];
+
+            if (!skipAdFetch && fetchedAds.length > 0) {
+              videoAdEntries = fetchedAds
+                .filter(ad => ad.creative?.video_id)
+                .map(ad => ({ adId: ad.id, videoId: ad.creative.video_id }));
+            } else if (skipAdFetch) {
+              // Query existing creatives that have ad_type containing 'Video' or where we might have video
+              // We need to check which ads have videos — fetch from Meta using the ad account's advideos endpoint
+              // Instead, let's re-fetch just the creative video_ids for existing ads
+              const { data: existingAds } = await supabase.from("creatives")
+                .select("ad_id")
+                .eq("account_id", account.id)
+                .is("video_url", null);
+              
+              if (existingAds && existingAds.length > 0) {
+                // Batch check which ads have video_id via Meta API
+                for (let i = 0; i < existingAds.length && !isTimedOut(); i += 50) {
+                  const batch = existingAds.slice(i, i + 50);
+                  const adIds = batch.map(a => a.ad_id).join(",");
+                  const checkUrl = `https://graph.facebook.com/v21.0/?ids=${adIds}&fields=creative{video_id}&access_token=${encodeURIComponent(metaToken)}`;
+                  const result = await metaFetch(checkUrl, ctx);
+                  if (result.error) break;
+                  // Response for batch ID lookup is an object keyed by ad_id
+                  if (!result.data && !result.error) {
+                    // For batch ID requests, the response is the raw JSON object, not data array
+                    // We need to handle differently — use direct fetch
+                    ctx.metaApiCalls++;
+                    try {
+                      const resp = await fetch(checkUrl);
+                      const json = await resp.json();
+                      if (!json.error) {
+                        for (const [adId, adData] of Object.entries(json as Record<string, any>)) {
+                          if ((adData as any)?.creative?.video_id) {
+                            videoAdEntries.push({ adId, videoId: (adData as any).creative.video_id });
+                          }
+                        }
+                      }
+                    } catch (err) {
+                      console.log("Video ID check error:", err);
+                    }
+                  }
+                  if (i + 50 < existingAds.length) await new Promise(r => setTimeout(r, 300));
+                }
+              }
+            }
+
+            if (videoAdEntries.length > 0) {
+              console.log(`Phase 2.5: Fetching video URLs for ${videoAdEntries.length} video ads...`);
+              const uniqueVideoIds = [...new Set(videoAdEntries.map(e => e.videoId))];
+              
+              for (let i = 0; i < uniqueVideoIds.length && !isTimedOut(); i += 50) {
+                const batchIds = uniqueVideoIds.slice(i, i + 50);
+                const videoFetchUrl = `https://graph.facebook.com/v21.0/?ids=${batchIds.join(",")}&fields=source&access_token=${encodeURIComponent(metaToken)}`;
                 ctx.metaApiCalls++;
                 try {
                   const resp = await fetch(videoFetchUrl);
@@ -410,12 +457,11 @@ serve(async (req) => {
                     console.log("Video URL fetch error:", json.error.message);
                     break;
                   }
-                  // Response is an object keyed by video_id: { "123": { source: "..." }, ... }
                   for (const [videoId, videoData] of Object.entries(json as Record<string, any>)) {
                     if (videoData?.source) {
-                      for (const ad of batch) {
-                        if (ad.creative?.video_id === videoId) {
-                          videoUrlMap.set(ad.id, videoData.source);
+                      for (const entry of videoAdEntries) {
+                        if (entry.videoId === videoId) {
+                          videoUrlMap.set(entry.adId, videoData.source);
                         }
                       }
                     }
@@ -424,7 +470,7 @@ serve(async (req) => {
                   console.log("Video URL fetch network error:", err);
                   break;
                 }
-                if (i + 50 < videoAds.length) await new Promise(r => setTimeout(r, 300));
+                if (i + 50 < uniqueVideoIds.length) await new Promise(r => setTimeout(r, 300));
               }
               console.log(`Phase 2.5 complete: ${videoUrlMap.size} video URLs fetched`);
             }
@@ -493,9 +539,17 @@ serve(async (req) => {
               const batch = entries.slice(i, i + 50);
               await Promise.all(batch.map(([adId, row]) => {
                 const metrics = parseInsightsRow(row);
-                return supabase.from("creatives").update(metrics).eq("ad_id", adId);
+                const videoUrl = videoUrlMap.get(adId);
+                const updateData = videoUrl ? { ...metrics, video_url: videoUrl } : metrics;
+                return supabase.from("creatives").update(updateData).eq("ad_id", adId);
               }));
               updated += batch.length;
+            }
+            // Also update video URLs for ads not in insights
+            for (const [adId, videoUrl] of videoUrlMap.entries()) {
+              if (!insightsMap.has(adId)) {
+                await supabase.from("creatives").update({ video_url: videoUrl }).eq("ad_id", adId);
+              }
             }
             creativesUpserted = updated;
             console.log(`Phase 3 complete: ${updated} creatives updated with insights`);
