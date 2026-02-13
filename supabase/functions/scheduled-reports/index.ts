@@ -220,7 +220,7 @@ serve(async (req) => {
         if (src in tagCounts) tagCounts[src as keyof typeof tagCounts]++;
       });
 
-      const sorted = [...list].sort((a: any, b: any) => Number(b.roas || 0) - Number(a.roas || 0));
+      const sorted = [...list].sort((a: any, b: any) => Number(b.spend || 0) - Number(a.spend || 0));
       const mapPerformer = (c: any) => ({
         ad_id: c.ad_id, ad_name: c.ad_name || c.ad_id, unique_code: c.unique_code,
         roas: Math.round(Number(c.roas || 0) * 1000) / 1000,
