@@ -1,124 +1,318 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Target } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Target, Info, ArrowUpDown, DollarSign, TrendingUp, MousePointerClick, Eye, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  calculateBenchmarks,
+  diagnoseCreatives,
+  DIAGNOSTIC_META,
+  type Benchmarks,
+  type DiagnosedCreative,
+  type DiagnosticType,
+} from "@/lib/iterationDiagnostics";
 
 interface IterationsTabProps {
   creatives: any[];
   spendThreshold: number;
 }
 
-const METRICS = [
-  { key: "thumb_stop_rate", label: "Hook Rate", suffix: "%" },
-  { key: "hold_rate", label: "Hold Rate", suffix: "%" },
-  { key: "ctr", label: "CTR", suffix: "%" },
+type SortKey = "priority" | "spend" | "hookRate" | "holdRate" | "ctr";
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "priority", label: "Priority Score" },
+  { value: "spend", label: "Spend" },
+  { value: "hookRate", label: "Hook Rate" },
+  { value: "holdRate", label: "Hold Rate" },
+  { value: "ctr", label: "CTR" },
 ];
 
+const DIAGNOSTIC_FILTERS: { value: DiagnosticType | "all"; label: string }[] = [
+  { value: "all", label: "All Diagnostics" },
+  { value: "weak_hook", label: "Weak Hook" },
+  { value: "weak_body", label: "Weak Body" },
+  { value: "weak_cta", label: "Weak CTA" },
+  { value: "weak_hook_body", label: "Weak Hook + Body" },
+  { value: "landing_page_issue", label: "Landing Page Issue?" },
+  { value: "all_weak", label: "Full Rebuild" },
+];
+
+const STATUS_FILTERS = [
+  { value: "all", label: "All Statuses" },
+  { value: "ACTIVE", label: "Active" },
+  { value: "PAUSED", label: "Paused" },
+];
+
+function MetricDot({ level }: { level: "strong" | "average" | "weak" }) {
+  const cls =
+    level === "strong"
+      ? "bg-success"
+      : level === "weak"
+      ? "bg-destructive"
+      : "bg-warning";
+  return <span className={`status-dot ${cls} mr-1.5`} />;
+}
+
+function BenchmarkBar({ benchmarks }: { benchmarks: Benchmarks }) {
+  const [open, setOpen] = useState(true);
+  const metrics = [
+    { label: "Hook Rate", data: benchmarks.hookRate, icon: Eye },
+    { label: "Hold Rate", data: benchmarks.holdRate, icon: TrendingUp },
+    { label: "CTR", data: benchmarks.ctr, icon: MousePointerClick },
+  ];
+
+  return (
+    <div className="glass-panel p-4">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-full md:pointer-events-none"
+      >
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold">Account Benchmarks</h3>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-xs">
+                Benchmarks are calculated from all active ads in this account, weighted by spend. Updated each time you sync.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        <span className="md:hidden">
+          {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </span>
+      </button>
+
+      <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 mt-3 ${open ? "" : "hidden md:grid"}`}>
+        {metrics.map((m) => (
+          <div key={m.label} className="flex items-center gap-3">
+            <m.icon className="h-4 w-4 text-muted-foreground shrink-0" />
+            <div>
+              <p className="text-xs font-medium text-foreground">{m.label}: <span className="font-mono">{m.data.median.toFixed(2)}%</span></p>
+              <p className="text-[10px] text-muted-foreground font-mono">
+                25th: {m.data.p25.toFixed(2)}% &nbsp;|&nbsp; 75th: {m.data.p75.toFixed(2)}%
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function IterationCard({ item }: { item: DiagnosedCreative }) {
+  const meta = DIAGNOSTIC_META[item.diagnostic];
+
+  return (
+    <div className="glass-panel p-4 flex flex-col gap-3">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className="text-sm font-medium truncate">{item.ad_name}</p>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-sm text-xs">{item.ad_name}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge className={`text-[10px] ${meta.color}`}>{meta.label}</Badge>
+          <Badge
+            variant="outline"
+            className={`text-[10px] ${
+              item.priorityLabel === "High"
+                ? "border-destructive text-destructive"
+                : item.priorityLabel === "Medium"
+                ? "border-warning text-warning"
+                : "border-muted-foreground text-muted-foreground"
+            }`}
+          >
+            {item.priorityLabel}
+          </Badge>
+        </div>
+      </div>
+
+      {/* Metrics row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {([
+          { label: "Hook Rate", value: item.hookRate, level: item.hookLevel },
+          { label: "Hold Rate", value: item.holdRate, level: item.holdLevel },
+          { label: "CTR", value: item.ctr, level: item.ctrLevel },
+        ] as const).map((m) => (
+          <div key={m.label} className="bg-muted/40 rounded-md px-3 py-2 flex items-center gap-2">
+            <MetricDot level={m.level} />
+            <div>
+              <p className="metric-label">{m.label}</p>
+              <p className="text-sm font-mono font-medium">{m.value.toFixed(2)}%</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Context row */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <span>Spend: <span className="font-mono text-foreground">${item.spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></span>
+        <span>ROAS: <span className="font-mono text-foreground">{item.roas.toFixed(2)}</span></span>
+        <span>CPA: <span className="font-mono text-foreground">${item.cpa.toFixed(2)}</span></span>
+        <span>Frequency: <span className="font-mono text-foreground">{item.frequency.toFixed(1)}</span></span>
+      </div>
+
+      {/* Recommendation */}
+      <p className="text-xs text-muted-foreground border-t border-border/50 pt-2">
+        {item.recommendation}
+      </p>
+    </div>
+  );
+}
+
 export function IterationsTab({ creatives, spendThreshold }: IterationsTabProps) {
-  const iterations = useMemo(() => {
-    if (creatives.length === 0) return [];
+  const [diagnosticFilter, setDiagnosticFilter] = useState<DiagnosticType | "all">("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sortBy, setSortBy] = useState<SortKey>("priority");
+  const [minSpendOverride, setMinSpendOverride] = useState<string>("");
 
-    // Only consider creatives with enough spend
-    const qualified = creatives.filter((c: any) => (Number(c.spend) || 0) >= spendThreshold);
-    if (qualified.length === 0) return [];
+  const effectiveMinSpend = minSpendOverride !== "" ? Number(minSpendOverride) || 0 : spendThreshold;
 
-    // Calculate medians for each metric
-    const median = (arr: number[]) => {
-      const sorted = [...arr].sort((a, b) => a - b);
-      return sorted.length > 0 ? sorted[Math.floor(sorted.length / 2)] : 0;
-    };
+  const benchmarks = useMemo(() => calculateBenchmarks(creatives), [creatives]);
 
-    const medians = {
-      thumb_stop_rate: median(qualified.map((c: any) => Number(c.thumb_stop_rate) || 0)),
-      hold_rate: median(qualified.map((c: any) => Number(c.hold_rate) || 0)),
-      ctr: median(qualified.map((c: any) => Number(c.ctr) || 0)),
-    };
+  const diagnosed = useMemo(
+    () => diagnoseCreatives(creatives, benchmarks, effectiveMinSpend),
+    [creatives, benchmarks, effectiveMinSpend]
+  );
 
-    // Group by hook tag
-    const hookGroups: Record<string, any[]> = {};
-    qualified.forEach((c: any) => {
-      const key = c.hook || "(none)";
-      if (!hookGroups[key]) hookGroups[key] = [];
-      hookGroups[key].push(c);
-    });
+  const filtered = useMemo(() => {
+    let list = diagnosed;
+    if (diagnosticFilter !== "all") {
+      list = list.filter((d) => d.diagnostic === diagnosticFilter);
+    }
+    if (statusFilter !== "all") {
+      list = list.filter((d) => d.ad_status?.toUpperCase() === statusFilter);
+    }
 
-    const priorities: any[] = [];
-    Object.entries(hookGroups).forEach(([hook, group]) => {
-      const totalSpend = group.reduce((s, c) => s + (Number(c.spend) || 0), 0);
+    const sorted = [...list];
+    switch (sortBy) {
+      case "spend":
+        sorted.sort((a, b) => b.spend - a.spend);
+        break;
+      case "hookRate":
+        sorted.sort((a, b) => a.hookRate - b.hookRate);
+        break;
+      case "holdRate":
+        sorted.sort((a, b) => a.holdRate - b.holdRate);
+        break;
+      case "ctr":
+        sorted.sort((a, b) => a.ctr - b.ctr);
+        break;
+      default:
+        sorted.sort((a, b) => b.priorityScore - a.priorityScore);
+    }
+    return sorted;
+  }, [diagnosed, diagnosticFilter, statusFilter, sortBy]);
 
-      // Calculate avg for each metric
-      const avgMetrics = METRICS.map(m => {
-        const avg = group.reduce((s, c) => s + (Number(c[m.key]) || 0), 0) / group.length;
-        const medianVal = medians[m.key as keyof typeof medians];
-        const gap = medianVal - avg;
-        return { ...m, avg, median: medianVal, gap, belowMedian: gap > 0 };
-      });
-
-      // Count how many metrics are below median
-      const belowCount = avgMetrics.filter(m => m.belowMedian).length;
-      if (belowCount === 0) return;
-
-      // Score: sum of (gap × spend) across below-median metrics
-      const score = avgMetrics
-        .filter(m => m.belowMedian)
-        .reduce((s, m) => s + m.gap * totalSpend, 0);
-
-      const topStyle = group[0]?.style || "any";
-      const topPerson = group[0]?.person || "any";
-
-      const weakMetrics = avgMetrics.filter(m => m.belowMedian).map(m => m.label);
-
-      priorities.push({
-        hook,
-        totalSpend: totalSpend.toFixed(0),
-        score,
-        count: group.length,
-        belowCount,
-        metrics: avgMetrics,
-        weakMetrics,
-        suggestion: `Weak on ${weakMetrics.join(", ")}. Try iterating with ${topStyle} style and ${topPerson} talent.`,
-        aiContext: group[0]?.ai_hook_analysis || null,
-      });
-    });
-
-    return priorities.sort((a, b) => b.score - a.score).slice(0, 10);
-  }, [creatives, spendThreshold]);
-
-  if (iterations.length === 0) {
+  if (creatives.length === 0) {
     return (
       <div className="glass-panel flex flex-col items-center justify-center py-16 text-center">
         <Target className="h-10 w-10 text-muted-foreground mb-3" />
         <h3 className="text-lg font-medium mb-1">No iteration priorities yet</h3>
-        <p className="text-sm text-muted-foreground max-w-md">Sync tagged creatives with enough spend data to surface opportunities.</p>
+        <p className="text-sm text-muted-foreground max-w-md">
+          Sync tagged creatives with enough spend data to surface opportunities.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {iterations.map((p, i) => (
-        <div key={p.hook} className="glass-panel p-4 border-l-2 border-l-primary">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-[10px]">#{i + 1}</Badge>
-              <span className="text-sm font-medium">Hook: {p.hook}</span>
-            </div>
-            <span className="text-xs text-muted-foreground">{p.count} creatives · ${p.totalSpend} total spend</span>
-          </div>
-          <div className="flex items-center gap-4 text-xs mb-2">
-            {p.metrics.map((m: any) => (
-              <span key={m.key} className="text-muted-foreground">
-                {m.label}:{" "}
-                <span className={`font-mono ${m.belowMedian ? "text-kill" : "text-scale"}`}>
-                  {m.avg.toFixed(2)}{m.suffix}
-                </span>
-                <span className="text-muted-foreground/60"> / {m.median.toFixed(2)}{m.suffix}</span>
-              </span>
-            ))}
-          </div>
-          <p className="text-xs">{p.suggestion}</p>
-          {p.aiContext && <p className="text-xs mt-1 text-muted-foreground italic">AI insight: {p.aiContext}</p>}
+    <div className="space-y-4">
+      {/* Benchmarks */}
+      <BenchmarkBar benchmarks={benchmarks} />
+
+      {/* Filter controls */}
+      <div className="flex flex-wrap gap-3 items-end">
+        <div className="space-y-1">
+          <label className="metric-label">Diagnostic</label>
+          <Select value={diagnosticFilter} onValueChange={(v) => setDiagnosticFilter(v as any)}>
+            <SelectTrigger className="w-[180px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DIAGNOSTIC_FILTERS.map((f) => (
+                <SelectItem key={f.value} value={f.value} className="text-xs">
+                  {f.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-      ))}
+
+        <div className="space-y-1">
+          <label className="metric-label">Status</label>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[140px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_FILTERS.map((f) => (
+                <SelectItem key={f.value} value={f.value} className="text-xs">
+                  {f.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
+          <label className="metric-label">Sort By</label>
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortKey)}>
+            <SelectTrigger className="w-[160px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value} className="text-xs">
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
+          <label className="metric-label">Min Spend ($)</label>
+          <Input
+            type="number"
+            placeholder={String(spendThreshold)}
+            value={minSpendOverride}
+            onChange={(e) => setMinSpendOverride(e.target.value)}
+            className="w-[100px] h-8 text-xs"
+          />
+        </div>
+
+        <p className="text-[10px] text-muted-foreground self-end pb-1">
+          {filtered.length} ad{filtered.length !== 1 ? "s" : ""} found
+        </p>
+      </div>
+
+      {/* Cards */}
+      {filtered.length === 0 ? (
+        <div className="glass-panel flex flex-col items-center justify-center py-16 text-center">
+          <Target className="h-10 w-10 text-muted-foreground mb-3" />
+          <h3 className="text-lg font-medium mb-1">No iteration opportunities found</h3>
+          <p className="text-sm text-muted-foreground max-w-md">
+            All ads with sufficient spend are performing at or above account benchmarks. Nice work.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {filtered.map((item) => (
+            <IterationCard key={item.ad_id} item={item} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
