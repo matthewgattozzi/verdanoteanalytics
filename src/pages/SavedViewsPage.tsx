@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Bookmark, Plus, Trash2, ExternalLink, Loader2, Pencil, Check, X as XIcon, Copy, GripVertical } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +41,7 @@ import { toast } from "sonner";
 interface ViewConfig {
   page: string;
   account_id?: string;
+  apply_account?: boolean;
   analytics_tab?: string;
   slice_by?: string;
   date_from?: string;
@@ -94,6 +96,7 @@ const SavedViewsPage = () => {
   const [description, setDescription] = useState("");
   const [page, setPage] = useState("/");
   const [accountId, setAccountId] = useState("all");
+  const [applyAccount, setApplyAccount] = useState(false);
   const [analyticsTab, setAnalyticsTab] = useState("trends");
   const [sliceBy, setSliceBy] = useState("ad_type");
   const [groupBy, setGroupBy] = useState("");
@@ -114,10 +117,9 @@ const SavedViewsPage = () => {
   const createMutation = useMutation({
     mutationFn: async () => {
       const config: ViewConfig = { page };
-      if (accountId && accountId !== "all") config.account_id = accountId;
-      if (page === "/analytics") {
-        config.analytics_tab = analyticsTab;
-        if (analyticsTab === "winrate") config.slice_by = sliceBy;
+      if (accountId && accountId !== "all") {
+        config.account_id = accountId;
+        config.apply_account = applyAccount;
       }
       if (groupBy) config.group_by = groupBy;
 
@@ -246,6 +248,7 @@ const SavedViewsPage = () => {
     setDescription("");
     setPage("/");
     setAccountId("all");
+    setApplyAccount(false);
     setAnalyticsTab("trends");
     setSliceBy("ad_type");
     setGroupBy("");
@@ -253,6 +256,9 @@ const SavedViewsPage = () => {
 
   const applyView = (view: SavedView) => {
     const c = view.config;
+    if (c.account_id && c.apply_account) {
+      setSelectedAccountId(c.account_id);
+    }
     const params = new URLSearchParams();
     if (c.analytics_tab) params.set("tab", c.analytics_tab);
     if (c.slice_by) params.set("slice", c.slice_by);
@@ -326,6 +332,18 @@ const SavedViewsPage = () => {
                   </Select>
                 </div>
               </div>
+              {accountId && accountId !== "all" && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="apply-account"
+                    checked={applyAccount}
+                    onCheckedChange={(checked) => setApplyAccount(checked === true)}
+                  />
+                  <Label htmlFor="apply-account" className="text-xs text-muted-foreground cursor-pointer">
+                    Switch to this account when opening view
+                  </Label>
+                </div>
+              )}
               {page === "/analytics" && (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
@@ -430,7 +448,9 @@ const SavedViewsPage = () => {
                     )}
                     <Badge variant="outline" className="text-[10px] flex-shrink-0">{getPageLabel(view.config.page)}</Badge>
                     {view.config.account_id && (
-                      <Badge variant="outline" className="text-[10px] flex-shrink-0">{getAccountName(view.config.account_id)}</Badge>
+                      <Badge variant="outline" className="text-[10px] flex-shrink-0">
+                        {view.config.apply_account ? "→ " : ""}{getAccountName(view.config.account_id)}
+                      </Badge>
                     )}
                     {view.config.analytics_tab && (
                       <Badge variant="outline" className="text-[10px] flex-shrink-0 capitalize">{view.config.analytics_tab}</Badge>
