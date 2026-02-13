@@ -12,12 +12,11 @@ export function useAnalyticsPageState() {
   const [dateFrom, setDateFrom] = useState<string | undefined>();
   const [dateTo, setDateTo] = useState<string | undefined>();
 
-  const accountFilter = selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {};
-  const dateFilters = {
-    ...accountFilter,
+  const dateFilters = useMemo(() => ({
+    ...(selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {}),
     ...(dateFrom ? { date_from: dateFrom } : {}),
     ...(dateTo ? { date_to: dateTo } : {}),
-  };
+  }), [selectedAccountId, dateFrom, dateTo]);
 
   const { data: creatives = [], isLoading } = useAllCreatives(dateFilters);
   const { data: trendData, isLoading: trendsLoading } = useDailyTrends(selectedAccountId || undefined);
