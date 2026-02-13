@@ -504,7 +504,7 @@ serve(async (req) => {
                 ad_status: ad.status || "UNKNOWN",
                 campaign_name: ad.campaign?.name || null,
                 adset_name: ad.adset?.name || null,
-                thumbnail_url: ad.creative?.thumbnail_url || null,
+                thumbnail_url: (ad.creative?.thumbnail_url || "").replace(/p\d+x\d+/, "p1080x1080") || null,
                 preview_url: ad.preview_shareable_link || null,
                 video_url: videoUrlMap.get(ad.id) || null,
                 ...metrics,
