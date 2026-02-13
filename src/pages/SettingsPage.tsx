@@ -52,6 +52,8 @@ const SettingsPage = () => {
   const [winnerKpi, setWinnerKpi] = useState("roas");
   const [winnerKpiDirection, setWinnerKpiDirection] = useState("gte");
   const [winnerKpiThreshold, setWinnerKpiThreshold] = useState("2.0");
+  const [scaleThreshold, setScaleThreshold] = useState("2.0");
+  const [killThreshold, setKillThreshold] = useState("1.0");
   const [primaryKpi, setPrimaryKpi] = useState("");
   const [secondaryKpis, setSecondaryKpis] = useState("");
   const [companyPdfUrl, setCompanyPdfUrl] = useState<string | null>(null);
@@ -66,6 +68,8 @@ const SettingsPage = () => {
     setWinnerKpi(account.winner_kpi || "roas");
     setWinnerKpiDirection(account.winner_kpi_direction || "gte");
     setWinnerKpiThreshold(String(account.winner_kpi_threshold ?? account.winner_roas_threshold ?? 2.0));
+    setScaleThreshold(String(account.scale_threshold ?? 2.0));
+    setKillThreshold(String(account.kill_threshold ?? 1.0));
     setPrimaryKpi(account.primary_kpi || "Purchase ROAS > 1.5x");
     setSecondaryKpis(account.secondary_kpis || "CTR, Hook Rate, Volume");
     setCompanyPdfUrl((account as any).company_pdf_url || null);
@@ -84,6 +88,8 @@ const SettingsPage = () => {
       winner_kpi: winnerKpi,
       winner_kpi_direction: winnerKpiDirection,
       winner_kpi_threshold: parseFloat(winnerKpiThreshold) || 2.0,
+      scale_threshold: parseFloat(scaleThreshold) || 2.0,
+      kill_threshold: parseFloat(killThreshold) || 1.0,
       primary_kpi: primaryKpi || null,
       secondary_kpis: secondaryKpis || null,
       creative_analysis_prompt: creativePrompt === DEFAULT_CREATIVE_PROMPT ? null : creativePrompt || null,
@@ -258,6 +264,10 @@ const SettingsPage = () => {
           setWinnerKpiDirection={setWinnerKpiDirection}
           winnerKpiThreshold={winnerKpiThreshold}
           setWinnerKpiThreshold={setWinnerKpiThreshold}
+          scaleThreshold={scaleThreshold}
+          setScaleThreshold={setScaleThreshold}
+          killThreshold={killThreshold}
+          setKillThreshold={setKillThreshold}
           onSave={handleSave}
           onApplyToAll={handleApplyToAll}
           saving={updateAccountSettings.isPending}

@@ -95,7 +95,7 @@ const AnalyticsPage = () => {
         </TabsContent>
 
         <TabsContent value="killscale" className="animate-fade-in space-y-4">
-          <KillScaleTab creatives={creatives} roasThreshold={roasThreshold} spendThreshold={spendThreshold} winnerKpi={selectedAccount?.winner_kpi} winnerKpiDirection={selectedAccount?.winner_kpi_direction} winnerKpiThreshold={parseFloat(selectedAccount?.winner_kpi_threshold || "0") || undefined} onCreativeClick={setSelectedCreative} />
+          <KillScaleTab creatives={creatives} roasThreshold={roasThreshold} spendThreshold={spendThreshold} winnerKpi={selectedAccount?.winner_kpi} winnerKpiDirection={selectedAccount?.winner_kpi_direction} winnerKpiThreshold={parseFloat(selectedAccount?.winner_kpi_threshold || "0") || undefined} scaleThreshold={parseFloat(selectedAccount?.scale_threshold || "0") || undefined} killThreshold={parseFloat(selectedAccount?.kill_threshold || "0") || undefined} onCreativeClick={setSelectedCreative} />
         </TabsContent>
 
         <TabsContent value="iterations" className="animate-fade-in space-y-4">

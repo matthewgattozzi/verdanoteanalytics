@@ -16,15 +16,20 @@ interface KillScaleTabProps {
   winnerKpi?: string;
   winnerKpiDirection?: string;
   winnerKpiThreshold?: number;
+  scaleThreshold?: number;
+  killThreshold?: number;
   onCreativeClick?: (creative: any) => void;
 }
 
 export function KillScaleTab({
   creatives, roasThreshold, spendThreshold,
   winnerKpi = "roas", winnerKpiDirection = "gte", winnerKpiThreshold,
+  scaleThreshold: scaleThresholdProp, killThreshold: killThresholdProp,
   onCreativeClick,
 }: KillScaleTabProps) {
   const threshold = winnerKpiThreshold ?? roasThreshold;
+  const scaleAt = scaleThresholdProp ?? threshold;
+  const killAt = killThresholdProp ?? threshold * 0.5;
   const kpiLabel = KPI_LABELS[winnerKpi] || winnerKpi;
   const isGte = winnerKpiDirection !== "lte";
 
@@ -44,27 +49,21 @@ export function KillScaleTab({
         return;
       }
 
-      // For "gte" direction (higher is better, e.g. ROAS, CTR):
-      //   Scale: value >= threshold
-      //   Kill: value < 50% of threshold
-      // For "lte" direction (lower is better, e.g. CPA):
-      //   Scale: value <= threshold and value > 0
-      //   Kill: value > 2x threshold
       if (isGte) {
-        if (kpiValue >= threshold) {
-          scale.push({ ...c, reason: `${kpiLabel} ${kpiValue.toFixed(2)} exceeds ${threshold} threshold` });
-        } else if (kpiValue < threshold * 0.5) {
-          kill.push({ ...c, reason: `${kpiLabel} ${kpiValue.toFixed(2)} is well below ${threshold} threshold with $${spend.toFixed(0)} spent` });
+        if (kpiValue >= scaleAt) {
+          scale.push({ ...c, reason: `${kpiLabel} ${kpiValue.toFixed(2)} ≥ ${scaleAt} scale threshold` });
+        } else if (kpiValue < killAt) {
+          kill.push({ ...c, reason: `${kpiLabel} ${kpiValue.toFixed(2)} < ${killAt} kill threshold with $${spend.toFixed(0)} spent` });
         } else {
-          watch.push({ ...c, reason: `${kpiLabel} ${kpiValue.toFixed(2)} — approaching threshold` });
+          watch.push({ ...c, reason: `${kpiLabel} ${kpiValue.toFixed(2)} — between kill and scale zones` });
         }
       } else {
-        if (kpiValue > 0 && kpiValue <= threshold) {
-          scale.push({ ...c, reason: `${kpiLabel} $${kpiValue.toFixed(2)} is under $${threshold} threshold` });
-        } else if (kpiValue > threshold * 2) {
-          kill.push({ ...c, reason: `${kpiLabel} $${kpiValue.toFixed(2)} is well above $${threshold} threshold with $${spend.toFixed(0)} spent` });
+        if (kpiValue > 0 && kpiValue <= scaleAt) {
+          scale.push({ ...c, reason: `${kpiLabel} $${kpiValue.toFixed(2)} ≤ $${scaleAt} scale threshold` });
+        } else if (kpiValue > killAt) {
+          kill.push({ ...c, reason: `${kpiLabel} $${kpiValue.toFixed(2)} > $${killAt} kill threshold with $${spend.toFixed(0)} spent` });
         } else {
-          watch.push({ ...c, reason: `${kpiLabel} $${kpiValue.toFixed(2)} — near threshold` });
+          watch.push({ ...c, reason: `${kpiLabel} $${kpiValue.toFixed(2)} — between scale and kill zones` });
         }
       }
     });
@@ -81,7 +80,11 @@ export function KillScaleTab({
       watch: watch.slice(0, 10),
       kill: kill.sort(sortKill).slice(0, 10),
     };
-  }, [creatives, winnerKpi, winnerKpiDirection, threshold, spendThreshold, isGte, kpiLabel]);
+  }, [creatives, winnerKpi, winnerKpiDirection, scaleAt, killAt, spendThreshold, isGte, kpiLabel]);
+
+  const dirLabel = isGte
+    ? `Scale: ${kpiLabel} ≥ ${scaleAt} · Kill: ${kpiLabel} < ${killAt} · Watch: in between`
+    : `Scale: ${kpiLabel} ≤ ${scaleAt} · Kill: ${kpiLabel} > ${killAt} · Watch: in between`;
 
   return (
     <div className="space-y-4">
@@ -102,6 +105,8 @@ export function KillScaleTab({
           <p className="text-xs text-muted-foreground mt-1">Underperformers to turn off</p>
         </div>
       </div>
+
+      <p className="text-xs text-muted-foreground">{dirLabel} · Spend &gt; ${spendThreshold}</p>
 
       {[
         { label: "Scale", items: recommendations.scale, color: "border-l-scale" },
