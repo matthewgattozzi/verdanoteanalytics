@@ -331,7 +331,7 @@ serve(async (req) => {
           } else {
             console.log("Phase 1: Fetching ads metadata...");
             const adsUrl = `https://graph.facebook.com/v21.0/${account.id}/ads?` +
-              `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url},preview_shareable_link` +
+              `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,thumbnail_width:480,thumbnail_height:480},preview_shareable_link` +
               `&limit=50&access_token=${encodeURIComponent(metaToken)}`;
 
             let nextAdsUrl: string | null = adsUrl;
