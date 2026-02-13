@@ -2,7 +2,6 @@ import { useState, useMemo } from "react";
 import { Loader2, LineChart, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { startOfWeek, startOfMonth, format } from "date-fns";
 import { TrendChart } from "@/components/TrendChart";
-import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { Button } from "@/components/ui/button";
 import type { DailyTrendPoint } from "@/hooks/useDailyTrends";
 
@@ -75,23 +74,12 @@ function SummaryCard({ label, value, change, invertColor }: { label: string; val
 }
 
 export function TrendsTab({ trendData, isLoading }: TrendsTabProps) {
-  const [dateFrom, setDateFrom] = useState<string | undefined>();
-  const [dateTo, setDateTo] = useState<string | undefined>();
   const [granularity, setGranularity] = useState<Granularity>("daily");
 
-  const filteredData = useMemo(() => {
-    if (!trendData) return undefined;
-    return trendData.filter(d => {
-      if (dateFrom && d.date < dateFrom) return false;
-      if (dateTo && d.date > dateTo) return false;
-      return true;
-    });
-  }, [trendData, dateFrom, dateTo]);
-
   const chartData = useMemo(() => {
-    if (!filteredData) return [];
-    return aggregateBuckets(filteredData, granularity);
-  }, [filteredData, granularity]);
+    if (!trendData) return [];
+    return aggregateBuckets(trendData, granularity);
+  }, [trendData, granularity]);
 
   const summary = useMemo(() => {
     if (chartData.length < 1) return null;
@@ -139,21 +127,18 @@ export function TrendsTab({ trendData, isLoading }: TrendsTabProps) {
   return (
     <>
       <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-3">
-          <DateRangeFilter dateFrom={dateFrom} dateTo={dateTo} onChange={(from, to) => { setDateFrom(from); setDateTo(to); }} />
-          <div className="flex border border-border rounded-md">
-            {(["daily", "weekly", "monthly"] as Granularity[]).map(g => (
-              <Button
-                key={g}
-                variant={granularity === g ? "secondary" : "ghost"}
-                size="sm"
-                className="h-8 text-xs px-3 first:rounded-r-none last:rounded-l-none [&:not(:first-child):not(:last-child)]:rounded-none"
-                onClick={() => setGranularity(g)}
-              >
-                {g.charAt(0).toUpperCase() + g.slice(1)}
-              </Button>
-            ))}
-          </div>
+        <div className="flex border border-border rounded-md">
+          {(["daily", "weekly", "monthly"] as Granularity[]).map(g => (
+            <Button
+              key={g}
+              variant={granularity === g ? "secondary" : "ghost"}
+              size="sm"
+              className="h-8 text-xs px-3 first:rounded-r-none last:rounded-l-none [&:not(:first-child):not(:last-child)]:rounded-none"
+              onClick={() => setGranularity(g)}
+            >
+              {g.charAt(0).toUpperCase() + g.slice(1)}
+            </Button>
+          ))}
         </div>
         <span className="text-xs text-muted-foreground">{chartData.length} {granLabel}</span>
       </div>
