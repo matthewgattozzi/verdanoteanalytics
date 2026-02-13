@@ -14,7 +14,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Source Serif 4", "Lora", "Georgia", "serif"],
+        sans: ["DM Sans", "system-ui", "sans-serif"],
         serif: ["Lora", "Georgia", "serif"],
         mono: ["IBM Plex Mono", "monospace"],
       },
