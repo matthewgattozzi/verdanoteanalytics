@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -204,22 +205,31 @@ const ReportsPage = () => {
           </DialogHeader>
           <p className="text-xs text-muted-foreground">Set automatic report generation per account. Weekly reports run every Monday, monthly on the 1st.</p>
           <div className="space-y-3 max-h-80 overflow-y-auto">
-            {(accounts || []).map((a: any) => (
-              <div key={a.id} className="flex items-center justify-between gap-3 p-2.5 rounded-md border bg-card">
-                <div className="text-xs font-medium truncate flex-1">{a.name}</div>
-                <Select
-                  value={a.report_schedule || "none"}
-                  onValueChange={(val) => updateAccountMut.mutate({ id: a.id, report_schedule: val } as any)}
-                >
-                  <SelectTrigger className="w-28 h-7 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Off</SelectItem>
-                    <SelectItem value="weekly">Weekly</SelectItem>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            ))}
+            {(accounts || []).map((a: any) => {
+              const schedules = (a.report_schedule || "none").split(",").filter((s: string) => s !== "none");
+              const toggleSchedule = (type: string, checked: boolean) => {
+                let next = checked
+                  ? [...schedules, type]
+                  : schedules.filter((s: string) => s !== type);
+                const val = next.length ? next.join(",") : "none";
+                updateAccountMut.mutate({ id: a.id, report_schedule: val } as any);
+              };
+              return (
+                <div key={a.id} className="flex items-center justify-between gap-3 p-2.5 rounded-md border bg-card">
+                  <div className="text-xs font-medium truncate flex-1">{a.name}</div>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <Checkbox checked={schedules.includes("weekly")} onCheckedChange={(checked) => toggleSchedule("weekly", !!checked)} />
+                      <span className="text-xs">Weekly</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <Checkbox checked={schedules.includes("monthly")} onCheckedChange={(checked) => toggleSchedule("monthly", !!checked)} />
+                      <span className="text-xs">Monthly</span>
+                    </label>
+                  </div>
+                </div>
+              );
+            })}
             {!(accounts || []).length && (
               <p className="text-xs text-muted-foreground text-center py-4">No accounts found.</p>
             )}
