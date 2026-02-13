@@ -20,7 +20,7 @@ interface CreativeDetailModalProps {
 
 function MediaPreview({ creative }: { creative: any }) {
   const [showVideo, setShowVideo] = useState(false);
-  const hasVideo = !!creative.video_url;
+  const hasVideo = !!creative.video_url && creative.video_url !== "no-video";
 
   if (hasVideo && showVideo) {
     return (
