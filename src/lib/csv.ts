@@ -55,19 +55,13 @@ export function exportReportCSV(report: any) {
     ["Tags Untagged", String(report.tags_untagged_count || 0)],
   ];
 
-  // Add top/bottom performers
+  // Add top performers
   try {
     const top = JSON.parse(report.top_performers || "[]");
-    const bottom = JSON.parse(report.bottom_performers || "[]");
     if (top.length) {
       rows.push(["", ""], ["Top Performers", ""]);
       rows.push(["Name", "ROAS / CPA / Spend"]);
       top.forEach((p: any) => rows.push([p.ad_name, `${p.roas}x / $${p.cpa} / $${p.spend}`]));
-    }
-    if (bottom.length) {
-      rows.push(["", ""], ["Bottom Performers", ""]);
-      rows.push(["Name", "ROAS / CPA / Spend"]);
-      bottom.forEach((p: any) => rows.push([p.ad_name, `${p.roas}x / $${p.cpa} / $${p.spend}`]));
     }
   } catch {}
 
