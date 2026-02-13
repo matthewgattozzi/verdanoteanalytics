@@ -41,7 +41,7 @@ function parseAdName(adName: string) {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const THUMBNAIL_BUCKET = "ad-thumbnails";
-const VIDEO_BUCKET = "ad-videos";
+const THUMBNAIL_BUCKET = "ad-thumbnails";
 
 async function cacheThumbnail(
   supabase: any,
@@ -78,38 +78,7 @@ async function cacheThumbnail(
   }
 }
 
-async function cacheVideo(
-  supabase: any,
-  accountId: string,
-  adId: string,
-  metaUrl: string
-): Promise<string | null> {
-  try {
-    const resp = await fetch(metaUrl);
-    if (!resp.ok) return null;
-    const blob = await resp.arrayBuffer();
-    // Skip very large files (>200MB) to avoid timeouts
-    if (blob.byteLength > 200 * 1024 * 1024) {
-      console.log(`Video too large for ${adId}: ${(blob.byteLength / 1024 / 1024).toFixed(1)}MB`);
-      return null;
-    }
-    const contentType = resp.headers.get("content-type") || "video/mp4";
-    const ext = contentType.includes("webm") ? "webm" : "mp4";
-    const path = `${accountId}/${adId}.${ext}`;
-
-    const { error } = await supabase.storage
-      .from(VIDEO_BUCKET)
-      .upload(path, new Uint8Array(blob), { contentType, upsert: true });
-    if (error) {
-      console.log(`Video upload error for ${adId}:`, error.message);
-      return null;
-    }
-    return `${SUPABASE_URL}/storage/v1/object/public/${VIDEO_BUCKET}/${path}`;
-  } catch (err) {
-    console.log(`Video cache error for ${adId}:`, err);
-    return null;
-  }
-}
+// Video caching is handled by refresh-thumbnails cron job
 
 // ─── Meta API Helper ─────────────────────────────────────────────────────────
 
@@ -650,40 +619,10 @@ serve(async (req) => {
             }
             console.log(`  Thumbnails: ${thumbCached} cached, ${thumbSkipped} skipped`);
 
-            // Cache videos
-            if (!isTimedOut()) {
-              const { data: creativesWithMetaVideo } = await supabase.from("creatives")
-                .select("ad_id, video_url")
-                .eq("account_id", account.id)
-                .not("video_url", "is", null);
+            // Video caching is handled by the background refresh-thumbnails cron job
+            // to avoid sync timeouts for large accounts
 
-              let vidCached = 0, vidSkipped = 0;
-              const vidToCache = (creativesWithMetaVideo || []).filter((c: any) =>
-                c.video_url && !c.video_url.includes("/storage/v1/object/public/")
-              );
-              console.log(`  ${vidToCache.length} videos need caching`);
-
-              // Videos are larger — process 3 at a time
-              for (let i = 0; i < vidToCache.length && !isTimedOut(); i += 3) {
-                const batch = vidToCache.slice(i, i + 3);
-                const results = await Promise.allSettled(
-                  batch.map(async (c: any) => {
-                    const storageUrl = await cacheVideo(supabase, account.id, c.ad_id, c.video_url);
-                    if (storageUrl) {
-                      await supabase.from("creatives").update({ video_url: storageUrl }).eq("ad_id", c.ad_id);
-                      return true;
-                    }
-                    return false;
-                  })
-                );
-                vidCached += results.filter((r: any) => r.status === "fulfilled" && r.value).length;
-                vidSkipped += results.filter((r: any) => r.status === "rejected" || (r.status === "fulfilled" && !r.value)).length;
-                if (i + 3 < vidToCache.length) await new Promise(r => setTimeout(r, 500));
-              }
-              console.log(`  Videos: ${vidCached} cached, ${vidSkipped} skipped`);
-            }
-
-            console.log(`Phase 3.5 complete`);
+            console.log(`Phase 3.5 complete: ${thumbCached} thumbnails cached`);
           }
 
           // ─── PHASE 4: Daily breakdowns ───────────────────────────────
