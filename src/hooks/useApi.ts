@@ -99,6 +99,15 @@ export function useSync() {
   });
 }
 
+export function useCancelSync() {
+  return useMutationWithToast({
+    mutationFn: () => apiFetch("sync", "cancel", { method: "POST" }),
+    invalidateKeys: [["sync-history"]],
+    successMessage: "Sync cancelled",
+    errorMessage: "Failed to cancel sync",
+  });
+}
+
 export function useSyncHistory(accountId?: string) {
   return useQuery({
     queryKey: ["sync-history", accountId],

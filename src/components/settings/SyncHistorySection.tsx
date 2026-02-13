@@ -9,9 +9,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2, XCircle, AlertTriangle, Clock, RefreshCw, History, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, AlertTriangle, Clock, RefreshCw, History, ChevronLeft, ChevronRight, Ban } from "lucide-react";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useSyncHistory, useAccounts, useSync } from "@/hooks/useApi";
+import { useSyncHistory, useAccounts, useSync, useCancelSync } from "@/hooks/useApi";
 import { toast } from "sonner";
 
 const PAGE_SIZE = 10;
@@ -21,9 +21,10 @@ const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; c
   completed_with_errors: { label: "Partial", icon: AlertTriangle, className: "text-watch" },
   failed: { label: "Failed", icon: XCircle, className: "text-kill" },
   running: { label: "Running", icon: Clock, className: "text-primary" },
+  cancelled: { label: "Cancelled", icon: Ban, className: "text-muted-foreground" },
 };
 
-function SyncProgressBanner({ logs }: { logs: any[] }) {
+function SyncProgressBanner({ logs, onCancel, cancelPending }: { logs: any[]; onCancel: () => void; cancelPending: boolean }) {
   const runningLog = logs?.find((l: any) => l.status === "running");
   const [elapsed, setElapsed] = useState(0);
 
@@ -62,11 +63,17 @@ function SyncProgressBanner({ logs }: { logs: any[] }) {
           <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
           <span className="text-xs font-medium">Sync in progress…</span>
         </div>
-        <div className="flex items-center gap-3 text-[10px] text-muted-foreground font-mono">
-          <span>Elapsed: {elapsedMin}:{String(elapsedRemSec).padStart(2, "0")}</span>
-          {estMin != null && estSec != null && (
-            <span>Est. remaining: ~{estMin}:{String(estSec).padStart(2, "0")}</span>
-          )}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 text-[10px] text-muted-foreground font-mono">
+            <span>Elapsed: {elapsedMin}:{String(elapsedRemSec).padStart(2, "0")}</span>
+            {estMin != null && estSec != null && (
+              <span>Est. remaining: ~{estMin}:{String(estSec).padStart(2, "0")}</span>
+            )}
+          </div>
+          <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:text-destructive" onClick={onCancel} disabled={cancelPending}>
+            {cancelPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Ban className="h-3 w-3 mr-1" />}
+            Cancel
+          </Button>
         </div>
       </div>
       {progress != null && (
@@ -95,6 +102,7 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
   const { data: accounts } = useAccounts();
   const { data: logs, isLoading } = useSyncHistory(accountId);
   const syncMut = useSync();
+  const cancelMut = useCancelSync();
   const prevRunningIdsRef = useRef<Set<number>>(new Set());
 
   // Notify when a running sync completes or fails
@@ -158,7 +166,7 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
 
   return (
     <div className="space-y-4">
-      <SyncProgressBanner logs={logs || []} />
+      <SyncProgressBanner logs={logs || []} onCancel={() => cancelMut.mutate(undefined as any)} cancelPending={cancelMut.isPending} />
 
       <div className="flex items-center justify-between">
         <div>
@@ -176,6 +184,7 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
               <SelectItem value="completed_with_errors">Partial</SelectItem>
               <SelectItem value="failed">Failed</SelectItem>
               <SelectItem value="running">Running</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
           <Button
