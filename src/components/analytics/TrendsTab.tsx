@@ -50,13 +50,10 @@ export function TrendsTab({ trendData, isLoading }: TrendsTabProps) {
       </div>
       <div className="grid grid-cols-2 gap-4">
         <TrendChart data={data.map(d => ({ date: d.date, value: d.spend }))} label="Daily Spend" prefix="$" decimals={0} color="hsl(var(--primary))" />
-        <TrendChart data={data.map(d => ({ date: d.date, value: d.roas }))} label="ROAS" suffix="x" decimals={2} color="hsl(142, 71%, 45%)" />
         <TrendChart data={data.map(d => ({ date: d.date, value: d.cpa }))} label="Cost per Result (CPA)" prefix="$" decimals={2} color="hsl(0, 84%, 60%)" />
-        <TrendChart data={data.map(d => ({ date: d.date, value: d.ctr }))} label="CTR" suffix="%" decimals={2} color="hsl(217, 91%, 60%)" />
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <TrendChart data={data.map(d => ({ date: d.date, value: d.impressions }))} label="Impressions" decimals={0} color="hsl(262, 83%, 58%)" />
-        <TrendChart data={data.map(d => ({ date: d.date, value: d.purchases }))} label="Purchases" decimals={0} color="hsl(142, 71%, 45%)" />
+        <TrendChart data={data.map(d => ({ date: d.date, value: d.cpm }))} label="CPM" prefix="$" decimals={2} color="hsl(262, 83%, 58%)" />
       </div>
     </>
   );
