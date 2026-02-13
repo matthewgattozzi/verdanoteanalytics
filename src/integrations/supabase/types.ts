@@ -266,6 +266,7 @@ export type Database = {
           unique_code: string | null
           updated_at: string
           video_avg_play_time: number | null
+          video_url: string | null
           video_views: number | null
         }
         Insert: {
@@ -311,6 +312,7 @@ export type Database = {
           unique_code?: string | null
           updated_at?: string
           video_avg_play_time?: number | null
+          video_url?: string | null
           video_views?: number | null
         }
         Update: {
@@ -356,6 +358,7 @@ export type Database = {
           unique_code?: string | null
           updated_at?: string
           video_avg_play_time?: number | null
+          video_url?: string | null
           video_views?: number | null
         }
         Relationships: [
