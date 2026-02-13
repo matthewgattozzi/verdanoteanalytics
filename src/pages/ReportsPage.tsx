@@ -34,11 +34,12 @@ import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useReports, useGenerateReport, useDeleteReport, useAccounts, useSendReportToSlack, useReportSchedules, useUpsertReportSchedule } from "@/hooks/useApi";
 import { exportReportCSV } from "@/lib/csv";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAccountContext } from "@/contexts/AccountContext";
 
 const CADENCES = [
   { key: "weekly", label: "Weekly", defaultDays: 7, description: "Runs every Monday" },
@@ -47,6 +48,7 @@ const CADENCES = [
 
 const ReportsPage = () => {
   const { isClient } = useAuth();
+  const { selectedAccountId } = useAccountContext();
   const [showGenerate, setShowGenerate] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
   const [reportName, setReportName] = useState("");
@@ -55,13 +57,19 @@ const ReportsPage = () => {
   const [dateEnd, setDateEnd] = useState<Date>(new Date());
   const navigate = useNavigate();
 
-  const { data: reports, isLoading } = useReports();
+  const { data: rawReports, isLoading } = useReports();
   const { data: accounts } = useAccounts();
   const { data: schedules } = useReportSchedules();
   const generateMut = useGenerateReport();
   const deleteMut = useDeleteReport();
   const slackMut = useSendReportToSlack();
   const upsertScheduleMut = useUpsertReportSchedule();
+
+  const reports = useMemo(() => {
+    if (!rawReports) return [];
+    if (!selectedAccountId || selectedAccountId === "all") return rawReports;
+    return rawReports.filter((r: any) => r.account_id === selectedAccountId);
+  }, [rawReports, selectedAccountId]);
 
   const getSchedule = useCallback((accountId: string, cadence: string) => {
     return schedules?.find((s: any) => s.account_id === accountId && s.cadence === cadence);
