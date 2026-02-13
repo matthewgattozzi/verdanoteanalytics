@@ -117,12 +117,22 @@ function TopPerformers({ creatives, benchmarks, minSpend, onCreativeClick }: Top
   const tops = useMemo(() => {
     const qualified = creatives.filter((c: any) => (Number(c.spend) || 0) >= minSpend);
 
-    const byHook = [...qualified]
+    const isImageAd = (c: any) => {
+      const adType = (c.ad_type || "").toLowerCase();
+      const adName = (c.ad_name || "").toLowerCase();
+      return adType === "image" || adType === "carousel" || adType === "static" ||
+        adName.includes("static") ||
+        (adType !== "video" && (Number(c.thumb_stop_rate) || 0) === 0 && (Number(c.hold_rate) || 0) === 0);
+    };
+
+    const videoOnly = qualified.filter((c) => !isImageAd(c));
+
+    const byHook = [...videoOnly]
       .filter((c) => (Number(c.thumb_stop_rate) || 0) > 0)
       .sort((a, b) => (Number(b.thumb_stop_rate) || 0) - (Number(a.thumb_stop_rate) || 0))
       .slice(0, 5);
 
-    const byHold = [...qualified]
+    const byHold = [...videoOnly]
       .filter((c) => (Number(c.hold_rate) || 0) > 0)
       .sort((a, b) => (Number(b.hold_rate) || 0) - (Number(a.hold_rate) || 0))
       .slice(0, 5);
