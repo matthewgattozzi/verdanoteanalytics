@@ -1,11 +1,12 @@
 import { useIsSyncing } from "@/hooks/useIsSyncing";
-import { useSyncHistory } from "@/hooks/useApi";
+import { useSyncHistory, useAccounts } from "@/hooks/useApi";
 import { Loader2, Clock } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 
 export function SyncStatusBanner() {
   const isSyncing = useIsSyncing();
   const { data: logs } = useSyncHistory();
+  const { data: accounts } = useAccounts();
   const [elapsed, setElapsed] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
 
@@ -30,6 +31,7 @@ export function SyncStatusBanner() {
   const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
 
   const accountId = runningLog?.account_id || "";
+  const accountName = (accounts || []).find((a: any) => a.id === accountId)?.name || accountId;
   const fetched = runningLog?.creatives_fetched ?? 0;
   const upserted = runningLog?.creatives_upserted ?? 0;
 
@@ -38,7 +40,7 @@ export function SyncStatusBanner() {
       <Loader2 className="h-4 w-4 animate-spin text-primary flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground">
-          Sync in progress…
+          Syncing {accountName}…
         </p>
         <p className="text-xs text-muted-foreground">
           {fetched > 0 && <span>{fetched} fetched · {upserted} upserted · </span>}
