@@ -37,6 +37,46 @@ function parseAdName(adName: string) {
   return { unique_code, parsed: false, ad_type: null, person: null, style: null, product: null, hook: null, theme: null };
 }
 
+// ─── Thumbnail Caching Helper ────────────────────────────────────────────────
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const THUMBNAIL_BUCKET = "ad-thumbnails";
+
+async function cacheThumbnail(
+  supabase: any,
+  accountId: string,
+  adId: string,
+  metaUrl: string
+): Promise<string | null> {
+  try {
+    // Download from Meta CDN
+    const resp = await fetch(metaUrl);
+    if (!resp.ok) return null;
+    const blob = await resp.arrayBuffer();
+    const contentType = resp.headers.get("content-type") || "image/jpeg";
+    const ext = contentType.includes("png") ? "png" : "jpg";
+    const path = `${accountId}/${adId}.${ext}`;
+
+    // Upload to storage (upsert)
+    const { error } = await supabase.storage
+      .from(THUMBNAIL_BUCKET)
+      .upload(path, new Uint8Array(blob), {
+        contentType,
+        upsert: true,
+      });
+    if (error) {
+      console.log(`Thumbnail upload error for ${adId}:`, error.message);
+      return null;
+    }
+
+    // Return public URL
+    return `${SUPABASE_URL}/storage/v1/object/public/${THUMBNAIL_BUCKET}/${path}`;
+  } catch (err) {
+    console.log(`Thumbnail cache error for ${adId}:`, err);
+    return null;
+  }
+}
+
 // ─── Meta API Helper ─────────────────────────────────────────────────────────
 
 const MAX_RATE_LIMIT_RETRIES = 3;
@@ -541,6 +581,43 @@ serve(async (req) => {
           }
 
           await saveProgress("running");
+
+          // ─── PHASE 3.5: Cache thumbnails to storage ──────────────────
+          if (!isTimedOut()) {
+            console.log("Phase 3.5: Caching thumbnails to storage...");
+            const { data: creativesWithMetaThumb } = await supabase.from("creatives")
+              .select("ad_id, thumbnail_url")
+              .eq("account_id", account.id)
+              .not("thumbnail_url", "is", null);
+
+            let cached = 0, skipped = 0;
+            const toCache = (creativesWithMetaThumb || []).filter((c: any) =>
+              c.thumbnail_url && !c.thumbnail_url.includes("/storage/v1/object/public/")
+            );
+
+            console.log(`  ${toCache.length} thumbnails need caching`);
+
+            // Process in batches of 10 to avoid overwhelming
+            for (let i = 0; i < toCache.length && !isTimedOut(); i += 10) {
+              const batch = toCache.slice(i, i + 10);
+              const results = await Promise.allSettled(
+                batch.map(async (c: any) => {
+                  const storageUrl = await cacheThumbnail(supabase, account.id, c.ad_id, c.thumbnail_url);
+                  if (storageUrl) {
+                    await supabase.from("creatives").update({ thumbnail_url: storageUrl }).eq("ad_id", c.ad_id);
+                    return true;
+                  }
+                  return false;
+                })
+              );
+              cached += results.filter((r: any) => r.status === "fulfilled" && r.value).length;
+              skipped += results.filter((r: any) => r.status === "rejected" || (r.status === "fulfilled" && !r.value)).length;
+              
+              // Brief pause between batches
+              if (i + 10 < toCache.length) await new Promise(r => setTimeout(r, 200));
+            }
+            console.log(`Phase 3.5 complete: ${cached} cached, ${skipped} skipped`);
+          }
 
           // ─── PHASE 4: Daily breakdowns ───────────────────────────────
           const dailyRows: any[] = [];
