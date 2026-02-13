@@ -36,6 +36,7 @@ const DIAGNOSTIC_FILTERS: { value: DiagnosticType | "all"; label: string }[] = [
   { value: "weak_hook_body", label: "Weak Hook + Body" },
   { value: "landing_page_issue", label: "Landing Page Issue?" },
   { value: "all_weak", label: "Full Rebuild" },
+  { value: "weak_cta_image", label: "Weak CTR (Image)" },
 ];
 
 const STATUS_FILTERS = [
@@ -138,20 +139,30 @@ function IterationCard({ item }: { item: DiagnosedCreative }) {
       </div>
 
       {/* Metrics row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-        {([
-          { label: "Hook Rate", value: item.hookRate, level: item.hookLevel },
-          { label: "Hold Rate", value: item.holdRate, level: item.holdLevel },
-          { label: "CTR", value: item.ctr, level: item.ctrLevel },
-        ] as const).map((m) => (
-          <div key={m.label} className="bg-muted/40 rounded-md px-3 py-2 flex items-center gap-2">
-            <MetricDot level={m.level} />
+      <div className={`grid grid-cols-1 ${item.isImage ? "sm:grid-cols-1 max-w-[200px]" : "sm:grid-cols-3"} gap-2`}>
+        {item.isImage ? (
+          <div className="bg-muted/40 rounded-md px-3 py-2 flex items-center gap-2">
+            <MetricDot level={item.ctrLevel} />
             <div>
-              <p className="metric-label">{m.label}</p>
-              <p className="text-sm font-mono font-medium">{m.value.toFixed(2)}%</p>
+              <p className="metric-label">CTR</p>
+              <p className="text-sm font-mono font-medium">{item.ctr.toFixed(2)}%</p>
             </div>
           </div>
-        ))}
+        ) : (
+          ([
+            { label: "Hook Rate", value: item.hookRate, level: item.hookLevel },
+            { label: "Hold Rate", value: item.holdRate, level: item.holdLevel },
+            { label: "CTR", value: item.ctr, level: item.ctrLevel },
+          ] as const).map((m) => (
+            <div key={m.label} className="bg-muted/40 rounded-md px-3 py-2 flex items-center gap-2">
+              <MetricDot level={m.level} />
+              <div>
+                <p className="metric-label">{m.label}</p>
+                <p className="text-sm font-mono font-medium">{m.value.toFixed(2)}%</p>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Context row */}

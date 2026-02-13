@@ -12,7 +12,8 @@ export type DiagnosticType =
   | "weak_hook_body"
   | "landing_page_issue"
   | "all_weak"
-  | "scaling_candidate";
+  | "scaling_candidate"
+  | "weak_cta_image";
 
 export interface Benchmarks {
   hookRate: { median: number; p25: number; p75: number };
@@ -25,6 +26,8 @@ export interface DiagnosedCreative {
   ad_name: string;
   thumbnail_url: string | null;
   ad_status: string | null;
+  ad_type: string | null;
+  isImage: boolean;
   spend: number;
   roas: number;
   cpa: number;
@@ -114,6 +117,8 @@ const RECOMMENDATIONS: Record<DiagnosticType, string> = {
   all_weak:
     "This creative needs a complete rebuild — start with a new concept rather than iterating.",
   scaling_candidate: "No iteration needed — this is a scaling candidate.",
+  weak_cta_image:
+    "This image ad has a weak CTR. Test different headlines, copy, or visual hierarchy to drive more clicks.",
 };
 
 export function diagnoseCreatives(
@@ -128,42 +133,58 @@ export function diagnoseCreatives(
   const results: DiagnosedCreative[] = [];
 
   for (const c of qualified) {
+    const adType = (c.ad_type || "").toLowerCase();
+    const isImage = adType === "image" || adType === "carousel" || adType === "static";
+
     const hookRate = Number(c.thumb_stop_rate) || 0;
     const holdRate = Number(c.hold_rate) || 0;
     const ctr = Number(c.ctr) || 0;
     const spend = Number(c.spend) || 0;
 
-    const hookLevel = levelFor(hookRate, benchmarks.hookRate.p25, benchmarks.hookRate.p75);
-    const holdLevel = levelFor(holdRate, benchmarks.holdRate.p25, benchmarks.holdRate.p75);
+    // For image ads, hook/hold are not applicable — treat as "average" (neutral)
+    const hookLevel = isImage ? "average" as MetricLevel : levelFor(hookRate, benchmarks.hookRate.p25, benchmarks.hookRate.p75);
+    const holdLevel = isImage ? "average" as MetricLevel : levelFor(holdRate, benchmarks.holdRate.p25, benchmarks.holdRate.p75);
     const ctrLevel = levelFor(ctr, benchmarks.ctr.p25, benchmarks.ctr.p75);
 
     // Diagnostic logic
     let diagnostic: DiagnosticType;
 
-    const hookWeak = hookLevel === "weak";
-    const holdWeak = holdLevel === "weak";
-    const ctrWeak = ctrLevel === "weak";
-    const hookStrong = hookLevel === "strong";
-    const holdStrong = holdLevel === "strong";
-    const ctrStrong = ctrLevel === "strong";
-
-    if (hookStrong && holdStrong && ctrStrong) {
-      diagnostic = "scaling_candidate";
-    } else if (hookWeak && holdWeak && ctrWeak) {
-      diagnostic = "all_weak";
-    } else if (hookWeak && holdWeak) {
-      diagnostic = "weak_hook_body";
-    } else if (hookStrong && holdStrong && ctrWeak) {
-      diagnostic = "landing_page_issue";
-    } else if (hookWeak && !holdWeak) {
-      diagnostic = "weak_hook";
-    } else if (!hookWeak && holdWeak) {
-      diagnostic = "weak_body";
-    } else if (!hookWeak && !holdWeak && ctrWeak) {
-      diagnostic = "weak_cta";
+    if (isImage) {
+      // Image ads: only CTR matters
+      if (ctrLevel === "strong") {
+        diagnostic = "scaling_candidate";
+      } else if (ctrLevel === "weak") {
+        diagnostic = "weak_cta_image";
+      } else {
+        // Average CTR — no action needed
+        continue;
+      }
     } else {
-      // Average across the board or mixed — skip
-      continue;
+      // Video ads: full 3-zone diagnosis
+      const hookWeak = hookLevel === "weak";
+      const holdWeak = holdLevel === "weak";
+      const ctrWeak = ctrLevel === "weak";
+      const hookStrong = hookLevel === "strong";
+      const holdStrong = holdLevel === "strong";
+      const ctrStrong = ctrLevel === "strong";
+
+      if (hookStrong && holdStrong && ctrStrong) {
+        diagnostic = "scaling_candidate";
+      } else if (hookWeak && holdWeak && ctrWeak) {
+        diagnostic = "all_weak";
+      } else if (hookWeak && holdWeak) {
+        diagnostic = "weak_hook_body";
+      } else if (hookStrong && holdStrong && ctrWeak) {
+        diagnostic = "landing_page_issue";
+      } else if (hookWeak && !holdWeak) {
+        diagnostic = "weak_hook";
+      } else if (!hookWeak && holdWeak) {
+        diagnostic = "weak_body";
+      } else if (!hookWeak && !holdWeak && ctrWeak) {
+        diagnostic = "weak_cta";
+      } else {
+        continue;
+      }
     }
 
     // Skip scaling candidates from iteration list
@@ -179,18 +200,20 @@ export function diagnoseCreatives(
 
     // Performance gap: worst metric gap as a percentage
     const gaps: number[] = [];
-    if (hookWeak && benchmarks.hookRate.median > 0)
-      gaps.push((benchmarks.hookRate.median - hookRate) / benchmarks.hookRate.median);
-    if (holdWeak && benchmarks.holdRate.median > 0)
-      gaps.push((benchmarks.holdRate.median - holdRate) / benchmarks.holdRate.median);
-    if (ctrWeak && benchmarks.ctr.median > 0)
+    if (!isImage) {
+      if (hookLevel === "weak" && benchmarks.hookRate.median > 0)
+        gaps.push((benchmarks.hookRate.median - hookRate) / benchmarks.hookRate.median);
+      if (holdLevel === "weak" && benchmarks.holdRate.median > 0)
+        gaps.push((benchmarks.holdRate.median - holdRate) / benchmarks.holdRate.median);
+    }
+    if (ctrLevel === "weak" && benchmarks.ctr.median > 0)
       gaps.push((benchmarks.ctr.median - ctr) / benchmarks.ctr.median);
 
     const performanceGap = gaps.length > 0 ? Math.max(...gaps) : 0;
     const priorityScore = dailySpend * performanceGap;
 
     let priorityLabel: "High" | "Medium" | "Low";
-    if (diagnostic === "weak_hook" || diagnostic === "landing_page_issue") {
+    if (diagnostic === "weak_hook" || diagnostic === "landing_page_issue" || diagnostic === "weak_cta_image") {
       priorityLabel = "High";
     } else if (diagnostic === "weak_body" || diagnostic === "weak_cta") {
       priorityLabel = "Medium";
@@ -203,6 +226,8 @@ export function diagnoseCreatives(
       ad_name: c.ad_name,
       thumbnail_url: c.thumbnail_url,
       ad_status: c.ad_status,
+      ad_type: c.ad_type || null,
+      isImage,
       spend,
       roas: Number(c.roas) || 0,
       cpa: Number(c.cpa) || 0,
@@ -234,4 +259,5 @@ export const DIAGNOSTIC_META: Record<
   landing_page_issue: { label: "Landing Page Issue?", color: "bg-[hsl(265_50%_60%)] text-white" },
   all_weak: { label: "Full Rebuild", color: "bg-destructive text-destructive-foreground" },
   scaling_candidate: { label: "Scaling Candidate", color: "bg-success text-success-foreground" },
+  weak_cta_image: { label: "Weak CTR (Image)", color: "bg-info text-info-foreground" },
 };
