@@ -1,18 +1,11 @@
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader } from "@/components/PageHeader";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
-} from "@/components/ui/dialog";
-import { Loader2 } from "lucide-react";
 import { AccountOverviewSection } from "@/components/settings/AccountOverviewSection";
 import { AIContextSection } from "@/components/settings/AIContextSection";
 import { SyncSettingsSection } from "@/components/settings/SyncSettingsSection";
 import { SyncHistorySection } from "@/components/settings/SyncHistorySection";
+import { RenameAccountModal } from "@/components/settings/RenameAccountModal";
+import { CsvUploadModal } from "@/components/settings/CsvUploadModal";
 import { useSettingsPageState } from "@/hooks/useSettingsPageState";
 
 const SettingsPage = () => {
@@ -97,81 +90,23 @@ const SettingsPage = () => {
         <SyncHistorySection accountId={s.account.id} />
       </div>
 
-      {/* Rename Account Modal */}
-      <Dialog open={!!s.renamingAccount} onOpenChange={() => s.setRenamingAccount(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Rename Account</DialogTitle>
-            <DialogDescription>Enter a new display name for this account.</DialogDescription>
-          </DialogHeader>
-          <Input
-            value={s.renamingAccount?.name || ""}
-            onChange={(e) => s.setRenamingAccount(prev => prev ? { ...prev, name: e.target.value } : null)}
-            placeholder="Account name" className="bg-background"
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => s.setRenamingAccount(null)}>Cancel</Button>
-            <Button
-              onClick={() => {
-                if (s.renamingAccount && s.renamingAccount.name.trim()) {
-                  s.renameAccount.mutate({ id: s.renamingAccount.id, name: s.renamingAccount.name.trim() });
-                  s.setRenamingAccount(null);
-                }
-              }}
-              disabled={!s.renamingAccount?.name.trim() || s.renameAccount.isPending}
-            >
-              {s.renameAccount.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-              Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RenameAccountModal
+        account={s.renamingAccount}
+        onClose={() => s.setRenamingAccount(null)}
+        onRename={(params) => s.renameAccount.mutate(params)}
+        onChange={s.setRenamingAccount}
+        isPending={s.renameAccount.isPending}
+      />
 
-      {/* CSV Upload Modal */}
-      <Dialog open={!!s.showCsvModal} onOpenChange={() => { s.setShowCsvModal(null); s.setCsvPreview([]); s.setCsvMappings([]); }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Upload Name Mappings</DialogTitle>
-            <DialogDescription>Upload a CSV with columns: UniqueCode, Type, Person, Style, Product, Hook, Theme</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <input ref={s.fileInputRef} type="file" accept=".csv" onChange={s.handleCsvUpload}
-              className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border file:border-border file:text-sm file:font-medium file:bg-secondary file:text-secondary-foreground hover:file:bg-accent cursor-pointer" />
-            {s.csvPreview.length > 0 && (
-              <>
-                <p className="text-xs text-muted-foreground">Preview (first 5 rows of {s.csvMappings.length}):</p>
-                <div className="overflow-x-auto border border-border rounded-md">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        {["UniqueCode", "Type", "Person", "Style", "Product", "Hook", "Theme"].map(h => (
-                          <TableHead key={h} className="text-xs">{h}</TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {s.csvPreview.map((row, i) => (
-                        <TableRow key={i}>
-                          {["UniqueCode", "Type", "Person", "Style", "Product", "Hook", "Theme"].map(h => (
-                            <TableCell key={h} className={`text-xs ${h === "UniqueCode" ? "font-mono" : ""}`}>{row[h]}</TableCell>
-                          ))}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { s.setShowCsvModal(null); s.setCsvPreview([]); s.setCsvMappings([]); }}>Cancel</Button>
-            <Button onClick={s.handleConfirmCsvUpload} disabled={s.csvMappings.length === 0 || s.uploadMappings.isPending}>
-              {s.uploadMappings.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-              Upload {s.csvMappings.length} Mappings
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CsvUploadModal
+        open={!!s.showCsvModal}
+        onClose={() => { s.setShowCsvModal(null); s.setCsvPreview([]); s.setCsvMappings([]); }}
+        csvPreview={s.csvPreview}
+        csvMappings={s.csvMappings}
+        onFileChange={s.handleCsvUpload}
+        onConfirm={s.handleConfirmCsvUpload}
+        isPending={s.uploadMappings.isPending}
+      />
     </AppLayout>
   );
 };
