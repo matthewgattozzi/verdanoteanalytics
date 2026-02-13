@@ -34,9 +34,9 @@ import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useReports, useGenerateReport, useDeleteReport, useAccounts, useSendReportToSlack, useReportSchedules, useUpsertReportSchedule } from "@/hooks/useApi";
-import { ReportDetailModal } from "@/components/ReportDetailModal";
 import { exportReportCSV } from "@/lib/csv";
 
 const CADENCES = [
@@ -49,9 +49,9 @@ const ReportsPage = () => {
   const [showSchedule, setShowSchedule] = useState(false);
   const [reportName, setReportName] = useState("");
   const [accountId, setAccountId] = useState("");
-  const [selectedReport, setSelectedReport] = useState<any>(null);
   const [dateStart, setDateStart] = useState<Date>(subDays(new Date(), 7));
   const [dateEnd, setDateEnd] = useState<Date>(new Date());
+  const navigate = useNavigate();
 
   const { data: reports, isLoading } = useReports();
   const { data: accounts } = useAccounts();
@@ -92,19 +92,6 @@ const ReportsPage = () => {
     });
   };
 
-  // Find previous report for comparison
-  const previousReport = useMemo(() => {
-    if (!selectedReport || !reports || reports.length < 2) return undefined;
-    const sorted = [...reports].sort((a: any, b: any) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
-    const currentIdx = sorted.findIndex((r: any) => r.id === selectedReport.id);
-    if (currentIdx < 0 || currentIdx >= sorted.length - 1) return undefined;
-    for (let i = currentIdx + 1; i < sorted.length; i++) {
-      if (sorted[i].account_id === selectedReport.account_id) return sorted[i];
-    }
-    return undefined;
-  }, [selectedReport, reports]);
 
   const handleGenerate = () => {
     generateMut.mutate(
@@ -171,7 +158,7 @@ const ReportsPage = () => {
             </TableHeader>
             <TableBody>
               {reports.map((r: any) => (
-                <TableRow key={r.id} className="cursor-pointer hover:bg-accent/50" onClick={() => setSelectedReport(r)}>
+                <TableRow key={r.id} className="cursor-pointer hover:bg-accent/50" onClick={() => navigate(`/reports/${r.id}`)}>
                   <TableCell>
                     <div className="text-xs font-medium">{r.report_name}</div>
                     <div className="text-[10px] text-muted-foreground">{r.date_range_days ? `${r.date_range_days} days` : "—"}</div>
@@ -190,7 +177,7 @@ const ReportsPage = () => {
                       <Button variant="ghost" size="sm" className="h-7 px-2" onClick={(e) => { e.stopPropagation(); exportReportCSV(r); }}>
                         <Download className="h-3 w-3" />
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-7 px-2" onClick={(e) => { e.stopPropagation(); setSelectedReport(r); }}>
+                      <Button variant="ghost" size="sm" className="h-7 px-2" onClick={(e) => { e.stopPropagation(); navigate(`/reports/${r.id}`); }}>
                         <Eye className="h-3 w-3" />
                       </Button>
                       <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive" onClick={(e) => { e.stopPropagation(); deleteMut.mutate(r.id); }} disabled={deleteMut.isPending}>
@@ -265,12 +252,6 @@ const ReportsPage = () => {
         </DialogContent>
       </Dialog>
 
-      <ReportDetailModal
-        report={selectedReport}
-        previousReport={previousReport}
-        open={!!selectedReport}
-        onClose={() => setSelectedReport(null)}
-      />
 
       {/* Schedule Dialog */}
       <Dialog open={showSchedule} onOpenChange={setShowSchedule}>
