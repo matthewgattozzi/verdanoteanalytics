@@ -94,7 +94,8 @@ export function useSync() {
     mutationFn: (params: { account_id?: string; sync_type?: string }) =>
       apiFetch("sync", "", { method: "POST", body: JSON.stringify(params) }),
     invalidateKeys: [["accounts"], ["creatives"], ["all-creatives"], ["daily-trends"], ["sync-history"]],
-    successMessage: "Sync completed",
+    successMessage: "Sync started",
+    successDescription: "Running in the background — progress will update automatically.",
     errorMessage: "Sync failed",
   });
 }
