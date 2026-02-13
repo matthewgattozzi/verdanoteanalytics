@@ -21,6 +21,7 @@ import { useIsSyncing } from "@/hooks/useIsSyncing";
 import { exportCreativesCSV } from "@/lib/csv";
 import { useCreativesPageState } from "@/hooks/useCreativesPageState";
 import { useAuth } from "@/contexts/AuthContext";
+import { SyncStatusBanner } from "@/components/SyncStatusBanner";
 
 const CreativesPage = () => {
   const { isClient } = useAuth();
@@ -83,6 +84,7 @@ const CreativesPage = () => {
   return (
     <AppLayout>
       {!isClient && <OnboardingBanner />}
+      <SyncStatusBanner />
       <PageHeader
         title="Creatives"
         description="View and manage your ad creatives with performance data and tags."
