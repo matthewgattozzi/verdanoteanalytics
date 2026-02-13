@@ -19,8 +19,10 @@ import { useCreatives, CREATIVES_PAGE_SIZE, useCreativeFilters } from "@/hooks/u
 import { useSync } from "@/hooks/useApi";
 import { exportCreativesCSV } from "@/lib/csv";
 import { useCreativesPageState } from "@/hooks/useCreativesPageState";
+import { useAuth } from "@/contexts/AuthContext";
 
 const CreativesPage = () => {
+  const { isClient } = useAuth();
   const state = useCreativesPageState();
   const {
     viewMode, setViewMode, visibleCols, toggleCol, columnOrder, handleReorder,
@@ -78,7 +80,7 @@ const CreativesPage = () => {
 
   return (
     <AppLayout>
-      <OnboardingBanner />
+      {!isClient && <OnboardingBanner />}
       <PageHeader
         title="Creatives"
         description="View and manage your ad creatives with performance data and tags."
@@ -89,21 +91,25 @@ const CreativesPage = () => {
               <Button variant={viewMode === "table" ? "secondary" : "ghost"} size="sm" className="rounded-l-none px-2.5" onClick={() => setViewMode("table")}><List className="h-3.5 w-3.5" /></Button>
             </div>
             <ColumnPicker columns={TABLE_COLUMNS} visibleColumns={visibleCols} onToggle={toggleCol} columnOrder={columnOrder} onReorder={handleReorder} />
-            <Button size="sm" onClick={() => syncMut.mutate({ account_id: "all" })} disabled={syncMut.isPending}>
-              {syncMut.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}Sync
-            </Button>
+            {!isClient && (
+              <Button size="sm" onClick={() => syncMut.mutate({ account_id: "all" })} disabled={syncMut.isPending}>
+                {syncMut.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}Sync
+              </Button>
+            )}
             {creatives.length > 0 && (
               <Button size="sm" variant="outline" onClick={() => exportCreativesCSV(creatives)}><Download className="h-3.5 w-3.5 mr-1.5" />Export</Button>
             )}
-            <SaveViewButton getConfig={() => ({
-              page: "/",
-              ...(selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {}),
-              ...(groupBy !== "__none__" ? { group_by: groupBy } : {}),
-              ...(search ? { search } : {}),
-              ...(dateFrom ? { date_from: dateFrom } : {}),
-              ...(dateTo ? { date_to: dateTo } : {}),
-              ...(Object.keys(filters).length > 0 ? { filters } : {}),
-            })} />
+            {!isClient && (
+              <SaveViewButton getConfig={() => ({
+                page: "/",
+                ...(selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {}),
+                ...(groupBy !== "__none__" ? { group_by: groupBy } : {}),
+                ...(search ? { search } : {}),
+                ...(dateFrom ? { date_from: dateFrom } : {}),
+                ...(dateTo ? { date_to: dateTo } : {}),
+                ...(Object.keys(filters).length > 0 ? { filters } : {}),
+              })} />
+            )}
           </div>
         }
       />

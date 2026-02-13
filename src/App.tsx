@@ -22,7 +22,7 @@ import { Loader2 } from "lucide-react";
 const queryClient = new QueryClient();
 
 function ProtectedRoutes() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isClient } = useAuth();
 
   if (isLoading) {
     return (
@@ -41,10 +41,11 @@ function ProtectedRoutes() {
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/reports/:id" element={<ReportDetailPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
+        {!isClient && <Route path="/settings" element={<SettingsPage />} />}
         <Route path="/user-settings" element={<UserSettingsPage />} />
         
         <Route path="/saved-views" element={<SavedViewsPage />} />
+        <Route path="/settings" element={<Navigate to="/" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AccountProvider>

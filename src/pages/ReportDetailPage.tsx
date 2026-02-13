@@ -9,6 +9,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { CreativeDetailModal } from "@/components/CreativeDetailModal";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 function DeltaBadge({ current, previous, prefix = "", suffix = "", inverse = false }: {
   current: number | null;
@@ -33,6 +34,7 @@ function DeltaBadge({ current, previous, prefix = "", suffix = "", inverse = fal
 const ReportDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isClient } = useAuth();
   const { data: reports, isLoading } = useReports();
   const slackMut = useSendReportToSlack();
   const [selectedCreative, setSelectedCreative] = useState<any>(null);
@@ -124,14 +126,16 @@ const ReportDetailPage = () => {
               )}
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0 pt-6">
-            <Button size="sm" variant="outline" onClick={() => slackMut.mutate(report.id)} disabled={slackMut.isPending}>
-              <Send className="h-3.5 w-3.5 mr-1.5" />Slack
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => exportReportCSV(report)}>
-              <Download className="h-3.5 w-3.5 mr-1.5" />Export CSV
-            </Button>
-          </div>
+          {!isClient && (
+            <div className="flex items-center gap-2 shrink-0 pt-6">
+              <Button size="sm" variant="outline" onClick={() => slackMut.mutate(report.id)} disabled={slackMut.isPending}>
+                <Send className="h-3.5 w-3.5 mr-1.5" />Slack
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => exportReportCSV(report)}>
+                <Download className="h-3.5 w-3.5 mr-1.5" />Export CSV
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Comparison notice */}
