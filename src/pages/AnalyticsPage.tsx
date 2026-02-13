@@ -30,7 +30,6 @@ const AnalyticsPage = () => {
   const accountFilter = selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {};
   const dateFilters = {
     ...accountFilter,
-    delivery: "had_delivery",
     ...(dateFrom ? { date_from: dateFrom } : {}),
     ...(dateTo ? { date_to: dateTo } : {}),
   };

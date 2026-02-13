@@ -48,7 +48,6 @@ const CreativesPage = () => {
     setColumnOrder(newOrder);
     localStorage.setItem("creatives_column_order", JSON.stringify(newOrder));
   }, []);
-  const [delivery, setDelivery] = useState(() => searchParams.get("delivery") || "had_delivery");
   const [filters, setFilters] = useState<Record<string, string>>(() => {
     const raw = searchParams.get("filters");
     if (raw) { try { return JSON.parse(raw); } catch { /* fall through */ } }
@@ -74,16 +73,16 @@ const CreativesPage = () => {
   useEffect(() => {
     const params = new URLSearchParams();
     if (search) params.set("q", search);
-    if (delivery) params.set("delivery", delivery);
+    
     if (dateFrom) params.set("from", dateFrom);
     if (dateTo) params.set("to", dateTo);
     if (groupBy !== "__none__") params.set("group", groupBy);
     if (Object.keys(filters).length > 0) params.set("filters", JSON.stringify(filters));
     setSearchParams(params, { replace: true });
-  }, [search, delivery, dateFrom, dateTo, groupBy, filters, setSearchParams]);
+  }, [search, dateFrom, dateTo, groupBy, filters, setSearchParams]);
 
   const accountFilter = selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {};
-  const allFilters = { ...accountFilter, ...filters, delivery, ...(dateFrom ? { date_from: dateFrom } : {}), ...(dateTo ? { date_to: dateTo } : {}), ...(search ? { search } : {}) };
+  const allFilters = { ...accountFilter, ...filters, ...(dateFrom ? { date_from: dateFrom } : {}), ...(dateTo ? { date_to: dateTo } : {}), ...(search ? { search } : {}) };
   const { data: creativesResult, isLoading } = useCreatives(allFilters, page);
   const creatives = creativesResult?.data || [];
   const totalCreatives = creativesResult?.total || 0;
@@ -166,7 +165,7 @@ const CreativesPage = () => {
               ...(selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {}),
               ...(groupBy !== "__none__" ? { group_by: groupBy } : {}),
               ...(search ? { search } : {}),
-              ...(delivery ? { delivery } : {}),
+              
               ...(dateFrom ? { date_from: dateFrom } : {}),
               ...(dateTo ? { date_to: dateTo } : {}),
               ...(Object.keys(filters).length > 0 ? { filters } : {}),
@@ -193,7 +192,6 @@ const CreativesPage = () => {
       </div>
 
       <CreativesFilters
-        delivery={delivery} setDelivery={setDelivery}
         dateFrom={dateFrom} dateTo={dateTo} onDateChange={(from, to) => { setDateFrom(from); setDateTo(to); }}
         filters={filters} updateFilter={updateFilter} filterOptions={filterOptions}
         groupBy={groupBy} setGroupBy={setGroupBy} viewMode={viewMode}
