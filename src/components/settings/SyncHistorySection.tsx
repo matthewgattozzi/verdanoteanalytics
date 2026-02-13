@@ -96,6 +96,20 @@ function SyncProgressBanner({ logs, onCancel, cancelPending }: { logs: any[]; on
   );
 }
 
+function RunningDuration({ startedAt }: { startedAt: string }) {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const start = new Date(startedAt).getTime();
+    const tick = () => setElapsed(Math.floor((Date.now() - start) / 1000));
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [startedAt]);
+  const mins = Math.floor(elapsed / 60);
+  const secs = elapsed % 60;
+  return <span>{mins}:{String(secs).padStart(2, "0")}</span>;
+}
+
 export function SyncHistorySection({ accountId }: { accountId?: string }) {
   const [selectedLog, setSelectedLog] = useState<any>(null);
   const [page, setPage] = useState(0);
@@ -246,7 +260,11 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
                     </TableCell>
                     <TableCell className="text-xs text-right font-mono">{log.creatives_fetched ?? "—"}</TableCell>
                     <TableCell className="text-xs text-right font-mono">{log.creatives_upserted ?? "—"}</TableCell>
-                    <TableCell className="text-xs text-right font-mono">{fmtDuration(log.duration_ms)}</TableCell>
+                    <TableCell className="text-xs text-right font-mono">
+                      {log.status === "running"
+                        ? <span className="text-primary"><RunningDuration startedAt={log.started_at} /></span>
+                        : fmtDuration(log.duration_ms)}
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{new Date(log.started_at).toLocaleString()}</TableCell>
                   </TableRow>
                 );
