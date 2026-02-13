@@ -23,7 +23,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Sidebar — always visible on md+, slide-in on mobile */}
       <div
         className={`
-          fixed inset-y-0 left-0 z-50 transition-transform duration-200 md:relative md:translate-x-0
+          fixed inset-y-0 left-0 z-50 transition-transform duration-200 md:translate-x-0
           ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
         `}
       >
@@ -31,7 +31,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       </div>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto min-w-0">
+      <main className="flex-1 overflow-auto min-w-0 md:ml-56">
         {/* Mobile header with hamburger */}
         <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 border-b border-border/60 bg-background md:hidden">
           <Button
