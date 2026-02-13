@@ -1,11 +1,9 @@
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader } from "@/components/PageHeader";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Save, User, Lock, Shield } from "lucide-react";
+import { Loader2, User, Shield } from "lucide-react";
+import { ProfileInfoSection } from "@/components/user-settings/ProfileInfoSection";
+import { ChangePasswordSection } from "@/components/user-settings/ChangePasswordSection";
 import { RenameAccountModal } from "@/components/settings/RenameAccountModal";
 import { MetaConnectionSection } from "@/components/user-settings/MetaConnectionSection";
 import { AdAccountsSection } from "@/components/user-settings/AdAccountsSection";
@@ -47,51 +45,22 @@ const UserSettingsPage = () => {
 
           {/* Profile Tab */}
           <TabsContent value="profile" className="space-y-8">
-            <section className="glass-panel p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <h2 className="text-base font-semibold">Profile Information</h2>
-                </div>
-                <Badge variant="outline" className="text-xs capitalize">{s.role}</Badge>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-sm">Email</Label>
-                  <Input value={s.email} disabled className="bg-muted/50" />
-                  <p className="text-[11px] text-muted-foreground">Email cannot be changed.</p>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm">Display Name</Label>
-                  <Input value={s.displayName} onChange={(e) => s.setDisplayName(e.target.value)} placeholder="Your name" className="bg-background" />
-                </div>
-              </div>
-              <Button size="sm" onClick={s.handleSaveProfile} disabled={s.savingProfile}>
-                {s.savingProfile ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Save className="h-4 w-4 mr-1.5" />}
-                Save Profile
-              </Button>
-            </section>
-
-            <section className="glass-panel p-6 space-y-4">
-              <div className="flex items-center gap-2">
-                <Lock className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-base font-semibold">Change Password</h2>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-sm">New Password</Label>
-                  <Input type="password" value={s.newPassword} onChange={(e) => s.setNewPassword(e.target.value)} placeholder="Enter new password" className="bg-background" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm">Confirm New Password</Label>
-                  <Input type="password" value={s.confirmPassword} onChange={(e) => s.setConfirmPassword(e.target.value)} placeholder="Confirm new password" className="bg-background" />
-                </div>
-              </div>
-              <Button size="sm" onClick={s.handleChangePassword} disabled={s.savingPassword || !s.newPassword || !s.confirmPassword}>
-                {s.savingPassword ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Lock className="h-4 w-4 mr-1.5" />}
-                Update Password
-              </Button>
-            </section>
+            <ProfileInfoSection
+              email={s.email}
+              displayName={s.displayName}
+              setDisplayName={s.setDisplayName}
+              role={s.role}
+              savingProfile={s.savingProfile}
+              onSave={s.handleSaveProfile}
+            />
+            <ChangePasswordSection
+              newPassword={s.newPassword}
+              setNewPassword={s.setNewPassword}
+              confirmPassword={s.confirmPassword}
+              setConfirmPassword={s.setConfirmPassword}
+              savingPassword={s.savingPassword}
+              onChangePassword={s.handleChangePassword}
+            />
           </TabsContent>
 
           {/* Admin Tab */}
