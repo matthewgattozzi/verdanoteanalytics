@@ -5,7 +5,7 @@ import { TagSourceBadge } from "@/components/TagSourceBadge";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Image as ImageIcon, ExternalLink, Play } from "lucide-react";
+import { Image as ImageIcon, ExternalLink, Play, Video } from "lucide-react";
 import { useState } from "react";
 import { CreativeMetrics } from "@/components/creative-detail/CreativeMetrics";
 import { CreativeTagEditor } from "@/components/creative-detail/CreativeTagEditor";
@@ -21,6 +21,8 @@ interface CreativeDetailModalProps {
 function MediaPreview({ creative }: { creative: any }) {
   const [showVideo, setShowVideo] = useState(false);
   const hasVideo = !!creative.video_url && creative.video_url !== "no-video";
+  const isVideoAdWithoutSource = creative.video_url === "no-video" && (creative.video_views > 0);
+  const facebookAdUrl = creative.preview_url || (creative.ad_id ? `https://www.facebook.com/ads/library/?id=${creative.ad_id}` : null);
 
   if (hasVideo && showVideo) {
     return (
@@ -63,6 +65,15 @@ function MediaPreview({ creative }: { creative: any }) {
               </div>
             </button>
           )}
+          {isVideoAdWithoutSource && facebookAdUrl && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+              <a href={facebookAdUrl} target="_blank" rel="noopener noreferrer">
+                <Button size="sm" className="gap-1.5 shadow-lg">
+                  <Video className="h-4 w-4" />Watch on Facebook
+                </Button>
+              </a>
+            </div>
+          )}
           {creative.preview_url && (
             <a href={creative.preview_url} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2">
               <Button size="sm" variant="secondary" className="gap-1.5 text-xs">
@@ -75,7 +86,14 @@ function MediaPreview({ creative }: { creative: any }) {
         <div className="flex flex-col items-center gap-2 text-muted-foreground py-12">
           <ImageIcon className="h-8 w-8" />
           <span className="text-xs">No preview available</span>
-          {creative.preview_url && (
+          {isVideoAdWithoutSource && facebookAdUrl && (
+            <a href={facebookAdUrl} target="_blank" rel="noopener noreferrer">
+              <Button size="sm" className="gap-1.5 text-xs mt-1">
+                <Video className="h-4 w-4" />Watch on Facebook
+              </Button>
+            </a>
+          )}
+          {!isVideoAdWithoutSource && creative.preview_url && (
             <a href={creative.preview_url} target="_blank" rel="noopener noreferrer">
               <Button size="sm" variant="secondary" className="gap-1.5 text-xs mt-1">
                 <ExternalLink className="h-3 w-3" />View Ad Preview
