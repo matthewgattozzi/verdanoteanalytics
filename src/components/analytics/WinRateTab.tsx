@@ -57,7 +57,7 @@ export function WinRateTab({ creatives, roasThreshold, spendThreshold, defaultSl
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-4 gap-3">
-        <MetricCard label="Total Tagged" value={winRateData?.total || 0} icon={<BarChart3 className="h-4 w-4" />} />
+        <MetricCard label="Total Creatives" value={winRateData?.total || 0} icon={<BarChart3 className="h-4 w-4" />} />
         <MetricCard label="Winners" value={winRateData?.winners || 0} icon={<TrendingUp className="h-4 w-4" />} />
         <MetricCard label="Win Rate" value={winRateData ? `${winRateData.winRate}%` : "—"} icon={<Target className="h-4 w-4" />} />
         <MetricCard label="Blended ROAS" value={winRateData ? `${winRateData.blendedRoas}x` : "—"} />
