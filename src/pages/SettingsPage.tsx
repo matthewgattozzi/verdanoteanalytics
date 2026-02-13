@@ -7,9 +7,11 @@ import { SyncHistorySection } from "@/components/settings/SyncHistorySection";
 import { RenameAccountModal } from "@/components/settings/RenameAccountModal";
 import { CsvUploadModal } from "@/components/settings/CsvUploadModal";
 import { useSettingsPageState } from "@/hooks/useSettingsPageState";
+import { useIsSyncing } from "@/hooks/useIsSyncing";
 
 const SettingsPage = () => {
   const s = useSettingsPageState();
+  const isSyncing = useIsSyncing();
 
   if (!s.account) {
     if (s.accounts.length > 0) {
@@ -56,7 +58,7 @@ const SettingsPage = () => {
           account={s.account}
           onRename={() => s.setRenamingAccount({ id: s.account!.id, name: s.account!.name })}
           onSync={() => s.sync.mutate({ account_id: s.account!.id })}
-          syncPending={s.sync.isPending}
+          syncPending={s.sync.isPending || isSyncing}
           onUploadCsv={() => { s.setShowCsvModal(s.account!.id); s.setCsvPreview([]); s.setCsvMappings([]); }}
           onToggle={(checked) => s.toggleAccount.mutate({ id: s.account!.id, is_active: checked })}
         />
