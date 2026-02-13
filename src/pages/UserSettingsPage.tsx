@@ -14,6 +14,7 @@ import { CreateUserModal } from "@/components/user-settings/CreateUserModal";
 import { ConfirmDeleteDialog } from "@/components/user-settings/ConfirmDeleteDialog";
 import { useUserSettingsPageState } from "@/hooks/useUserSettingsPageState";
 import { useIsSyncing } from "@/hooks/useIsSyncing";
+import { SyncHistorySection } from "@/components/settings/SyncHistorySection";
 
 const UserSettingsPage = () => {
   const s = useUserSettingsPageState();
@@ -85,6 +86,7 @@ const UserSettingsPage = () => {
                 onCreateUser={() => s.setShowCreateUser(true)}
                 onDeleteUser={s.setShowDeleteUserConfirm}
               />
+              <SyncHistorySection />
             </TabsContent>
           )}
         </Tabs>
