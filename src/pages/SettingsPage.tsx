@@ -1,7 +1,7 @@
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { AccountOverviewSection } from "@/components/settings/AccountOverviewSection";
-import { AIContextSection } from "@/components/settings/AIContextSection";
+
 import { SyncSettingsSection } from "@/components/settings/SyncSettingsSection";
 import { SyncHistorySection } from "@/components/settings/SyncHistorySection";
 import { RenameAccountModal } from "@/components/settings/RenameAccountModal";
@@ -49,7 +49,7 @@ const SettingsPage = () => {
 
   return (
     <AppLayout>
-      <PageHeader title={`${s.account.name} — Settings`} description="Configure sync preferences and AI context for this account." />
+      <PageHeader title={`${s.account.name} — Settings`} description="Configure sync preferences for this account." />
 
       <div className="max-w-2xl space-y-8">
         <AccountOverviewSection
@@ -61,18 +61,6 @@ const SettingsPage = () => {
           onToggle={(checked) => s.toggleAccount.mutate({ id: s.account!.id, is_active: checked })}
         />
 
-        <AIContextSection
-          account={s.account}
-          primaryKpi={s.primaryKpi} setPrimaryKpi={s.setPrimaryKpi}
-          secondaryKpis={s.secondaryKpis} setSecondaryKpis={s.setSecondaryKpis}
-          companyPdfUrl={s.companyPdfUrl} setCompanyPdfUrl={s.setCompanyPdfUrl}
-          creativePrompt={s.creativePrompt} setCreativePrompt={s.setCreativePrompt}
-          insightsPrompt={s.insightsPrompt} setInsightsPrompt={s.setInsightsPrompt}
-          onSaveSettings={async (updates) => { await s.updateAccountSettings.mutateAsync({ id: s.account!.id, ...updates }); }}
-          onApplyPromptsToAll={s.handleApplyPromptsToAll}
-          applyingToAll={s.applyingPrompts} applyProgress={s.applyProgress}
-          showApplyAll={s.accounts.length > 1}
-        />
 
         <SyncSettingsSection
           dateRange={s.dateRange} setDateRange={s.setDateRange}
