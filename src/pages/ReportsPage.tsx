@@ -29,7 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, Plus, Trash2, Loader2, Eye, Download, CalendarClock, Send, CalendarIcon } from "lucide-react";
+import { FileText, Plus, Trash2, Loader2, Eye, Download, CalendarClock, Send, CalendarIcon, Link2 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
@@ -171,6 +171,9 @@ const ReportsPage = () => {
                   <TableCell className="text-xs text-right font-mono">{fmt(r.average_cpa, "$")}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" className="h-7 px-2" title="Copy public link" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}/public/reports/${r.id}`); import("sonner").then(m => m.toast.success("Public link copied!")); }}>
+                        <Link2 className="h-3 w-3" />
+                      </Button>
                       <Button variant="ghost" size="sm" className="h-7 px-2" title="Send to Slack" onClick={(e) => { e.stopPropagation(); slackMut.mutate(r.id); }} disabled={slackMut.isPending}>
                         <Send className="h-3 w-3" />
                       </Button>
