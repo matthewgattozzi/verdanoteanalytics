@@ -64,6 +64,12 @@ const PublicReportPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto px-6 py-10 space-y-8 animate-fade-in">
+        {/* Branding */}
+        <div className="flex items-center gap-2.5">
+          <img src="/favicon.png" alt="Verdanote" className="h-8 w-8 rounded-lg shadow-sm" />
+          <span className="text-sm font-serif font-semibold text-foreground tracking-tight">Verdanote</span>
+        </div>
+
         {/* Header */}
         <div className="space-y-2">
           <div className="flex items-center gap-3">
