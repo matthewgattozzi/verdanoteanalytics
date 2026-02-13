@@ -128,19 +128,19 @@ serve(async (req) => {
 
       if (!shouldGenerate) continue;
 
-      // Fetch creatives within date range
-      const dateRangeDays = schedule.date_range_days || (schedule.cadence === "weekly" ? 7 : 30);
-      const startDate = new Date(now);
-      startDate.setDate(startDate.getDate() - dateRangeDays);
-
+      // Fetch creatives that had delivery (spend > 0)
       const { data: creatives, error: fetchErr } = await supabase
         .from("creatives")
         .select("*")
-        .eq("account_id", account.id);
+        .eq("account_id", account.id)
+        .gt("spend", 0);
       if (fetchErr) { console.error("Fetch error for", account.id, fetchErr); continue; }
 
       const list = creatives || [];
-      const withSpend = list.filter((c: any) => (c.spend || 0) > 0);
+      const withSpend = list;
+      const dateRangeDays = schedule.date_range_days || (schedule.cadence === "weekly" ? 7 : 30);
+      const startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - dateRangeDays);
       const totalSpend = withSpend.reduce((s: number, c: any) => s + Number(c.spend || 0), 0);
       const avgField = (field: string) => {
         if (withSpend.length === 0) return 0;
