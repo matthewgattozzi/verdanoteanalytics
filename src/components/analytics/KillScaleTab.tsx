@@ -1,16 +1,33 @@
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { TrendingDown } from "lucide-react";
-import { determineFunnel } from "./determineFunnel";
+
+const KPI_LABELS: Record<string, string> = {
+  roas: "ROAS",
+  cpa: "CPA",
+  ctr: "CTR",
+  thumb_stop_rate: "Hook Rate",
+};
 
 interface KillScaleTabProps {
   creatives: any[];
   roasThreshold: number;
   spendThreshold: number;
+  winnerKpi?: string;
+  winnerKpiDirection?: string;
+  winnerKpiThreshold?: number;
   onCreativeClick?: (creative: any) => void;
 }
 
-export function KillScaleTab({ creatives, roasThreshold, spendThreshold, onCreativeClick }: KillScaleTabProps) {
+export function KillScaleTab({
+  creatives, roasThreshold, spendThreshold,
+  winnerKpi = "roas", winnerKpiDirection = "gte", winnerKpiThreshold,
+  onCreativeClick,
+}: KillScaleTabProps) {
+  const threshold = winnerKpiThreshold ?? roasThreshold;
+  const kpiLabel = KPI_LABELS[winnerKpi] || winnerKpi;
+  const isGte = winnerKpiDirection !== "lte";
+
   const recommendations = useMemo(() => {
     if (creatives.length === 0) return { scale: [], watch: [], kill: [] };
 
@@ -19,27 +36,52 @@ export function KillScaleTab({ creatives, roasThreshold, spendThreshold, onCreat
     const kill: any[] = [];
 
     creatives.forEach((c: any) => {
-      const roas = Number(c.roas) || 0;
+      const kpiValue = Number(c[winnerKpi]) || 0;
       const spend = Number(c.spend) || 0;
-      const funnel = determineFunnel(c);
 
       if (spend < spendThreshold) {
-        watch.push({ ...c, reason: "Insufficient spend data", funnel });
-      } else if (funnel === "BOF" && roas >= roasThreshold) {
-        scale.push({ ...c, reason: `ROAS ${roas.toFixed(2)}x exceeds ${roasThreshold}x threshold`, funnel });
-      } else if (funnel === "BOF" && roas < roasThreshold * 0.5 && spend > spendThreshold) {
-        kill.push({ ...c, reason: `ROAS ${roas.toFixed(2)}x is well below threshold with $${spend.toFixed(0)} spent`, funnel });
+        watch.push({ ...c, reason: "Insufficient spend data" });
+        return;
+      }
+
+      // For "gte" direction (higher is better, e.g. ROAS, CTR):
+      //   Scale: value >= threshold
+      //   Kill: value < 50% of threshold
+      // For "lte" direction (lower is better, e.g. CPA):
+      //   Scale: value <= threshold and value > 0
+      //   Kill: value > 2x threshold
+      if (isGte) {
+        if (kpiValue >= threshold) {
+          scale.push({ ...c, reason: `${kpiLabel} ${kpiValue.toFixed(2)} exceeds ${threshold} threshold` });
+        } else if (kpiValue < threshold * 0.5) {
+          kill.push({ ...c, reason: `${kpiLabel} ${kpiValue.toFixed(2)} is well below ${threshold} threshold with $${spend.toFixed(0)} spent` });
+        } else {
+          watch.push({ ...c, reason: `${kpiLabel} ${kpiValue.toFixed(2)} — approaching threshold` });
+        }
       } else {
-        watch.push({ ...c, reason: "Mixed signals", funnel });
+        if (kpiValue > 0 && kpiValue <= threshold) {
+          scale.push({ ...c, reason: `${kpiLabel} $${kpiValue.toFixed(2)} is under $${threshold} threshold` });
+        } else if (kpiValue > threshold * 2) {
+          kill.push({ ...c, reason: `${kpiLabel} $${kpiValue.toFixed(2)} is well above $${threshold} threshold with $${spend.toFixed(0)} spent` });
+        } else {
+          watch.push({ ...c, reason: `${kpiLabel} $${kpiValue.toFixed(2)} — near threshold` });
+        }
       }
     });
 
+    const sortScale = isGte
+      ? (a: any, b: any) => (Number(b[winnerKpi]) || 0) - (Number(a[winnerKpi]) || 0)
+      : (a: any, b: any) => (Number(a[winnerKpi]) || 0) - (Number(b[winnerKpi]) || 0);
+    const sortKill = isGte
+      ? (a: any, b: any) => (Number(a[winnerKpi]) || 0) - (Number(b[winnerKpi]) || 0)
+      : (a: any, b: any) => (Number(b[winnerKpi]) || 0) - (Number(a[winnerKpi]) || 0);
+
     return {
-      scale: scale.sort((a, b) => (Number(b.roas) || 0) - (Number(a.roas) || 0)).slice(0, 10),
+      scale: scale.sort(sortScale).slice(0, 10),
       watch: watch.slice(0, 10),
-      kill: kill.sort((a, b) => (Number(a.roas) || 0) - (Number(b.roas) || 0)).slice(0, 10),
+      kill: kill.sort(sortKill).slice(0, 10),
     };
-  }, [creatives, roasThreshold, spendThreshold]);
+  }, [creatives, winnerKpi, winnerKpiDirection, threshold, spendThreshold, isGte, kpiLabel]);
 
   return (
     <div className="space-y-4">
@@ -82,12 +124,11 @@ export function KillScaleTab({ creatives, roasThreshold, spendThreshold, onCreat
                     </div>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <span>ROAS: <span className="font-mono text-foreground">{(Number(c.roas) || 0).toFixed(2)}x</span></span>
+                    <span>{kpiLabel}: <span className="font-mono text-foreground">{(Number(c[winnerKpi]) || 0).toFixed(2)}{winnerKpi === "ctr" || winnerKpi === "thumb_stop_rate" ? "%" : winnerKpi === "roas" ? "x" : ""}</span></span>
                     <span>Spend: <span className="font-mono text-foreground">${(Number(c.spend) || 0).toFixed(0)}</span></span>
-                    <span>CPA: <span className="font-mono text-foreground">${(Number(c.cpa) || 0).toFixed(2)}</span></span>
+                    <span>ROAS: <span className="font-mono text-foreground">{(Number(c.roas) || 0).toFixed(2)}x</span></span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">{c.reason}</p>
-                  {c.ai_analysis && <p className="text-xs mt-1 text-muted-foreground/80 italic">AI: {c.ai_analysis}</p>}
                 </div>
               ))}
             </div>
