@@ -82,6 +82,12 @@ async function sendReportToSlack(report: any) {
   ];
   if (topList) blocks.push({ type: "section", fields: [{ type: "mrkdwn", text: `*🏆 Top Performers:*\n${topList}` }] });
   if (diagItems.length > 0) blocks.push({ type: "section", fields: [{ type: "mrkdwn", text: `*⚠️ Diagnostics (${report.diag_total_diagnosed}):*\n${diagItems.join(" · ")}` }] });
+
+  const appUrl = Deno.env.get("APP_URL") || "https://verdanoteanalytics.lovable.app";
+  if (report.id) {
+    blocks.push({ type: "actions", elements: [{ type: "button", text: { type: "plain_text", text: "📄 View Full Report", emoji: true }, url: `${appUrl}/reports?report=${report.id}` }] });
+  }
+
   try { await fetch(webhookUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ blocks }) }); }
   catch (e) { console.error("Slack webhook error:", e); }
 }
