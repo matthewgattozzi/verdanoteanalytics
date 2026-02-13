@@ -1,8 +1,9 @@
 import { useState, useMemo } from "react";
 import { Loader2, LineChart, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { startOfWeek, startOfMonth, format } from "date-fns";
-import { TrendChart } from "@/components/TrendChart";
+import { MultiLineTrendChart, type TrendLine } from "@/components/MultiLineTrendChart";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { DailyTrendPoint } from "@/hooks/useDailyTrends";
 
 type Granularity = "daily" | "weekly" | "monthly";
@@ -11,6 +12,17 @@ interface TrendsTabProps {
   trendData: DailyTrendPoint[] | undefined;
   isLoading: boolean;
 }
+
+const METRIC_OPTIONS: { key: keyof DailyTrendPoint; label: string; color: string; prefix?: string; suffix?: string; decimals?: number; invertColor?: boolean }[] = [
+  { key: "spend", label: "Spend", color: "hsl(var(--primary))", prefix: "$", decimals: 0 },
+  { key: "cpa", label: "CPA", color: "hsl(0, 84%, 60%)", prefix: "$", decimals: 2, invertColor: true },
+  { key: "cpm", label: "CPM", color: "hsl(262, 83%, 58%)", prefix: "$", decimals: 2, invertColor: true },
+  { key: "roas", label: "ROAS", color: "hsl(142, 71%, 45%)", suffix: "x", decimals: 2 },
+  { key: "ctr", label: "CTR", color: "hsl(199, 89%, 48%)", suffix: "%", decimals: 2 },
+  { key: "cpc", label: "CPC", color: "hsl(25, 95%, 53%)", prefix: "$", decimals: 2, invertColor: true },
+  { key: "impressions", label: "Impressions", color: "hsl(280, 60%, 50%)", decimals: 0 },
+  { key: "purchases", label: "Purchases", color: "hsl(160, 60%, 45%)", decimals: 0 },
+];
 
 function bucketKey(date: string, granularity: Granularity): string {
   if (granularity === "daily") return date;
@@ -75,13 +87,13 @@ function SummaryCard({ label, value, change, invertColor }: { label: string; val
 
 export function TrendsTab({ trendData, isLoading }: TrendsTabProps) {
   const [granularity, setGranularity] = useState<Granularity>("daily");
+  const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(new Set(["spend", "cpa"]));
 
   const chartData = useMemo(() => {
     if (!trendData) return [];
     return aggregateBuckets(trendData, granularity);
   }, [trendData, granularity]);
 
-  // Always compute summary from raw daily data to avoid misleading partial-bucket comparisons
   const summary = useMemo(() => {
     if (!trendData || trendData.length < 1) return null;
     const mid = Math.floor(trendData.length / 2);
@@ -105,6 +117,32 @@ export function TrendsTab({ trendData, isLoading }: TrendsTabProps) {
     };
   }, [trendData]);
 
+  const toggleMetric = (key: string) => {
+    setSelectedMetrics((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const trendLines: TrendLine[] = useMemo(() => {
+    return METRIC_OPTIONS
+      .filter((m) => selectedMetrics.has(m.key))
+      .map((m) => ({
+        key: m.key,
+        label: m.label,
+        color: m.color,
+        prefix: m.prefix,
+        suffix: m.suffix,
+        decimals: m.decimals,
+        values: chartData.map((d) => Number(d[m.key]) || 0),
+      }));
+  }, [chartData, selectedMetrics]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -127,6 +165,7 @@ export function TrendsTab({ trendData, isLoading }: TrendsTabProps) {
   const dataRangeLabel = trendData && trendData.length > 0
     ? `${trendData.length} days · ${chartData.length} ${granLabel}`
     : `${chartData.length} ${granLabel}`;
+
   return (
     <>
       <div className="flex items-center justify-between mb-1">
@@ -153,13 +192,30 @@ export function TrendsTab({ trendData, isLoading }: TrendsTabProps) {
           <SummaryCard label="Avg CPM" value={`$${summary.avgCpm.toFixed(2)}`} change={summary.cpmChange} invertColor />
         </div>
       )}
-      <div className="grid grid-cols-2 gap-4">
-        <TrendChart data={chartData.map(d => ({ date: d.date, value: d.spend }))} label={`${granularity === "daily" ? "Daily" : granularity === "weekly" ? "Weekly" : "Monthly"} Spend`} prefix="$" decimals={0} color="hsl(var(--primary))" />
-        <TrendChart data={chartData.map(d => ({ date: d.date, value: d.cpa }))} label="Cost per Result (CPA)" prefix="$" decimals={2} color="hsl(0, 84%, 60%)" invertColor />
+
+      {/* Metric toggles */}
+      <div className="flex flex-wrap gap-3 mb-3">
+        {METRIC_OPTIONS.map((m) => (
+          <label
+            key={m.key}
+            className="flex items-center gap-1.5 cursor-pointer select-none"
+          >
+            <Checkbox
+              checked={selectedMetrics.has(m.key)}
+              onCheckedChange={() => toggleMetric(m.key)}
+              className="h-3.5 w-3.5"
+              style={{ borderColor: m.color, ...(selectedMetrics.has(m.key) ? { backgroundColor: m.color } : {}) }}
+            />
+            <span className="text-xs font-medium text-muted-foreground">{m.label}</span>
+          </label>
+        ))}
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <TrendChart data={chartData.map(d => ({ date: d.date, value: d.cpm }))} label="CPM" prefix="$" decimals={2} color="hsl(262, 83%, 58%)" invertColor />
-      </div>
+
+      <MultiLineTrendChart
+        dates={chartData.map((d) => d.date)}
+        lines={trendLines}
+        height={300}
+      />
     </>
   );
 }
