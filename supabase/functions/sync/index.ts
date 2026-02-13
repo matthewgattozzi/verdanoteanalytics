@@ -586,8 +586,36 @@ serve(async (req) => {
 
           await saveProgress("running");
 
-          // Thumbnail & video caching is handled by the background refresh-thumbnails cron job
-          // to keep sync fast and avoid timeouts
+          // ─── PHASE 3.5: Cache uncached thumbnails to storage ──────
+          if (!isTimedOut()) {
+            const { data: uncachedThumbs } = await supabase.from("creatives")
+              .select("ad_id, thumbnail_url")
+              .eq("account_id", account.id)
+              .not("thumbnail_url", "is", null)
+              .not("thumbnail_url", "like", "%/storage/v1/object/public/%")
+              .limit(500);
+
+            const toCache = uncachedThumbs || [];
+            if (toCache.length > 0) {
+              console.log(`Phase 3.5: Caching ${toCache.length} thumbnails...`);
+              let thumbCached = 0;
+              for (let i = 0; i < toCache.length && !isTimedOut(); i += 10) {
+                const batch = toCache.slice(i, i + 10);
+                const results = await Promise.allSettled(
+                  batch.map(async (c: any) => {
+                    const url = await cacheThumbnail(supabase, account.id, c.ad_id, c.thumbnail_url);
+                    if (url) {
+                      await supabase.from("creatives").update({ thumbnail_url: url }).eq("ad_id", c.ad_id);
+                      return true;
+                    }
+                    return false;
+                  })
+                );
+                thumbCached += results.filter((r: any) => r.status === "fulfilled" && r.value).length;
+              }
+              console.log(`Phase 3.5 complete: ${thumbCached}/${toCache.length} cached`);
+            }
+          }
 
           // ─── PHASE 4: Daily breakdowns ───────────────────────────────
           const dailyRows: any[] = [];
