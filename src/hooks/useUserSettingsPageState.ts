@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -27,6 +27,8 @@ export function useUserSettingsPageState() {
   const [renamingAccount, setRenamingAccount] = useState<{ id: string; name: string } | null>(null);
   const [availableAccounts, setAvailableAccounts] = useState<any[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
+  const metaCacheRef = useRef<{ accounts: any[]; timestamp: number } | null>(null);
+  const META_CACHE_TTL = 60_000; // 60 seconds
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
@@ -123,11 +125,19 @@ export function useUserSettingsPageState() {
 
   const handleOpenAddModal = useCallback(async () => {
     setShowAddModal(true);
+
+    // Use cached results if fresh enough
+    if (metaCacheRef.current && Date.now() - metaCacheRef.current.timestamp < META_CACHE_TTL) {
+      setAvailableAccounts(metaCacheRef.current.accounts);
+      return;
+    }
+
     setLoadingAccounts(true);
     try {
       const result = await testMeta.mutateAsync(undefined);
       if (result.connected) {
         setAvailableAccounts(result.accounts || []);
+        metaCacheRef.current = { accounts: result.accounts || [], timestamp: Date.now() };
       } else {
         toast.error(result.error || "Meta token not configured.");
         setShowAddModal(false);
