@@ -33,16 +33,16 @@ export function CreativeAIAnalysis({ creative }: CreativeAIAnalysisProps) {
       {creative.analysis_status === "analyzed" ? (
         <div className="space-y-3">
           {creative.ai_analysis && (
-            <div><p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">Overview</p><p className="text-xs leading-relaxed">{creative.ai_analysis}</p></div>
+            <div><p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">Iteration Diagnosis</p><p className="text-xs leading-relaxed">{creative.ai_analysis}</p></div>
           )}
           {creative.ai_hook_analysis && (
-            <div><p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">Hook Execution</p><p className="text-xs leading-relaxed">{creative.ai_hook_analysis}</p></div>
+            <div><p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">Hook (First 3s)</p><p className="text-xs leading-relaxed">{creative.ai_hook_analysis}</p></div>
           )}
           {creative.ai_visual_notes && (
-            <div><p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">Visual Notes</p><p className="text-xs leading-relaxed">{creative.ai_visual_notes}</p></div>
+            <div><p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">Body & Pacing</p><p className="text-xs leading-relaxed">{creative.ai_visual_notes}</p></div>
           )}
           {creative.ai_cta_notes && (
-            <div><p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">CTA Strategy</p><p className="text-xs leading-relaxed">{creative.ai_cta_notes}</p></div>
+            <div><p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">CTA & Click-Through</p><p className="text-xs leading-relaxed">{creative.ai_cta_notes}</p></div>
           )}
           <p className="text-[10px] text-muted-foreground">Analyzed {creative.analyzed_at ? new Date(creative.analyzed_at).toLocaleString() : ""}</p>
         </div>

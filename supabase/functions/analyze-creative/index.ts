@@ -11,14 +11,14 @@ const AI_TOOL = {
   type: "function" as const,
   function: {
     name: "creative_analysis",
-    description: "Return structured creative analysis with four sections.",
+    description: "Return structured iteration-focused creative analysis with four sections.",
     parameters: {
       type: "object",
       properties: {
-        overview: { type: "string", description: "2-3 sentence overall performance assessment." },
-        hook_analysis: { type: "string", description: "2-3 sentences on hook execution." },
-        visual_notes: { type: "string", description: "2-3 sentences on visual/style execution." },
-        cta_strategy: { type: "string", description: "2-3 sentences on CTA and conversion strategy." },
+        overview: { type: "string", description: "2-3 sentence iteration diagnosis: what's working, what's broken, and whether to iterate or rebuild." },
+        hook_analysis: { type: "string", description: "2-3 sentences evaluating the first 3 seconds (hook). Is it stopping the scroll? Specific suggestions to test if weak." },
+        visual_notes: { type: "string", description: "2-3 sentences on pacing, story structure, and body content. Are viewers staying after the hook? What to change if they drop off." },
+        cta_strategy: { type: "string", description: "2-3 sentences on end card, CTA, and click-through. If CTR is low despite good engagement, diagnose why and suggest specific tests." },
       },
       required: ["overview", "hook_analysis", "visual_notes", "cta_strategy"],
       additionalProperties: false,
@@ -181,14 +181,28 @@ async function analyzeOne(creative: any, apiKey: string, customSystemPrompt: str
     userContent.push({ type: "image_url", image_url: { url: imageUrl } });
   }
 
-  const textPrompt = `Analyze this Meta ad creative:
-- Ad Name: ${creative.ad_name} | Type: ${creative.ad_type || "Unknown"} | Person: ${creative.person || "Unknown"}
+  const isImage = (creative.ad_type || "").toLowerCase() === "image" ||
+    (creative.ad_type || "").toLowerCase() === "static" ||
+    (creative.ad_type || "").toLowerCase() === "carousel" ||
+    (creative.ad_name || "").toLowerCase().includes("static") ||
+    ((Number(creative.thumb_stop_rate) || 0) === 0 && (Number(creative.hold_rate) || 0) === 0);
+
+  const textPrompt = `Analyze this Meta ad creative for ITERATION opportunities. Your job is to diagnose exactly WHAT part of the creative to iterate on — the hook, the body, or the CTA — so the team doesn't waste effort remaking the entire ad.
+
+Ad Details:
+- Ad Name: ${creative.ad_name} | Type: ${isImage ? "Image/Static" : creative.ad_type || "Video"} | Person: ${creative.person || "Unknown"}
 - Style: ${creative.style || "Unknown"} | Hook: ${creative.hook || "Unknown"} | Product: ${creative.product || "Unknown"}
 - Spend: $${creative.spend || 0} | ROAS: ${creative.roas || 0}x | CPA: $${creative.cpa || 0} | CTR: ${creative.ctr || 0}%
+- Hook Rate: ${creative.thumb_stop_rate || 0}% | Hold Rate: ${creative.hold_rate || 0}% | Frequency: ${creative.frequency || 0}
 - CPM: $${creative.cpm || 0} | Purchases: ${creative.purchases || 0} | Impressions: ${creative.impressions || 0}
-${imageUrl ? "I've attached the creative visual. Incorporate what you see into your analysis — comment on colors, composition, text overlays, talent, branding, and anything that stands out." : "No visual asset available — analyze based on metadata only."}
-Provide analysis using the tool.`;
+
+${isImage ? "This is an IMAGE ad — hook rate and hold rate don't apply. Focus your analysis on visual impact, copy, and CTR." : "This is a VIDEO ad — evaluate all three zones: Hook (first 3s), Body (middle), and CTA (end/click)."}
+${imageUrl ? "I've attached the creative visual. Reference specific elements you see — colors, composition, text overlays, talent, branding." : "No visual asset available — analyze based on metadata only."}
+
+Be specific and actionable. Tell the team exactly what to change and what to keep.`;
   userContent.push({ type: "text", text: textPrompt });
+
+  const defaultSystemPrompt = "You are a senior performance marketing creative strategist specializing in creative iteration. Your goal is to diagnose WHERE an ad breaks down (hook, body, or CTA) and recommend precisely WHAT to iterate on — never suggest remaking the whole ad unless all metrics are weak. When visuals are provided, reference specific elements. Be direct, concise, and actionable.";
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -199,7 +213,7 @@ Provide analysis using the tool.`;
     body: JSON.stringify({
       model: "google/gemini-2.5-flash",
       messages: [
-        { role: "system", content: customSystemPrompt || "You are a senior performance marketing creative strategist. When visuals are provided, analyze them in detail — comment on imagery, text overlays, composition, branding, and emotional appeal. Provide concise, actionable analysis." },
+        { role: "system", content: customSystemPrompt || defaultSystemPrompt },
         { role: "user", content: userContent },
       ],
       tools: [AI_TOOL],
