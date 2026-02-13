@@ -14,22 +14,39 @@ const BATCH_SIZE = 20;
 const VIDEO_BATCH_SIZE = 3;
 const MAX_TOTAL = 200;
 
-/** Fetch a fresh thumbnail URL from Meta Graph API */
-async function getFreshThumbnailUrl(adId: string): Promise<string | null> {
+/** Fetch a fresh high-res image URL from Meta Graph API.
+ *  Prioritizes image_url (full resolution) over thumbnail_url (low-res preview). */
+async function getFreshImageUrl(adId: string): Promise<string | null> {
   try {
     const res = await fetch(
-      `https://graph.facebook.com/v21.0/${adId}?fields=creative{thumbnail_url}&access_token=${META_ACCESS_TOKEN}`
+      `https://graph.facebook.com/v21.0/${adId}?fields=creative{thumbnail_url,image_url,object_story_spec}&access_token=${META_ACCESS_TOKEN}`
     );
     if (!res.ok) {
       console.log(`Meta API failed for ${adId}: ${res.status}`);
       return null;
     }
     const data = await res.json();
-    const url = data?.creative?.thumbnail_url;
-    if (url) {
-      // Upscale to 1080x1080
-      return url.replace(/\/[sp]\d+x\d+\//, "/p1080x1080/");
+    const creative = data?.creative;
+    if (!creative) return null;
+
+    // Priority 1: image_url from creative (full resolution)
+    if (creative.image_url) {
+      return creative.image_url;
     }
+
+    // Priority 2: image from object_story_spec (link_data or photo_data)
+    const spec = creative.object_story_spec;
+    if (spec) {
+      const imageUrl = spec.link_data?.image_url || spec.link_data?.picture ||
+                       spec.photo_data?.url || spec.photo_data?.image_url;
+      if (imageUrl) return imageUrl;
+    }
+
+    // Priority 3: thumbnail_url upscaled (fallback for video ads)
+    if (creative.thumbnail_url) {
+      return creative.thumbnail_url.replace(/\/[sp]\d+x\d+\//, "/p1080x1080/");
+    }
+
     return null;
   } catch (e) {
     console.log(`Meta API error for ${adId}:`, e);
@@ -46,6 +63,13 @@ async function getFreshVideoUrl(adId: string): Promise<string | null> {
     if (!res.ok) return null;
     const data = await res.json();
     const spec = data?.creative?.object_story_spec;
+
+    // Try video_data.video_url first (direct playback URL)
+    if (spec?.video_data?.video_url) {
+      return spec.video_data.video_url;
+    }
+
+    // Try to get video source from video_id
     const videoData = spec?.video_data || spec?.template_data?.video_data;
     if (videoData?.video_id) {
       const vidRes = await fetch(
@@ -105,15 +129,29 @@ serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   try {
-    // Find uncached thumbnails
-    const { data: uncachedThumbs } = await supabase
+    const url = new URL(req.url);
+    const forceRefresh = url.searchParams.get("force") === "true";
+
+    // Find uncached thumbnails (or ALL thumbnails if force refresh)
+    let thumbQuery = supabase
       .from("creatives")
       .select("ad_id, account_id, thumbnail_url")
-      .not("thumbnail_url", "is", null)
-      .not("thumbnail_url", "like", `%/storage/v1/object/public/%`)
-      .limit(MAX_TOTAL);
+      .not("thumbnail_url", "is", null);
 
-    // Find uncached videos
+    if (!forceRefresh) {
+      thumbQuery = thumbQuery.not("thumbnail_url", "like", `%/storage/v1/object/public/%`);
+    }
+
+    const { data: uncachedThumbs } = await thumbQuery.limit(MAX_TOTAL);
+
+    // Find ads missing video_url (need to fetch from Meta API)
+    const { data: missingVideos } = await supabase
+      .from("creatives")
+      .select("ad_id, account_id")
+      .is("video_url", null)
+      .limit(100);
+
+    // Find uncached videos (have video_url but not in storage)
     const { data: uncachedVideos } = await supabase
       .from("creatives")
       .select("ad_id, account_id, video_url")
@@ -122,24 +160,25 @@ serve(async (req) => {
       .limit(50);
 
     const thumbs = uncachedThumbs || [];
+    const noVideos = missingVideos || [];
     const videos = uncachedVideos || [];
 
-    if (thumbs.length === 0 && videos.length === 0) {
+    if (thumbs.length === 0 && videos.length === 0 && noVideos.length === 0) {
       console.log("All media already cached.");
       return new Response(JSON.stringify({ thumbnails: { cached: 0, failed: 0, total: 0 }, videos: { cached: 0, failed: 0, total: 0 } }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`Found ${thumbs.length} uncached thumbnails, ${videos.length} uncached videos`);
+    console.log(`Found ${thumbs.length} thumbnails to process, ${noVideos.length} ads missing video_url, ${videos.length} uncached videos`);
 
-    // Process thumbnails — re-fetch fresh URLs from Meta API
+    // Process thumbnails — fetch full-res images from Meta API
     let thumbCached = 0, thumbFailed = 0;
     for (let i = 0; i < thumbs.length; i += BATCH_SIZE) {
       const batch = thumbs.slice(i, i + BATCH_SIZE);
       const results = await Promise.allSettled(
         batch.map(async (c: any) => {
-          const freshUrl = await getFreshThumbnailUrl(c.ad_id);
+          const freshUrl = await getFreshImageUrl(c.ad_id);
           if (!freshUrl) { return false; }
           const storageUrl = await downloadAndCache(supabase, THUMB_BUCKET, c.account_id, c.ad_id, freshUrl, "image");
           if (storageUrl) {
@@ -154,7 +193,30 @@ serve(async (req) => {
       if (i + BATCH_SIZE < thumbs.length) await new Promise(r => setTimeout(r, 300));
     }
 
-    // Process videos — re-fetch fresh URLs from Meta API
+    // Process ads missing video_url — try to fetch from Meta API
+    let videosFetched = 0;
+    for (let i = 0; i < noVideos.length; i += BATCH_SIZE) {
+      const batch = noVideos.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map(async (c: any) => {
+          const freshUrl = await getFreshVideoUrl(c.ad_id);
+          if (!freshUrl) return false;
+          // Cache directly to storage
+          const storageUrl = await downloadAndCache(supabase, VIDEO_BUCKET, c.account_id, c.ad_id, freshUrl, "video");
+          if (storageUrl) {
+            await supabase.from("creatives").update({ video_url: storageUrl }).eq("ad_id", c.ad_id);
+            return true;
+          }
+          // If caching failed, at least store the direct URL
+          await supabase.from("creatives").update({ video_url: freshUrl }).eq("ad_id", c.ad_id);
+          return true;
+        })
+      );
+      videosFetched += results.filter((r: any) => r.status === "fulfilled" && r.value).length;
+      if (i + BATCH_SIZE < noVideos.length) await new Promise(r => setTimeout(r, 500));
+    }
+
+    // Process uncached videos — re-fetch fresh URLs from Meta API
     let videoCached = 0, videoFailed = 0;
     for (let i = 0; i < videos.length; i += VIDEO_BATCH_SIZE) {
       const batch = videos.slice(i, i + VIDEO_BATCH_SIZE);
@@ -175,11 +237,11 @@ serve(async (req) => {
       if (i + VIDEO_BATCH_SIZE < videos.length) await new Promise(r => setTimeout(r, 500));
     }
 
-    console.log(`Done — Thumbs: ${thumbCached} cached, ${thumbFailed} failed | Videos: ${videoCached} cached, ${videoFailed} failed`);
+    console.log(`Done — Thumbs: ${thumbCached} cached, ${thumbFailed} failed | Videos fetched: ${videosFetched}, cached: ${videoCached}, failed: ${videoFailed}`);
 
     return new Response(JSON.stringify({
       thumbnails: { cached: thumbCached, failed: thumbFailed, total: thumbs.length },
-      videos: { cached: videoCached, failed: videoFailed, total: videos.length },
+      videos: { fetched: videosFetched, cached: videoCached, failed: videoFailed, total: videos.length + noVideos.length },
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
