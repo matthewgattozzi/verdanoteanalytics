@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useCallback } from "react";
 import { format } from "date-fns";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Expand } from "lucide-react";
@@ -68,6 +68,10 @@ export function MultiLineTrendChart({ dates, lines, height = 260 }: MultiLineTre
 }
 
 function ChartSVG({ dates, lines, height }: { dates: string[]; lines: TrendLine[]; height: number }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+
   const chart = useMemo(() => {
     const padding = 50;
     const rightPadding = 50;
@@ -75,7 +79,6 @@ function ChartSVG({ dates, lines, height }: { dates: string[]; lines: TrendLine[
     const chartH = height - 40;
     const xStep = dates.length > 1 ? (width - padding - rightPadding) / (dates.length - 1) : 0;
 
-    // Each line gets its own Y-axis normalization (0-1) so different scales overlay nicely
     const lineData = lines.map((line) => {
       const vals = line.values;
       const minVal = Math.min(...vals);
@@ -98,7 +101,6 @@ function ChartSVG({ dates, lines, height }: { dates: string[]; lines: TrendLine[
       .map((d, i) => ({ date: d, x: padding + i * xStep }))
       .filter((_, i) => i % xLabelInterval === 0 || i === dates.length - 1);
 
-    // Use the first line for Y-axis ticks
     const primaryLine = lineData[0];
     const yTicks = Array.from({ length: 5 }, (_, i) => {
       const val = primaryLine.minVal + (primaryLine.range * i) / 4;
@@ -111,37 +113,107 @@ function ChartSVG({ dates, lines, height }: { dates: string[]; lines: TrendLine[
       return `${p.prefix || ""}${v.toLocaleString("en-US", { minimumFractionDigits: p.decimals ?? 2, maximumFractionDigits: p.decimals ?? 2 })}${p.suffix || ""}`;
     };
 
-    return { lineData, xLabels, yTicks, width, chartH, fmtPrimary };
+    return { lineData, xLabels, yTicks, width, chartH, fmtPrimary, padding, rightPadding, xStep };
   }, [dates, lines, height]);
 
+  const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg || dates.length === 0) return;
+    const rect = svg.getBoundingClientRect();
+    const svgX = ((e.clientX - rect.left) / rect.width) * chart.width;
+    const index = Math.round((svgX - chart.padding) / (chart.xStep || 1));
+    if (index >= 0 && index < dates.length) {
+      setHoveredIndex(index);
+      setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    } else {
+      setHoveredIndex(null);
+    }
+  }, [dates.length, chart.width, chart.padding, chart.xStep]);
+
+  const handleMouseLeave = useCallback(() => {
+    setHoveredIndex(null);
+    setTooltipPos(null);
+  }, []);
+
+  const fmtValue = (line: TrendLine, v: number) =>
+    `${line.prefix || ""}${v.toLocaleString("en-US", { minimumFractionDigits: line.decimals ?? 2, maximumFractionDigits: line.decimals ?? 2 })}${line.suffix || ""}`;
+
   return (
-    <svg viewBox={`0 0 ${chart.width} ${height}`} className="w-full" preserveAspectRatio="xMidYMid meet">
-      {/* Grid lines */}
-      {chart.yTicks.map((tick, i) => (
-        <g key={i}>
-          <line x1={50} y1={tick.y} x2={chart.width - 50} y2={tick.y} stroke="hsl(var(--border))" strokeWidth={0.5} />
-          <text x={46} y={tick.y + 3} textAnchor="end" fill="hsl(var(--muted-foreground))" fontSize={8} fontFamily="monospace">
-            {chart.fmtPrimary(tick.val)}
+    <div className="relative">
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${chart.width} ${height}`}
+        className="w-full"
+        preserveAspectRatio="xMidYMid meet"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
+        {/* Grid lines */}
+        {chart.yTicks.map((tick, i) => (
+          <g key={i}>
+            <line x1={50} y1={tick.y} x2={chart.width - 50} y2={tick.y} stroke="hsl(var(--border))" strokeWidth={0.5} />
+            <text x={46} y={tick.y + 3} textAnchor="end" fill="hsl(var(--muted-foreground))" fontSize={8} fontFamily="monospace">
+              {chart.fmtPrimary(tick.val)}
+            </text>
+          </g>
+        ))}
+
+        {/* Hover vertical line */}
+        {hoveredIndex !== null && chart.lineData[0] && (
+          <line
+            x1={chart.lineData[0].points[hoveredIndex]?.x}
+            y1={20}
+            x2={chart.lineData[0].points[hoveredIndex]?.x}
+            y2={20 + chart.chartH}
+            stroke="hsl(var(--muted-foreground))"
+            strokeWidth={0.5}
+            strokeDasharray="3 3"
+            opacity={0.5}
+          />
+        )}
+
+        {/* Lines */}
+        {chart.lineData.map((ld) => (
+          <g key={ld.key}>
+            <path d={ld.linePath} fill="none" stroke={ld.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" opacity={0.85} />
+            {ld.points.length <= 60 && ld.points.map((p, i) => (
+              <circle key={i} cx={p.x} cy={p.y} r={hoveredIndex === i ? 4 : 2} fill={ld.color} opacity={hoveredIndex === i ? 1 : 0.6} />
+            ))}
+          </g>
+        ))}
+
+        {/* X-axis labels */}
+        {chart.xLabels.map((p, i) => (
+          <text key={i} x={p.x} y={height - 4} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={7} fontFamily="monospace">
+            {format(new Date(p.date + "T12:00:00"), "MMM d")}
           </text>
-        </g>
-      ))}
+        ))}
+      </svg>
 
-      {/* Lines */}
-      {chart.lineData.map((ld) => (
-        <g key={ld.key}>
-          <path d={ld.linePath} fill="none" stroke={ld.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" opacity={0.85} />
-          {ld.points.length <= 60 && ld.points.map((p, i) => (
-            <circle key={i} cx={p.x} cy={p.y} r={2} fill={ld.color} opacity={0.6} />
+      {/* HTML Tooltip */}
+      {hoveredIndex !== null && tooltipPos && (
+        <div
+          className="absolute z-50 pointer-events-none bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-xs"
+          style={{
+            left: tooltipPos.x,
+            top: tooltipPos.y - 8,
+            transform: "translate(-50%, -100%)",
+          }}
+        >
+          <p className="font-medium text-foreground mb-1.5">
+            {format(new Date(dates[hoveredIndex] + "T12:00:00"), "MMM d, yyyy")}
+          </p>
+          {chart.lineData.map((ld) => (
+            <div key={ld.key} className="flex items-center gap-2 justify-between py-0.5">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: ld.color }} />
+                <span className="text-muted-foreground">{ld.label}</span>
+              </span>
+              <span className="font-mono font-medium text-foreground ml-3">{fmtValue(ld, ld.points[hoveredIndex]?.value ?? 0)}</span>
+            </div>
           ))}
-        </g>
-      ))}
-
-      {/* X-axis labels */}
-      {chart.xLabels.map((p, i) => (
-        <text key={i} x={p.x} y={height - 4} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={7} fontFamily="monospace">
-          {format(new Date(p.date + "T12:00:00"), "MMM d")}
-        </text>
-      ))}
-    </svg>
+        </div>
+      )}
+    </div>
   );
 }
