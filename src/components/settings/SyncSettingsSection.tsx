@@ -19,6 +19,10 @@ interface SyncSettingsSectionProps {
   setWinnerKpiDirection: (v: string) => void;
   winnerKpiThreshold: string;
   setWinnerKpiThreshold: (v: string) => void;
+  scaleThreshold: string;
+  setScaleThreshold: (v: string) => void;
+  killThreshold: string;
+  setKillThreshold: (v: string) => void;
   onSave: () => void;
   onApplyToAll: () => void;
   saving: boolean;
@@ -42,9 +46,11 @@ export function SyncSettingsSection({
   spendThreshold, setSpendThreshold,
   winnerKpi, setWinnerKpi, winnerKpiDirection, setWinnerKpiDirection,
   winnerKpiThreshold, setWinnerKpiThreshold,
+  scaleThreshold, setScaleThreshold, killThreshold, setKillThreshold,
   onSave, onApplyToAll, saving, showApplyAll,
 }: SyncSettingsSectionProps) {
   const kpiLabel = KPI_OPTIONS.find(k => k.value === winnerKpi)?.label || winnerKpi;
+  const isGte = winnerKpiDirection !== "lte";
 
   return (
     <section className="glass-panel p-6 space-y-4">
@@ -56,12 +62,12 @@ export function SyncSettingsSection({
         <div className="space-y-2">
           <Label className="text-sm">Date Range (days)</Label>
           <Input type="number" value={dateRange} onChange={(e) => setDateRange(e.target.value)} min="1" max="365" className="bg-background" />
-          <p className="text-[11px] text-muted-foreground">How many days of data to pull on each sync. This does not affect the date picker filter on the Creatives page.</p>
+          <p className="text-[11px] text-muted-foreground">How many days of data to pull on each sync.</p>
         </div>
         <div className="space-y-2">
           <Label className="text-sm">Iteration Spend Threshold ($)</Label>
           <Input type="number" value={spendThreshold} onChange={(e) => setSpendThreshold(e.target.value)} min="0" className="bg-background" />
-          <p className="text-[11px] text-muted-foreground">Minimum spend to include in iteration analysis.</p>
+          <p className="text-[11px] text-muted-foreground">Minimum spend to include in analysis.</p>
         </div>
       </div>
 
@@ -94,13 +100,38 @@ export function SyncSettingsSection({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label className="text-sm">Threshold</Label>
+            <Label className="text-sm">Winner Threshold</Label>
             <Input type="number" value={winnerKpiThreshold} onChange={(e) => setWinnerKpiThreshold(e.target.value)} step="0.1" min="0" className="bg-background" />
           </div>
         </div>
         <p className="text-[11px] text-muted-foreground">
-          A creative is a winner when <span className="font-medium">{kpiLabel}</span> is {winnerKpiDirection === "gte" ? "≥" : "≤"} <span className="font-medium">{winnerKpiThreshold || "0"}</span> and spend exceeds ${spendThreshold || "0"}.
+          A creative is a winner when <span className="font-medium">{kpiLabel}</span> is {isGte ? "≥" : "≤"} <span className="font-medium">{winnerKpiThreshold || "0"}</span> and spend exceeds ${spendThreshold || "0"}.
         </p>
+      </div>
+
+      <div className="border-t border-border pt-4 space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold">Kill / Scale Zones</h3>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            Define {kpiLabel} thresholds for Scale, Watch, and Kill zones. {isGte ? "Scale ≥ top value, Kill < bottom value, Watch = in between." : "Scale ≤ bottom value, Kill > top value, Watch = in between."}
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label className="text-sm text-scale">Scale Threshold</Label>
+            <Input type="number" value={scaleThreshold} onChange={(e) => setScaleThreshold(e.target.value)} step="0.1" min="0" className="bg-background" />
+            <p className="text-[11px] text-muted-foreground">
+              {isGte ? `${kpiLabel} ≥ this → Scale` : `${kpiLabel} ≤ this → Scale`}
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm text-kill">Kill Threshold</Label>
+            <Input type="number" value={killThreshold} onChange={(e) => setKillThreshold(e.target.value)} step="0.1" min="0" className="bg-background" />
+            <p className="text-[11px] text-muted-foreground">
+              {isGte ? `${kpiLabel} < this → Kill` : `${kpiLabel} > this → Kill`}
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="pt-2 flex items-center gap-2">
