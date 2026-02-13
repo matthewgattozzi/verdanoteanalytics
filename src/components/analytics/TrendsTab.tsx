@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Loader2, LineChart } from "lucide-react";
+import { Loader2, LineChart, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { startOfWeek, startOfMonth, format } from "date-fns";
 import { TrendChart } from "@/components/TrendChart";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
@@ -52,6 +52,28 @@ function aggregateBuckets(data: DailyTrendPoint[], granularity: Granularity) {
     }));
 }
 
+function SummaryCard({ label, value, change, invertColor }: { label: string; value: string; change: number | null; invertColor: boolean }) {
+  const isPositive = change !== null && change > 0;
+  const isNeutral = change === null || Math.abs(change) < 0.5;
+  const isGood = change !== null ? (invertColor ? change < 0 : change > 0) : false;
+
+  return (
+    <div className="glass-panel p-4">
+      <p className="text-xs text-muted-foreground mb-1">{label}</p>
+      <div className="flex items-end justify-between">
+        <span className="text-xl font-bold">{value}</span>
+        {change !== null && (
+          <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${isNeutral ? "text-muted-foreground" : isGood ? "text-emerald-500" : "text-red-500"}`}>
+            {isNeutral ? <Minus className="h-3 w-3" /> : isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+            {isPositive ? "+" : ""}{change.toFixed(1)}%
+          </span>
+        )}
+      </div>
+      <p className="text-[10px] text-muted-foreground mt-1">vs previous period</p>
+    </div>
+  );
+}
+
 export function TrendsTab({ trendData, isLoading }: TrendsTabProps) {
   const [dateFrom, setDateFrom] = useState<string | undefined>();
   const [dateTo, setDateTo] = useState<string | undefined>();
@@ -70,6 +92,29 @@ export function TrendsTab({ trendData, isLoading }: TrendsTabProps) {
     if (!filteredData) return [];
     return aggregateBuckets(filteredData, granularity);
   }, [filteredData, granularity]);
+
+  const summary = useMemo(() => {
+    if (chartData.length < 1) return null;
+    const mid = Math.floor(chartData.length / 2);
+    const curr = chartData.slice(mid);
+    const prev = chartData.slice(0, mid);
+
+    const sumSpend = (arr: typeof chartData) => arr.reduce((s, d) => s + d.spend, 0);
+    const avgMetric = (arr: typeof chartData, key: "cpa" | "cpm") => {
+      const vals = arr.filter(d => d[key] > 0);
+      return vals.length > 0 ? vals.reduce((s, d) => s + d[key], 0) / vals.length : 0;
+    };
+    const pctChange = (curr: number, prev: number) => prev === 0 ? null : ((curr - prev) / prev) * 100;
+
+    return {
+      totalSpend: sumSpend(chartData),
+      avgCpa: avgMetric(chartData, "cpa"),
+      avgCpm: avgMetric(chartData, "cpm"),
+      spendChange: pctChange(sumSpend(curr), sumSpend(prev)),
+      cpaChange: pctChange(avgMetric(curr, "cpa"), avgMetric(prev, "cpa")),
+      cpmChange: pctChange(avgMetric(curr, "cpm"), avgMetric(prev, "cpm")),
+    };
+  }, [chartData]);
 
   if (isLoading) {
     return (
@@ -112,6 +157,14 @@ export function TrendsTab({ trendData, isLoading }: TrendsTabProps) {
         </div>
         <span className="text-xs text-muted-foreground">{chartData.length} {granLabel}</span>
       </div>
+
+      {summary && (
+        <div className="grid grid-cols-3 gap-3 mb-2">
+          <SummaryCard label="Total Spend" value={`$${summary.totalSpend.toLocaleString("en-US", { maximumFractionDigits: 0 })}`} change={summary.spendChange} invertColor={false} />
+          <SummaryCard label="Avg CPA" value={`$${summary.avgCpa.toFixed(2)}`} change={summary.cpaChange} invertColor />
+          <SummaryCard label="Avg CPM" value={`$${summary.avgCpm.toFixed(2)}`} change={summary.cpmChange} invertColor />
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-4">
         <TrendChart data={chartData.map(d => ({ date: d.date, value: d.spend }))} label={`${granularity === "daily" ? "Daily" : granularity === "weekly" ? "Weekly" : "Monthly"} Spend`} prefix="$" decimals={0} color="hsl(var(--primary))" />
         <TrendChart data={chartData.map(d => ({ date: d.date, value: d.cpa }))} label="Cost per Result (CPA)" prefix="$" decimals={2} color="hsl(0, 84%, 60%)" invertColor />
