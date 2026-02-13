@@ -121,9 +121,10 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
       if (imageUrl) return imageUrl;
     }
 
-    // Priority 5: thumbnail_url upscaled
+    // Priority 6: thumbnail_url as-is (don't try to upscale - it produces broken images)
     if (creative.thumbnail_url) {
-      return creative.thumbnail_url.replace(/\/[sp]\d+x\d+\//, "/p1080x1080/");
+      console.log(`Using original thumbnail_url for ${adId}`);
+      return creative.thumbnail_url;
     }
 
     return null;
@@ -181,8 +182,8 @@ async function downloadAndCache(
       return null;
     }
     const blob = await resp.arrayBuffer();
-    if (type === "image" && blob.byteLength < 5000) {
-      console.log(`Skipping tiny image for ${adId}: ${blob.byteLength} bytes`);
+    if (type === "image" && blob.byteLength < 500) {
+      console.log(`Skipping broken image for ${adId}: ${blob.byteLength} bytes`);
       return null;
     }
     if (type === "video" && blob.byteLength > 200 * 1024 * 1024) return null;
