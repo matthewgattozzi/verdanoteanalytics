@@ -1,7 +1,7 @@
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { SaveViewButton } from "@/components/SaveViewButton";
 import { CreativeDetailModal } from "@/components/CreativeDetailModal";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
@@ -10,7 +10,7 @@ import { useSearchParams } from "react-router-dom";
 import { useAllCreatives } from "@/hooks/useAllCreatives";
 import { useDailyTrends } from "@/hooks/useDailyTrends";
 import { useAccountContext } from "@/contexts/AccountContext";
-import { AIInsightsTab } from "@/components/AIInsightsTab";
+
 import { TrendsTab } from "@/components/analytics/TrendsTab";
 import { WinRateTab } from "@/components/analytics/WinRateTab";
 import { ScaleTab } from "@/components/analytics/ScaleTab";
@@ -89,10 +89,6 @@ const AnalyticsPage = () => {
           <TabsTrigger value="scale">Scale</TabsTrigger>
           <TabsTrigger value="kill">Kill</TabsTrigger>
           <TabsTrigger value="iterations">Iterations</TabsTrigger>
-          <TabsTrigger value="ai-insights" className="gap-1.5">
-            <Sparkles className="h-3.5 w-3.5" />
-            AI Insights
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="trends" className="animate-fade-in space-y-4">
@@ -115,9 +111,6 @@ const AnalyticsPage = () => {
           <IterationsTab creatives={creatives} spendThreshold={spendThreshold} onCreativeClick={setSelectedCreative} />
         </TabsContent>
 
-        <TabsContent value="ai-insights" className="animate-fade-in">
-          <AIInsightsTab />
-        </TabsContent>
       </Tabs>
 
       <CreativeDetailModal creative={selectedCreative} open={!!selectedCreative} onClose={() => setSelectedCreative(null)} />
