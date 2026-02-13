@@ -253,9 +253,6 @@ const SavedViewsPage = () => {
 
   const applyView = (view: SavedView) => {
     const c = view.config;
-    if (c.account_id) {
-      setSelectedAccountId(c.account_id);
-    }
     const params = new URLSearchParams();
     if (c.analytics_tab) params.set("tab", c.analytics_tab);
     if (c.slice_by) params.set("slice", c.slice_by);
