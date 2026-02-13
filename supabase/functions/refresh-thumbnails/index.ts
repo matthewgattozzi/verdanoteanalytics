@@ -15,11 +15,11 @@ const VIDEO_BATCH_SIZE = 3;
 const MAX_TOTAL = 200;
 
 /** Fetch a fresh high-res image URL from Meta Graph API.
- *  Prioritizes image_url (full resolution) over thumbnail_url (low-res preview). */
-async function getFreshImageUrl(adId: string): Promise<string | null> {
+ *  Uses image_hash + Ad Account Images API for maximum resolution. */
+async function getFreshImageUrl(adId: string, accountId: string): Promise<string | null> {
   try {
     const res = await fetch(
-      `https://graph.facebook.com/v21.0/${adId}?fields=creative{thumbnail_url,image_url,object_story_spec}&access_token=${META_ACCESS_TOKEN}`
+      `https://graph.facebook.com/v21.0/${adId}?fields=creative{thumbnail_url,image_url,image_hash,object_story_spec}&access_token=${META_ACCESS_TOKEN}`
     );
     if (!res.ok) {
       console.log(`Meta API failed for ${adId}: ${res.status}`);
@@ -29,20 +29,41 @@ async function getFreshImageUrl(adId: string): Promise<string | null> {
     const creative = data?.creative;
     if (!creative) return null;
 
-    // Priority 1: image_url from creative (full resolution)
+    // Priority 1: Use image_hash to get full-res from Ad Account Images API
+    const imageHash = creative.image_hash ||
+      creative.object_story_spec?.link_data?.image_hash ||
+      creative.object_story_spec?.photo_data?.image_hash;
+    if (imageHash) {
+      const imgRes = await fetch(
+        `https://graph.facebook.com/v21.0/${accountId}/adimages?hashes=["${imageHash}"]&fields=url_128,url,permalink_url&access_token=${META_ACCESS_TOKEN}`
+      );
+      if (imgRes.ok) {
+        const imgData = await imgRes.json();
+        const images = imgData?.data;
+        if (images && images.length > 0) {
+          // permalink_url is the highest resolution available
+          const fullUrl = images[0].permalink_url || images[0].url || images[0].url_128;
+          if (fullUrl) {
+            console.log(`Got full-res image via image_hash for ${adId}`);
+            return fullUrl;
+          }
+        }
+      }
+    }
+
+    // Priority 2: image from object_story_spec (often higher-res than image_url)
+    const spec = creative.object_story_spec;
+    if (spec) {
+      const imageUrl = spec.link_data?.image_url || spec.photo_data?.url || spec.photo_data?.image_url;
+      if (imageUrl) return imageUrl;
+    }
+
+    // Priority 3: image_url from creative
     if (creative.image_url) {
       return creative.image_url;
     }
 
-    // Priority 2: image from object_story_spec (link_data or photo_data)
-    const spec = creative.object_story_spec;
-    if (spec) {
-      const imageUrl = spec.link_data?.image_url || spec.link_data?.picture ||
-                       spec.photo_data?.url || spec.photo_data?.image_url;
-      if (imageUrl) return imageUrl;
-    }
-
-    // Priority 3: thumbnail_url upscaled (fallback for video ads)
+    // Priority 4: thumbnail_url upscaled (fallback for video ads)
     if (creative.thumbnail_url) {
       return creative.thumbnail_url.replace(/\/[sp]\d+x\d+\//, "/p1080x1080/");
     }
@@ -178,7 +199,7 @@ serve(async (req) => {
       const batch = thumbs.slice(i, i + BATCH_SIZE);
       const results = await Promise.allSettled(
         batch.map(async (c: any) => {
-          const freshUrl = await getFreshImageUrl(c.ad_id);
+          const freshUrl = await getFreshImageUrl(c.ad_id, c.account_id);
           if (!freshUrl) { return false; }
           const storageUrl = await downloadAndCache(supabase, THUMB_BUCKET, c.account_id, c.ad_id, freshUrl, "image");
           if (storageUrl) {
