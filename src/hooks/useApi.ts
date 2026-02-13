@@ -115,7 +115,7 @@ export function useSyncHistory(accountId?: string) {
     queryFn: () => apiFetch("sync", `history${accountId ? `?account_id=${accountId}` : ""}`),
     refetchInterval: (query) => {
       const logs = query.state.data as any[] | undefined;
-      return logs?.some((l: any) => l.status === "running") ? 3000 : false;
+      return logs?.some((l: any) => l.status === "running") ? 2000 : false;
     },
   });
 }
