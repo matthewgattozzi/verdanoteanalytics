@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Bookmark, Plus, Trash2, ExternalLink, Loader2, Pencil, Check, X as XIcon, Copy, GripVertical } from "lucide-react";
+import { Bookmark, Plus, Trash2, ExternalLink, Loader2, Pencil, Copy, GripVertical } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -151,31 +151,59 @@ const SavedViewsPage = () => {
     },
   });
 
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editView, setEditView] = useState<SavedView | null>(null);
   const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editAccountId, setEditAccountId] = useState("all");
+  const [editApplyAccount, setEditApplyAccount] = useState(false);
+  const [editPage, setEditPage] = useState("/");
+  const [editAnalyticsTab, setEditAnalyticsTab] = useState("trends");
+  const [editSliceBy, setEditSliceBy] = useState("ad_type");
+  const [editGroupBy, setEditGroupBy] = useState("");
 
-  const renameMutation = useMutation({
-    mutationFn: async ({ id, newName }: { id: string; newName: string }) => {
-      const { error } = await supabase.from("saved_views").update({ name: newName }).eq("id", id);
+  const startEditing = (view: SavedView) => {
+    setEditView(view);
+    setEditName(view.name);
+    setEditDescription(view.description || "");
+    setEditAccountId(view.config.account_id || "all");
+    setEditApplyAccount(view.config.apply_account || false);
+    setEditPage(view.config.page);
+    setEditAnalyticsTab(view.config.analytics_tab || "trends");
+    setEditSliceBy(view.config.slice_by || "ad_type");
+    setEditGroupBy(view.config.group_by || "");
+  };
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!editView) return;
+      const config: ViewConfig = { page: editPage };
+      if (editAccountId && editAccountId !== "all") {
+        config.account_id = editAccountId;
+        config.apply_account = editApplyAccount;
+      }
+      if (editPage === "/analytics") {
+        config.analytics_tab = editAnalyticsTab;
+        if (editAnalyticsTab === "winrate") config.slice_by = editSliceBy;
+      }
+      if (editPage === "/" && editGroupBy) config.group_by = editGroupBy;
+
+      const { error } = await supabase
+        .from("saved_views")
+        .update({
+          name: editName,
+          description: editDescription || null,
+          config: config as any,
+        })
+        .eq("id", editView.id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["saved-views"] });
-      toast.success("View renamed");
-      setEditingId(null);
+      toast.success("View updated");
+      setEditView(null);
     },
     onError: (e: any) => toast.error(e.message),
   });
-
-  const startEditing = (view: SavedView) => {
-    setEditingId(view.id);
-    setEditName(view.name);
-  };
-
-  const confirmRename = () => {
-    if (!editingId || !editName.trim()) return;
-    renameMutation.mutate({ id: editingId, newName: editName.trim() });
-  };
 
   const duplicateMutation = useMutation({
     mutationFn: async (view: SavedView) => {
@@ -424,28 +452,7 @@ const SavedViewsPage = () => {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <Bookmark className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                    {editingId === view.id ? (
-                      <div className="flex items-center gap-1">
-                        <Input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") confirmRename();
-                            if (e.key === "Escape") setEditingId(null);
-                          }}
-                          className="h-6 text-sm font-medium w-48 px-1.5"
-                          autoFocus
-                        />
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={confirmRename} disabled={!editName.trim() || renameMutation.isPending}>
-                          <Check className="h-3 w-3" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setEditingId(null)}>
-                          <XIcon className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <span className="text-sm font-medium truncate cursor-pointer hover:underline" onDoubleClick={() => startEditing(view)}>{view.name}</span>
-                    )}
+                    <span className="text-sm font-medium truncate cursor-pointer hover:underline" onDoubleClick={() => startEditing(view)}>{view.name}</span>
                     <Badge variant="outline" className="text-[10px] flex-shrink-0">{getPageLabel(view.config.page)}</Badge>
                     {view.config.account_id && (
                       <Badge variant="outline" className="text-[10px] flex-shrink-0">
@@ -502,6 +509,108 @@ const SavedViewsPage = () => {
           ))}
         </div>
       )}
+
+      {/* Edit Modal */}
+      <Dialog open={!!editView} onOpenChange={(open) => !open && setEditView(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Saved View</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Name</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-9 text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Description (optional)</Label>
+              <Input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="What this view shows" className="h-9 text-sm" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Page</Label>
+                <Select value={editPage} onValueChange={setEditPage}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PAGE_OPTIONS.map((p) => (
+                      <SelectItem key={p.value} value={p.value} className="text-xs">{p.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Account</Label>
+                <Select value={editAccountId} onValueChange={setEditAccountId}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="text-xs">All Accounts</SelectItem>
+                    {[...accounts].sort((a: any, b: any) => a.name.localeCompare(b.name)).map((acc: any) => (
+                      <SelectItem key={acc.id} value={acc.id} className="text-xs">{acc.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {editAccountId && editAccountId !== "all" && (
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="edit-apply-account"
+                  checked={editApplyAccount}
+                  onCheckedChange={(checked) => setEditApplyAccount(checked === true)}
+                />
+                <Label htmlFor="edit-apply-account" className="text-xs text-muted-foreground cursor-pointer">
+                  Switch to this account when opening view
+                </Label>
+              </div>
+            )}
+            {editPage === "/analytics" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Analytics Tab</Label>
+                  <Select value={editAnalyticsTab} onValueChange={setEditAnalyticsTab}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {ANALYTICS_TABS.map((t) => (
+                        <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {editAnalyticsTab === "winrate" && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Slice By</Label>
+                    <Select value={editSliceBy} onValueChange={setEditSliceBy}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {SLICE_OPTIONS.map((s) => (
+                          <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            )}
+            {editPage === "/" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Group By (optional)</Label>
+                <Select value={editGroupBy || "none"} onValueChange={(v) => setEditGroupBy(v === "none" ? "" : v)}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none" className="text-xs">None</SelectItem>
+                    {SLICE_OPTIONS.map((s) => (
+                      <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <Button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || updateMutation.isPending} className="w-full">
+              {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Update View
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
