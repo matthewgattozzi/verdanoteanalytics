@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { SyncStatusBanner } from "@/components/SyncStatusBanner";
 import { PageHeader } from "@/components/PageHeader";
 import { AccountOverviewSection } from "@/components/settings/AccountOverviewSection";
 
@@ -52,6 +53,7 @@ const SettingsPage = () => {
   return (
     <AppLayout>
       <PageHeader title={`${s.account.name} — Settings`} description="Configure sync preferences for this account." />
+      <SyncStatusBanner />
 
       <div className="max-w-2xl space-y-8">
         <AccountOverviewSection
