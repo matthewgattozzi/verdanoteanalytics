@@ -53,20 +53,52 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
       }
     }
 
-    // Priority 2: image_url from creative (can be full-res for image ads)
+    // Priority 2: For video ads, get thumbnail from video_id at high resolution
+    const spec = creative.object_story_spec;
+    const videoId = spec?.video_data?.video_id || spec?.template_data?.video_data?.video_id;
+    if (videoId) {
+      const vidRes = await fetch(
+        `https://graph.facebook.com/v21.0/${videoId}?fields=thumbnails{uri,width,height}&access_token=${META_ACCESS_TOKEN}`
+      );
+      if (vidRes.ok) {
+        const vidData = await vidRes.json();
+        const thumbs = vidData?.thumbnails?.data;
+        if (thumbs && thumbs.length > 0) {
+          // Pick the largest thumbnail available
+          const sorted = thumbs.sort((a: any, b: any) => (b.width || 0) - (a.width || 0));
+          const best = sorted[0];
+          if (best?.uri) {
+            console.log(`Video thumbnail for ${adId}: ${best.width}x${best.height}`);
+            return best.uri;
+          }
+        }
+      }
+      // Fallback: get video picture at specific width
+      const picRes = await fetch(
+        `https://graph.facebook.com/v21.0/${videoId}/picture?redirect=false&type=large&access_token=${META_ACCESS_TOKEN}`
+      );
+      if (picRes.ok) {
+        const picData = await picRes.json();
+        if (picData?.data?.url) {
+          console.log(`Video picture fallback for ${adId}`);
+          return picData.data.url;
+        }
+      }
+    }
+
+    // Priority 3: image_url from creative (can be full-res for image ads)
     if (creative.image_url) {
       console.log(`Using image_url for ${adId}`);
       return creative.image_url;
     }
 
-    // Priority 3: image from object_story_spec
-    const spec = creative.object_story_spec;
+    // Priority 4: image from object_story_spec
     if (spec) {
       const imageUrl = spec.link_data?.image_url || spec.photo_data?.url || spec.photo_data?.image_url;
       if (imageUrl) return imageUrl;
     }
 
-    // Priority 4: thumbnail_url upscaled (fallback for video ads)
+    // Priority 5: thumbnail_url upscaled
     if (creative.thumbnail_url) {
       return creative.thumbnail_url.replace(/\/[sp]\d+x\d+\//, "/p1080x1080/");
     }
