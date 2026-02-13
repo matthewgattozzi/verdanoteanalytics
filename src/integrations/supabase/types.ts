@@ -513,6 +513,7 @@ export type Database = {
           diag_weak_hook: number
           diag_weak_hook_body: number
           id: string
+          iteration_suggestions: string | null
           report_name: string
           tags_csv_count: number | null
           tags_manual_count: number | null
@@ -545,6 +546,7 @@ export type Database = {
           diag_weak_hook?: number
           diag_weak_hook_body?: number
           id?: string
+          iteration_suggestions?: string | null
           report_name: string
           tags_csv_count?: number | null
           tags_manual_count?: number | null
@@ -577,6 +579,7 @@ export type Database = {
           diag_weak_hook?: number
           diag_weak_hook_body?: number
           id?: string
+          iteration_suggestions?: string | null
           report_name?: string
           tags_csv_count?: number | null
           tags_manual_count?: number | null

@@ -47,6 +47,7 @@ export function ReportDetailModal({ report, previousReport, open, onClose }: Rep
 
   const topPerformers = (() => { try { return JSON.parse(report.top_performers || "[]"); } catch { return []; } })();
   const bottomPerformers = (() => { try { return JSON.parse(report.bottom_performers || "[]"); } catch { return []; } })();
+  const iterationSuggestions = (() => { try { return JSON.parse(report.iteration_suggestions || "[]"); } catch { return []; } })();
 
   const prev = previousReport;
 
@@ -127,27 +128,26 @@ export function ReportDetailModal({ report, previousReport, open, onClose }: Rep
           ))}
         </div>
 
-        {/* Iteration Diagnostics */}
-        {(report.diag_total_diagnosed > 0) && (
+        {/* Iteration Suggestions */}
+        {iterationSuggestions.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="h-4 w-4 text-warning" />
-              <h3 className="text-sm font-semibold">Iteration Diagnostics</h3>
-              <Badge variant="outline" className="text-[10px]">{report.diag_total_diagnosed} ads need work</Badge>
+              <h3 className="text-sm font-semibold">Iteration Suggestions</h3>
+              <Badge variant="outline" className="text-[10px]">{iterationSuggestions.length} ads need work</Badge>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {[
-                { label: "Weak Hook", count: report.diag_weak_hook, color: "text-warning" },
-                { label: "Weak Body", count: report.diag_weak_body, color: "text-yellow-500" },
-                { label: "Weak CTA", count: report.diag_weak_cta, color: "text-info" },
-                { label: "Weak Hook+Body", count: report.diag_weak_hook_body, color: "text-destructive" },
-                { label: "Landing Page", count: report.diag_landing_page, color: "text-purple-400" },
-                { label: "Full Rebuild", count: report.diag_all_weak, color: "text-destructive" },
-                { label: "Weak CTR (Image)", count: report.diag_weak_cta_image, color: "text-info" },
-              ].filter(d => d.count > 0).map(d => (
-                <div key={d.label} className="glass-panel p-2 text-center">
-                  <div className={`text-sm font-semibold font-mono ${d.color}`}>{d.count}</div>
-                  <div className="text-[10px] text-muted-foreground">{d.label}</div>
+            <div className="space-y-1.5">
+              {iterationSuggestions.map((s: any) => (
+                <div key={s.ad_id} className="glass-panel p-2.5 text-xs">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-[10px] font-medium">{s.label}</Badge>
+                      <span className="font-medium truncate max-w-[200px]">{s.ad_name}</span>
+                      {s.unique_code && <span className="text-[10px] font-mono text-muted-foreground">{s.unique_code}</span>}
+                    </div>
+                    <span className="font-mono text-muted-foreground">{fmt(s.spend, "$")} spent</span>
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">{s.recommendation}</p>
                 </div>
               ))}
             </div>

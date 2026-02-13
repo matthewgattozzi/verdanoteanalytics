@@ -18,14 +18,28 @@ function spendWeightedPercentile(items: { value: number; spend: number }[], pct:
   return sorted[sorted.length - 1].value;
 }
 
+const RECOMMENDATIONS: Record<string, string> = {
+  weak_hook: "Test new opening hooks. The body and CTA are working — only change the first 3 seconds.",
+  weak_body: "The hook grabs attention but viewers drop off. Tighten the pacing or restructure the middle section.",
+  weak_cta: "Strong engagement but low clicks. Test a different end card, CTA overlay, or offer framing.",
+  weak_hook_body: "Consider a full creative rework. The concept or execution isn't connecting.",
+  landing_page: "People are watching the full video but not clicking. Check the landing page, offer, or CTA clarity.",
+  all_weak: "This creative needs a complete rebuild — start with a new concept rather than iterating.",
+  weak_cta_image: "This image ad has a weak CTR. Test different headlines, copy, or visual hierarchy to drive more clicks.",
+};
+
+const DIAG_LABELS: Record<string, string> = {
+  weak_hook: "Weak Hook", weak_body: "Weak Body", weak_cta: "Weak CTA",
+  weak_hook_body: "Weak Hook + Body", landing_page: "Landing Page Issue",
+  all_weak: "Full Rebuild", weak_cta_image: "Weak CTR (Image)",
+};
+
 function computeDiagnostics(creatives: any[]) {
   const items = creatives.map((c: any) => ({
-    hookRate: Number(c.thumb_stop_rate) || 0,
-    holdRate: Number(c.hold_rate) || 0,
-    ctr: Number(c.ctr) || 0,
-    spend: Number(c.spend) || 0,
-    adType: (c.ad_type || "").toLowerCase(),
-    adName: (c.ad_name || "").toLowerCase(),
+    ad_id: c.ad_id, ad_name: c.ad_name || c.ad_id, unique_code: c.unique_code,
+    hookRate: Number(c.thumb_stop_rate) || 0, holdRate: Number(c.hold_rate) || 0,
+    ctr: Number(c.ctr) || 0, spend: Number(c.spend) || 0,
+    adType: (c.ad_type || "").toLowerCase(), adName: (c.ad_name || "").toLowerCase(),
   }));
   const hookItems = items.map(i => ({ value: i.hookRate, spend: i.spend }));
   const holdItems = items.map(i => ({ value: i.holdRate, spend: i.spend }));
@@ -36,6 +50,7 @@ function computeDiagnostics(creatives: any[]) {
   const level = (v: number, lo: number, hi: number) => v >= hi ? "strong" : v <= lo ? "weak" : "average";
 
   const counts = { diag_weak_hook: 0, diag_weak_body: 0, diag_weak_cta: 0, diag_weak_hook_body: 0, diag_landing_page: 0, diag_all_weak: 0, diag_weak_cta_image: 0, diag_total_diagnosed: 0 };
+  const suggestions: any[] = [];
 
   for (const i of items) {
     const isImage = i.adType === "image" || i.adType === "carousel" || i.adType === "static" || i.adName.includes("static") || (i.adType !== "video" && i.hookRate === 0 && i.holdRate === 0);
@@ -55,9 +70,17 @@ function computeDiagnostics(creatives: any[]) {
     if (diag) {
       (counts as any)[`diag_${diag}`]++;
       counts.diag_total_diagnosed++;
+      suggestions.push({
+        ad_id: i.ad_id, ad_name: i.ad_name, unique_code: i.unique_code,
+        diagnostic: diag, label: DIAG_LABELS[diag] || diag,
+        recommendation: RECOMMENDATIONS[diag] || "",
+        spend: Math.round(i.spend * 100) / 100,
+      });
     }
   }
-  return counts;
+  // Sort by spend descending so highest-spend issues appear first
+  suggestions.sort((a, b) => b.spend - a.spend);
+  return { counts, suggestions };
 }
 
 async function sendReportToSlack(report: any) {
@@ -276,7 +299,7 @@ serve(async (req) => {
         ctr: Math.round(Number(c.ctr || 0) * 1000) / 1000,
       });
 
-      const diagCounts = computeDiagnostics(list);
+      const { counts: diagCounts, suggestions: diagSuggestions } = computeDiagnostics(list);
 
       const report = {
         report_name: report_name || `Report ${new Date().toLocaleDateString()}`,
@@ -296,6 +319,7 @@ serve(async (req) => {
         date_range_start: dateStart,
         date_range_end: dateEnd,
         date_range_days: days,
+        iteration_suggestions: JSON.stringify(diagSuggestions),
         ...diagCounts,
       };
 
