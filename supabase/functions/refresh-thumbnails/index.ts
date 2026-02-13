@@ -23,7 +23,10 @@ async function cacheMedia(
 ): Promise<string | null> {
   try {
     const resp = await fetch(metaUrl);
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      console.log(`Download failed ${adId}: HTTP ${resp.status} ${resp.statusText}`);
+      return null;
+    }
     const blob = await resp.arrayBuffer();
     // Skip very large videos (>200MB)
     if (type === "video" && blob.byteLength > 200 * 1024 * 1024) return null;
