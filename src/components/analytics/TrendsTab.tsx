@@ -114,10 +114,10 @@ export function TrendsTab({ trendData, isLoading }: TrendsTabProps) {
       </div>
       <div className="grid grid-cols-2 gap-4">
         <TrendChart data={chartData.map(d => ({ date: d.date, value: d.spend }))} label={`${granularity === "daily" ? "Daily" : granularity === "weekly" ? "Weekly" : "Monthly"} Spend`} prefix="$" decimals={0} color="hsl(var(--primary))" />
-        <TrendChart data={chartData.map(d => ({ date: d.date, value: d.cpa }))} label="Cost per Result (CPA)" prefix="$" decimals={2} color="hsl(0, 84%, 60%)" />
+        <TrendChart data={chartData.map(d => ({ date: d.date, value: d.cpa }))} label="Cost per Result (CPA)" prefix="$" decimals={2} color="hsl(0, 84%, 60%)" invertColor />
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <TrendChart data={chartData.map(d => ({ date: d.date, value: d.cpm }))} label="CPM" prefix="$" decimals={2} color="hsl(262, 83%, 58%)" />
+        <TrendChart data={chartData.map(d => ({ date: d.date, value: d.cpm }))} label="CPM" prefix="$" decimals={2} color="hsl(262, 83%, 58%)" invertColor />
       </div>
     </>
   );

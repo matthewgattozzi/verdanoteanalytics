@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Expand } from "lucide-react";
+import { Expand, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 interface TrendChartProps {
   data: { date: string; value: number }[];
@@ -11,12 +11,26 @@ interface TrendChartProps {
   decimals?: number;
   color?: string;
   height?: number;
+  /** If true, a decrease is "good" (e.g. CPA, CPM) */
+  invertColor?: boolean;
 }
 
-export function TrendChart({ data, label, prefix = "", suffix = "", decimals = 2, color = "hsl(var(--primary))", height = 200 }: TrendChartProps) {
+export function TrendChart({ data, label, prefix = "", suffix = "", decimals = 2, color = "hsl(var(--primary))", height = 200, invertColor = false }: TrendChartProps) {
   const [expanded, setExpanded] = useState(false);
 
   const fmt = (v: number) => `${prefix}${v.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}${suffix}`;
+
+  const periodChange = useMemo(() => {
+    if (data.length < 2) return null;
+    const mid = Math.floor(data.length / 2);
+    const prevSlice = data.slice(0, mid);
+    const currSlice = data.slice(mid);
+    const prevAvg = prevSlice.reduce((s, d) => s + d.value, 0) / prevSlice.length;
+    const currAvg = currSlice.reduce((s, d) => s + d.value, 0) / currSlice.length;
+    if (prevAvg === 0) return null;
+    const pct = ((currAvg - prevAvg) / prevAvg) * 100;
+    return { pct, currAvg, prevAvg };
+  }, [data]);
 
   if (data.length === 0) {
     return (
@@ -26,12 +40,24 @@ export function TrendChart({ data, label, prefix = "", suffix = "", decimals = 2
     );
   }
 
+  const isPositive = periodChange ? periodChange.pct > 0 : false;
+  const isGood = periodChange ? (invertColor ? periodChange.pct < 0 : periodChange.pct > 0) : false;
+  const isNeutral = periodChange ? Math.abs(periodChange.pct) < 0.5 : true;
+
   return (
     <>
       <div className="glass-panel p-4 cursor-pointer group relative hover:ring-1 hover:ring-primary/30 transition-all" onClick={() => setExpanded(true)}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold">{label}</h3>
-          <Expand className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="flex items-center gap-2">
+            {periodChange && (
+              <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${isNeutral ? "text-muted-foreground" : isGood ? "text-emerald-500" : "text-red-500"}`}>
+                {isNeutral ? <Minus className="h-3 w-3" /> : isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                {isPositive ? "+" : ""}{periodChange.pct.toFixed(1)}%
+              </span>
+            )}
+            <Expand className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
         </div>
         <ChartSVG data={data} height={height} color={color} fmt={fmt} />
       </div>
