@@ -7,7 +7,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { TrendingUp, TrendingDown, Download, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown, Download, ArrowUp, ArrowDown, Minus, AlertTriangle } from "lucide-react";
 import { exportReportCSV } from "@/lib/csv";
 
 interface ReportDetailModalProps {
@@ -126,6 +126,33 @@ export function ReportDetailModal({ report, previousReport, open, onClose }: Rep
             </span>
           ))}
         </div>
+
+        {/* Iteration Diagnostics */}
+        {(report.diag_total_diagnosed > 0) && (
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              <h3 className="text-sm font-semibold">Iteration Diagnostics</h3>
+              <Badge variant="outline" className="text-[10px]">{report.diag_total_diagnosed} ads need work</Badge>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { label: "Weak Hook", count: report.diag_weak_hook, color: "text-warning" },
+                { label: "Weak Body", count: report.diag_weak_body, color: "text-yellow-500" },
+                { label: "Weak CTA", count: report.diag_weak_cta, color: "text-info" },
+                { label: "Weak Hook+Body", count: report.diag_weak_hook_body, color: "text-destructive" },
+                { label: "Landing Page", count: report.diag_landing_page, color: "text-purple-400" },
+                { label: "Full Rebuild", count: report.diag_all_weak, color: "text-destructive" },
+                { label: "Weak CTR (Image)", count: report.diag_weak_cta_image, color: "text-info" },
+              ].filter(d => d.count > 0).map(d => (
+                <div key={d.label} className="glass-panel p-2 text-center">
+                  <div className={`text-sm font-semibold font-mono ${d.color}`}>{d.count}</div>
+                  <div className="text-[10px] text-muted-foreground">{d.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <Separator />
 

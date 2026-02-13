@@ -6,6 +6,51 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function spendWeightedPercentile(items: { value: number; spend: number }[], pct: number): number {
+  if (!items.length) return 0;
+  const sorted = [...items].sort((a, b) => a.value - b.value);
+  const total = sorted.reduce((s, i) => s + i.spend, 0);
+  if (total === 0) return sorted[Math.floor(sorted.length / 2)].value;
+  const target = total * (pct / 100);
+  let cum = 0;
+  for (const item of sorted) { cum += item.spend; if (cum >= target) return item.value; }
+  return sorted[sorted.length - 1].value;
+}
+
+function computeDiagnostics(creatives: any[]) {
+  const items = creatives.map((c: any) => ({
+    hookRate: Number(c.thumb_stop_rate) || 0, holdRate: Number(c.hold_rate) || 0,
+    ctr: Number(c.ctr) || 0, spend: Number(c.spend) || 0,
+    adType: (c.ad_type || "").toLowerCase(), adName: (c.ad_name || "").toLowerCase(),
+  }));
+  const hookItems = items.map(i => ({ value: i.hookRate, spend: i.spend }));
+  const holdItems = items.map(i => ({ value: i.holdRate, spend: i.spend }));
+  const ctrItems = items.map(i => ({ value: i.ctr, spend: i.spend }));
+  const p25h = spendWeightedPercentile(hookItems, 25), p75h = spendWeightedPercentile(hookItems, 75);
+  const p25d = spendWeightedPercentile(holdItems, 25), p75d = spendWeightedPercentile(holdItems, 75);
+  const p25c = spendWeightedPercentile(ctrItems, 25), p75c = spendWeightedPercentile(ctrItems, 75);
+  const level = (v: number, lo: number, hi: number) => v >= hi ? "strong" : v <= lo ? "weak" : "average";
+  const counts = { diag_weak_hook: 0, diag_weak_body: 0, diag_weak_cta: 0, diag_weak_hook_body: 0, diag_landing_page: 0, diag_all_weak: 0, diag_weak_cta_image: 0, diag_total_diagnosed: 0 };
+  for (const i of items) {
+    const isImage = i.adType === "image" || i.adType === "carousel" || i.adType === "static" || i.adName.includes("static") || (i.adType !== "video" && i.hookRate === 0 && i.holdRate === 0);
+    const hk = isImage ? "average" : level(i.hookRate, p25h, p75h);
+    const hd = isImage ? "average" : level(i.holdRate, p25d, p75d);
+    const ct = level(i.ctr, p25c, p75c);
+    let diag = "";
+    if (isImage) { if (ct === "weak") diag = "weak_cta_image"; }
+    else {
+      if (hk === "weak" && hd === "weak" && ct === "weak") diag = "all_weak";
+      else if (hk === "weak" && hd === "weak") diag = "weak_hook_body";
+      else if (hk === "strong" && hd === "strong" && ct === "weak") diag = "landing_page";
+      else if (hk === "weak") diag = "weak_hook";
+      else if (hd === "weak") diag = "weak_body";
+      else if (ct === "weak") diag = "weak_cta";
+    }
+    if (diag) { (counts as any)[`diag_${diag}`]++; counts.diag_total_diagnosed++; }
+  }
+  return counts;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -99,6 +144,7 @@ serve(async (req) => {
         date_range_start: dateStart,
         date_range_end: dateEnd,
         date_range_days: days,
+        ...computeDiagnostics(withSpend),
       };
 
       const { error: insertErr } = await supabase.from("reports").insert(report);

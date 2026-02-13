@@ -457,6 +457,14 @@ export type Database = {
           date_range_days: number | null
           date_range_end: string | null
           date_range_start: string | null
+          diag_all_weak: number
+          diag_landing_page: number
+          diag_total_diagnosed: number
+          diag_weak_body: number
+          diag_weak_cta: number
+          diag_weak_cta_image: number
+          diag_weak_hook: number
+          diag_weak_hook_body: number
           id: string
           report_name: string
           tags_csv_count: number | null
@@ -481,6 +489,14 @@ export type Database = {
           date_range_days?: number | null
           date_range_end?: string | null
           date_range_start?: string | null
+          diag_all_weak?: number
+          diag_landing_page?: number
+          diag_total_diagnosed?: number
+          diag_weak_body?: number
+          diag_weak_cta?: number
+          diag_weak_cta_image?: number
+          diag_weak_hook?: number
+          diag_weak_hook_body?: number
           id?: string
           report_name: string
           tags_csv_count?: number | null
@@ -505,6 +521,14 @@ export type Database = {
           date_range_days?: number | null
           date_range_end?: string | null
           date_range_start?: string | null
+          diag_all_weak?: number
+          diag_landing_page?: number
+          diag_total_diagnosed?: number
+          diag_weak_body?: number
+          diag_weak_cta?: number
+          diag_weak_cta_image?: number
+          diag_weak_hook?: number
+          diag_weak_hook_body?: number
           id?: string
           report_name?: string
           tags_csv_count?: number | null
