@@ -1,8 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { TrendingUp, AlertTriangle, Loader2 } from "lucide-react";
-import { useParams } from "react-router-dom";
-import { useMemo } from "react";
+import { TrendingUp, AlertTriangle, Loader2, LogIn } from "lucide-react";
+import { useParams, Link } from "react-router-dom";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -27,6 +27,13 @@ const fmt = (v: number | null, prefix = "", suffix = "") => {
 const PublicReportPage = () => {
   const { id } = useParams<{ id: string }>();
   const { data: report, isLoading } = usePublicReport(id);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAuthenticated(!!session?.user);
+    });
+  }, []);
 
   const topPerformers = useMemo(() => {
     try { return JSON.parse(report?.top_performers || "[]"); } catch { return []; }
@@ -65,9 +72,20 @@ const PublicReportPage = () => {
     <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto px-6 py-10 space-y-8 animate-fade-in">
         {/* Branding */}
-        <div className="flex items-center gap-2.5">
-          <img src="/favicon.png" alt="Verdanote" className="h-8 w-8 rounded-lg shadow-sm" />
-          <span className="text-sm font-serif font-semibold text-foreground tracking-tight">Verdanote</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <img src="/favicon.png" alt="Verdanote" className="h-8 w-8 rounded-lg shadow-sm" />
+            <span className="text-sm font-serif font-semibold text-foreground tracking-tight">Verdanote</span>
+          </div>
+          {isAuthenticated === false && (
+            <Link
+              to="/login"
+              className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors bg-primary/10 rounded-md px-3 py-1.5"
+            >
+              <LogIn className="h-3.5 w-3.5" />
+              Sign in for full access
+            </Link>
+          )}
         </div>
 
         {/* Header */}
