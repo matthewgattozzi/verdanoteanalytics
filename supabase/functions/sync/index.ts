@@ -77,7 +77,37 @@ async function cacheThumbnail(
   }
 }
 
-// Video caching is handled by refresh-thumbnails cron job
+const VIDEO_BUCKET = "ad-videos";
+
+async function cacheVideo(
+  supabase: any,
+  accountId: string,
+  adId: string,
+  metaUrl: string
+): Promise<string | null> {
+  try {
+    const resp = await fetch(metaUrl);
+    if (!resp.ok) return null;
+    const blob = await resp.arrayBuffer();
+    // Skip tiny responses (likely error pages) and huge files (>200MB)
+    if (blob.byteLength < 1000 || blob.byteLength > 200 * 1024 * 1024) return null;
+    const contentType = resp.headers.get("content-type") || "video/mp4";
+    const ext = contentType.includes("webm") ? "webm" : "mp4";
+    const path = `${accountId}/${adId}.${ext}`;
+
+    const { error } = await supabase.storage
+      .from(VIDEO_BUCKET)
+      .upload(path, new Uint8Array(blob), { contentType, upsert: true });
+    if (error) {
+      console.log(`Video upload error for ${adId}:`, error.message);
+      return null;
+    }
+    return `${SUPABASE_URL}/storage/v1/object/public/${VIDEO_BUCKET}/${path}`;
+  } catch (err) {
+    console.log(`Video cache error for ${adId}:`, err);
+    return null;
+  }
+}
 
 // ─── Meta API Helper ─────────────────────────────────────────────────────────
 
@@ -582,6 +612,39 @@ serve(async (req) => {
             }
             creativesUpserted = updated;
             console.log(`Phase 3 complete: ${updated} creatives updated with insights`);
+          }
+
+          // ─── PHASE 3.6: Cache uncached videos to storage ──────────
+          if (!isTimedOut()) {
+            const { data: uncachedVids } = await supabase.from("creatives")
+              .select("ad_id, video_url")
+              .eq("account_id", account.id)
+              .not("video_url", "is", null)
+              .neq("video_url", "no-video")
+              .not("video_url", "like", "%/storage/v1/object/public/%")
+              .limit(50);
+
+            const toCache = uncachedVids || [];
+            if (toCache.length > 0) {
+              console.log(`Phase 3.6: Caching ${toCache.length} videos while CDN links are fresh...`);
+              let vidCached = 0;
+              // Process 3 at a time to avoid timeout from large downloads
+              for (let i = 0; i < toCache.length && !isTimedOut(); i += 3) {
+                const batch = toCache.slice(i, i + 3);
+                const results = await Promise.allSettled(
+                  batch.map(async (c: any) => {
+                    const storageUrl = await cacheVideo(supabase, account.id, c.ad_id, c.video_url);
+                    if (storageUrl) {
+                      await supabase.from("creatives").update({ video_url: storageUrl }).eq("ad_id", c.ad_id);
+                      return true;
+                    }
+                    return false;
+                  })
+                );
+                vidCached += results.filter((r: any) => r.status === "fulfilled" && r.value).length;
+              }
+              console.log(`Phase 3.6 complete: ${vidCached}/${toCache.length} videos cached`);
+            }
           }
 
           await saveProgress("running");
