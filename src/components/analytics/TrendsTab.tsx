@@ -14,7 +14,7 @@ interface TrendsTabProps {
 
 function bucketKey(date: string, granularity: Granularity): string {
   if (granularity === "daily") return date;
-  const d = new Date(date);
+  const d = new Date(date + "T12:00:00");
   if (granularity === "weekly") return format(startOfWeek(d, { weekStartsOn: 1 }), "yyyy-MM-dd");
   return format(startOfMonth(d), "yyyy-MM-dd");
 }
@@ -81,28 +81,29 @@ export function TrendsTab({ trendData, isLoading }: TrendsTabProps) {
     return aggregateBuckets(trendData, granularity);
   }, [trendData, granularity]);
 
+  // Always compute summary from raw daily data to avoid misleading partial-bucket comparisons
   const summary = useMemo(() => {
-    if (chartData.length < 1) return null;
-    const mid = Math.floor(chartData.length / 2);
-    const curr = chartData.slice(mid);
-    const prev = chartData.slice(0, mid);
+    if (!trendData || trendData.length < 1) return null;
+    const mid = Math.floor(trendData.length / 2);
+    const curr = trendData.slice(mid);
+    const prev = trendData.slice(0, mid);
 
-    const sumSpend = (arr: typeof chartData) => arr.reduce((s, d) => s + d.spend, 0);
-    const avgMetric = (arr: typeof chartData, key: "cpa" | "cpm") => {
+    const sumSpend = (arr: DailyTrendPoint[]) => arr.reduce((s, d) => s + d.spend, 0);
+    const avgMetric = (arr: DailyTrendPoint[], key: "cpa" | "cpm") => {
       const vals = arr.filter(d => d[key] > 0);
       return vals.length > 0 ? vals.reduce((s, d) => s + d[key], 0) / vals.length : 0;
     };
     const pctChange = (curr: number, prev: number) => prev === 0 ? null : ((curr - prev) / prev) * 100;
 
     return {
-      totalSpend: sumSpend(chartData),
-      avgCpa: avgMetric(chartData, "cpa"),
-      avgCpm: avgMetric(chartData, "cpm"),
+      totalSpend: sumSpend(trendData),
+      avgCpa: avgMetric(trendData, "cpa"),
+      avgCpm: avgMetric(trendData, "cpm"),
       spendChange: pctChange(sumSpend(curr), sumSpend(prev)),
       cpaChange: pctChange(avgMetric(curr, "cpa"), avgMetric(prev, "cpa")),
       cpmChange: pctChange(avgMetric(curr, "cpm"), avgMetric(prev, "cpm")),
     };
-  }, [chartData]);
+  }, [trendData]);
 
   if (isLoading) {
     return (
@@ -123,7 +124,9 @@ export function TrendsTab({ trendData, isLoading }: TrendsTabProps) {
   }
 
   const granLabel = granularity === "daily" ? "days" : granularity === "weekly" ? "weeks" : "months";
-
+  const dataRangeLabel = trendData && trendData.length > 0
+    ? `${trendData.length} days · ${chartData.length} ${granLabel}`
+    : `${chartData.length} ${granLabel}`;
   return (
     <>
       <div className="flex items-center justify-between mb-1">
@@ -140,7 +143,7 @@ export function TrendsTab({ trendData, isLoading }: TrendsTabProps) {
             </Button>
           ))}
         </div>
-        <span className="text-xs text-muted-foreground">{chartData.length} {granLabel}</span>
+        <span className="text-xs text-muted-foreground">{dataRangeLabel}</span>
       </div>
 
       {summary && (
