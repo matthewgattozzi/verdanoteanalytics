@@ -1,0 +1,54 @@
+import { useState, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useAccountContext } from "@/contexts/AccountContext";
+import { useAllCreatives } from "@/hooks/useAllCreatives";
+import { useDailyTrends } from "@/hooks/useDailyTrends";
+
+export function useAnalyticsPageState() {
+  const { selectedAccountId, selectedAccount } = useAccountContext();
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "trends");
+  const [selectedCreative, setSelectedCreative] = useState<any>(null);
+  const [dateFrom, setDateFrom] = useState<string | undefined>();
+  const [dateTo, setDateTo] = useState<string | undefined>();
+
+  const accountFilter = selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {};
+  const dateFilters = {
+    ...accountFilter,
+    ...(dateFrom ? { date_from: dateFrom } : {}),
+    ...(dateTo ? { date_to: dateTo } : {}),
+  };
+
+  const { data: creatives = [], isLoading } = useAllCreatives(dateFilters);
+  const { data: trendData, isLoading: trendsLoading } = useDailyTrends(selectedAccountId || undefined);
+
+  const roasThreshold = parseFloat(selectedAccount?.winner_roas_threshold || "2.0");
+  const spendThreshold = parseFloat(selectedAccount?.iteration_spend_threshold || "50");
+
+  const killScaleConfig = useMemo(() => ({
+    winnerKpi: selectedAccount?.winner_kpi || "roas",
+    winnerKpiDirection: selectedAccount?.winner_kpi_direction || "gte",
+    scaleAt: parseFloat(selectedAccount?.scale_threshold || "0") || (parseFloat(selectedAccount?.winner_kpi_threshold || "0") || roasThreshold),
+    killAt: parseFloat(selectedAccount?.kill_threshold || "0") || (parseFloat(selectedAccount?.winner_kpi_threshold || "0") || roasThreshold) * 0.5,
+    spendThreshold,
+  }), [selectedAccount, roasThreshold, spendThreshold]);
+
+  const filteredTrendData = useMemo(() => {
+    if (!trendData) return undefined;
+    return trendData.filter((d: any) => {
+      if (dateFrom && d.date < dateFrom) return false;
+      if (dateTo && d.date > dateTo) return false;
+      return true;
+    });
+  }, [trendData, dateFrom, dateTo]);
+
+  return {
+    activeTab, setActiveTab,
+    selectedCreative, setSelectedCreative,
+    dateFrom, dateTo, setDateFrom, setDateTo,
+    selectedAccountId, selectedAccount,
+    creatives, isLoading,
+    filteredTrendData, trendsLoading,
+    roasThreshold, spendThreshold, killScaleConfig,
+  };
+}

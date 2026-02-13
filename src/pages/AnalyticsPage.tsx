@@ -1,62 +1,28 @@
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader } from "@/components/PageHeader";
+import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import { SaveViewButton } from "@/components/SaveViewButton";
 import { CreativeDetailModal } from "@/components/CreativeDetailModal";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
-import { useState, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
-import { useAllCreatives } from "@/hooks/useAllCreatives";
-import { useDailyTrends } from "@/hooks/useDailyTrends";
-import { useAccountContext } from "@/contexts/AccountContext";
-
 import { TrendsTab } from "@/components/analytics/TrendsTab";
 import { WinRateTab } from "@/components/analytics/WinRateTab";
 import { ScaleTab } from "@/components/analytics/ScaleTab";
 import { KillTab } from "@/components/analytics/KillTab";
 import { IterationsTab } from "@/components/analytics/IterationsTab";
+import { useAnalyticsPageState } from "@/hooks/useAnalyticsPageState";
 
 const AnalyticsPage = () => {
-  const { selectedAccountId, selectedAccount } = useAccountContext();
   const [searchParams] = useSearchParams();
-  const defaultTab = searchParams.get("tab") || "trends";
   const defaultSlice = searchParams.get("slice") || "ad_type";
-  const [activeTab, setActiveTab] = useState(defaultTab);
-  const [selectedCreative, setSelectedCreative] = useState<any>(null);
-  const [dateFrom, setDateFrom] = useState<string | undefined>();
-  const [dateTo, setDateTo] = useState<string | undefined>();
-
-  const accountFilter = selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {};
-  const dateFilters = {
-    ...accountFilter,
-    ...(dateFrom ? { date_from: dateFrom } : {}),
-    ...(dateTo ? { date_to: dateTo } : {}),
-  };
-
-  const { data: creatives = [], isLoading } = useAllCreatives(dateFilters);
-  const { data: trendData, isLoading: trendsLoading } = useDailyTrends(selectedAccountId || undefined);
-
-  const roasThreshold = parseFloat(selectedAccount?.winner_roas_threshold || "2.0");
-  const spendThreshold = parseFloat(selectedAccount?.iteration_spend_threshold || "50");
-
-  const killScaleConfig = useMemo(() => ({
-    winnerKpi: selectedAccount?.winner_kpi || "roas",
-    winnerKpiDirection: selectedAccount?.winner_kpi_direction || "gte",
-    scaleAt: parseFloat(selectedAccount?.scale_threshold || "0") || (parseFloat(selectedAccount?.winner_kpi_threshold || "0") || roasThreshold),
-    killAt: parseFloat(selectedAccount?.kill_threshold || "0") || (parseFloat(selectedAccount?.winner_kpi_threshold || "0") || roasThreshold) * 0.5,
-    spendThreshold,
-  }), [selectedAccount, roasThreshold, spendThreshold]);
-
-  // Filter trend data by date range
-  const filteredTrendData = useMemo(() => {
-    if (!trendData) return undefined;
-    return trendData.filter(d => {
-      if (dateFrom && d.date < dateFrom) return false;
-      if (dateTo && d.date > dateTo) return false;
-      return true;
-    });
-  }, [trendData, dateFrom, dateTo]);
+  const {
+    activeTab, setActiveTab, selectedCreative, setSelectedCreative,
+    dateFrom, dateTo, setDateFrom, setDateTo,
+    selectedAccountId, selectedAccount,
+    creatives, isLoading, filteredTrendData, trendsLoading,
+    roasThreshold, spendThreshold, killScaleConfig,
+  } = useAnalyticsPageState();
 
   if (isLoading) {
     return <AppLayout><div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div></AppLayout>;
@@ -93,23 +59,18 @@ const AnalyticsPage = () => {
         <TabsContent value="trends" className="animate-fade-in space-y-4">
           <TrendsTab trendData={filteredTrendData} isLoading={trendsLoading} />
         </TabsContent>
-
         <TabsContent value="winrate" className="animate-fade-in space-y-4">
           <WinRateTab creatives={creatives} roasThreshold={roasThreshold} spendThreshold={spendThreshold} defaultSlice={defaultSlice} winnerKpi={selectedAccount?.winner_kpi} winnerKpiDirection={selectedAccount?.winner_kpi_direction} winnerKpiThreshold={parseFloat(selectedAccount?.winner_kpi_threshold || "0") || undefined} />
         </TabsContent>
-
         <TabsContent value="scale" className="animate-fade-in space-y-4">
           <ScaleTab creatives={creatives} config={killScaleConfig} onCreativeClick={setSelectedCreative} />
         </TabsContent>
-
         <TabsContent value="kill" className="animate-fade-in space-y-4">
           <KillTab creatives={creatives} config={killScaleConfig} onCreativeClick={setSelectedCreative} />
         </TabsContent>
-
         <TabsContent value="iterations" className="animate-fade-in space-y-4">
           <IterationsTab creatives={creatives} spendThreshold={spendThreshold} onCreativeClick={setSelectedCreative} />
         </TabsContent>
-
       </Tabs>
 
       <CreativeDetailModal creative={selectedCreative} open={!!selectedCreative} onClose={() => setSelectedCreative(null)} />
