@@ -88,3 +88,37 @@ export const fmt = (v: number | null | undefined, prefix = "", suffix = "", deci
   if (isNaN(n)) return "—";
   return `${prefix}${n.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}${suffix}`;
 };
+
+// Data-driven cell configuration for CreativesTable
+interface CellCfg {
+  field: string;
+  format?: { prefix?: string; suffix?: string; decimals?: number };
+  truncate?: boolean;
+}
+
+export const CELL_CONFIG: Record<string, CellCfg> = {
+  ad_status:   { field: "ad_status" },
+  result_type: { field: "result_type" },
+  product:     { field: "product", truncate: true },
+  theme:       { field: "theme", truncate: true },
+  campaign:    { field: "campaign_name", truncate: true },
+  adset:       { field: "adset_name", truncate: true },
+  spend:       { field: "spend", format: { prefix: "$" } },
+  roas:        { field: "roas", format: { suffix: "x" } },
+  cpa:         { field: "cpa", format: { prefix: "$" } },
+  cpm:         { field: "cpm", format: { prefix: "$" } },
+  cpc:         { field: "cpc", format: { prefix: "$" } },
+  frequency:   { field: "frequency", format: { decimals: 1 } },
+  cpmr:        { field: "_cpmr", format: { prefix: "$" } },
+  ctr:         { field: "ctr", format: { suffix: "%" } },
+  impressions: { field: "impressions", format: { decimals: 0 } },
+  clicks:      { field: "clicks", format: { decimals: 0 } },
+  hook_rate:   { field: "thumb_stop_rate", format: { suffix: "%" } },
+  hold_rate:   { field: "hold_rate", format: { suffix: "%" } },
+  video_views: { field: "video_views", format: { decimals: 0 } },
+  video_avg_play_time: { field: "video_avg_play_time", format: { suffix: "s", decimals: 1 } },
+  purchases:      { field: "purchases", format: { decimals: 0 } },
+  purchase_value: { field: "purchase_value", format: { prefix: "$" } },
+  adds_to_cart:   { field: "adds_to_cart", format: { decimals: 0 } },
+  cost_per_atc:   { field: "cost_per_add_to_cart", format: { prefix: "$" } },
+};

@@ -12,77 +12,24 @@ import { TABLE_COLUMNS, SORT_FIELD_MAP } from "@/components/creatives/constants"
 import { ColumnPicker } from "@/components/ColumnPicker";
 import { SaveViewButton } from "@/components/SaveViewButton";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { RefreshCw, LayoutGrid, List, Loader2, AlertTriangle, Download, Search, X } from "lucide-react";
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { type SortConfig } from "@/components/SortableTableHead";
-import { useCreatives, useCreativeFilters, CREATIVES_PAGE_SIZE } from "@/hooks/useCreatives";
+import { RefreshCw, LayoutGrid, List, Loader2, Download, Search, X } from "lucide-react";
+import { useMemo } from "react";
+import { useCreatives, CREATIVES_PAGE_SIZE, useCreativeFilters } from "@/hooks/useCreatives";
 import { useSync } from "@/hooks/useApi";
 import { exportCreativesCSV } from "@/lib/csv";
-import { useAccountContext } from "@/contexts/AccountContext";
-import { useSearchParams } from "react-router-dom";
+import { useCreativesPageState } from "@/hooks/useCreativesPageState";
 
 const CreativesPage = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [viewMode, setViewMode] = useState<"table" | "card">("table");
-  const [visibleCols, setVisibleCols] = useState<Set<string>>(() => {
-    const saved = localStorage.getItem("creatives_visible_columns");
-    if (saved) { try { return new Set(JSON.parse(saved) as string[]); } catch { /* fall through */ } }
-    return new Set(TABLE_COLUMNS.filter(c => c.defaultVisible !== false).map(c => c.key));
-  });
-  const toggleCol = useCallback((key: string) => {
-    setVisibleCols(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      localStorage.setItem("creatives_visible_columns", JSON.stringify([...next]));
-      return next;
-    });
-  }, []);
-  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
-    const saved = localStorage.getItem("creatives_column_order");
-    if (saved) { try { return JSON.parse(saved) as string[]; } catch { /* fall through */ } }
-    return TABLE_COLUMNS.map(c => c.key);
-  });
-  const handleReorder = useCallback((newOrder: string[]) => {
-    setColumnOrder(newOrder);
-    localStorage.setItem("creatives_column_order", JSON.stringify(newOrder));
-  }, []);
-  const [filters, setFilters] = useState<Record<string, string>>(() => {
-    const raw = searchParams.get("filters");
-    if (raw) { try { return JSON.parse(raw); } catch { /* fall through */ } }
-    return {};
-  });
-  const [dateFrom, setDateFrom] = useState<string | undefined>(() => searchParams.get("from") || undefined);
-  const [dateTo, setDateTo] = useState<string | undefined>(() => searchParams.get("to") || undefined);
-  const [selectedCreativeId, setSelectedCreativeId] = useState<string | null>(null);
-  const [groupBy, setGroupBy] = useState(() => searchParams.get("group") || "__none__");
-  const [sort, setSort] = useState<SortConfig>({ key: "", direction: null });
-  const [page, setPage] = useState(0);
-  const [searchInput, setSearchInput] = useState(() => searchParams.get("q") || "");
-  const [search, setSearch] = useState(() => searchParams.get("q") || "");
-  const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
-  const { selectedAccountId } = useAccountContext();
+  const state = useCreativesPageState();
+  const {
+    viewMode, setViewMode, visibleCols, toggleCol, columnOrder, handleReorder,
+    filters, updateFilter, dateFrom, dateTo, setDateFrom, setDateTo,
+    selectedCreativeId, setSelectedCreativeId, groupBy, setGroupBy,
+    sort, handleSort, page, setPage, searchInput, setSearchInput, search,
+    selectedAccountId, allFilters,
+  } = state;
 
-  useEffect(() => {
-    clearTimeout(searchTimeout.current);
-    searchTimeout.current = setTimeout(() => { setSearch(searchInput); setPage(0); }, 400);
-    return () => clearTimeout(searchTimeout.current);
-  }, [searchInput]);
-
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (search) params.set("q", search);
-    
-    if (dateFrom) params.set("from", dateFrom);
-    if (dateTo) params.set("to", dateTo);
-    if (groupBy !== "__none__") params.set("group", groupBy);
-    if (Object.keys(filters).length > 0) params.set("filters", JSON.stringify(filters));
-    setSearchParams(params, { replace: true });
-  }, [search, dateFrom, dateTo, groupBy, filters, setSearchParams]);
-
-  const accountFilter = selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {};
-  const allFilters = { ...accountFilter, ...filters, ...(dateFrom ? { date_from: dateFrom } : {}), ...(dateTo ? { date_to: dateTo } : {}), ...(search ? { search } : {}) };
   const { data: creativesResult, isLoading } = useCreatives(allFilters, page);
   const creatives = creativesResult?.data || [];
   const totalCreatives = creativesResult?.total || 0;
@@ -101,13 +48,6 @@ const CreativesPage = () => {
     const total = withSpend.reduce((s: number, c: any) => s + (Number(c.spend) || 0), 0);
     return { roas: `${avg("roas")}x`, cpa: `$${avg("cpa")}`, totalSpend: `$${total.toLocaleString("en-US", { maximumFractionDigits: 0 })}` };
   }, [creatives]);
-
-  const handleSort = useCallback((key: string) => {
-    setSort(prev => ({
-      key,
-      direction: prev.key === key ? (prev.direction === "asc" ? "desc" : prev.direction === "desc" ? null : "asc") : "asc",
-    }));
-  }, []);
 
   const sortedCreatives = useMemo(() => {
     const list = [...creatives].map((c: any) => ({ ...c, _cpmr: (Number(c.cpm) || 0) * (Number(c.frequency) || 0) }));
@@ -136,11 +76,6 @@ const CreativesPage = () => {
     }).sort((a, b) => b.totalSpend - a.totalSpend);
   }, [sortedCreatives, groupBy]);
 
-  const updateFilter = (key: string, val: string) => {
-    setPage(0);
-    setFilters(prev => { const next = { ...prev }; if (val === "__all__") delete next[key]; else next[key] = val; return next; });
-  };
-
   return (
     <AppLayout>
       <OnboardingBanner />
@@ -165,7 +100,6 @@ const CreativesPage = () => {
               ...(selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {}),
               ...(groupBy !== "__none__" ? { group_by: groupBy } : {}),
               ...(search ? { search } : {}),
-              
               ...(dateFrom ? { date_from: dateFrom } : {}),
               ...(dateTo ? { date_to: dateTo } : {}),
               ...(Object.keys(filters).length > 0 ? { filters } : {}),
@@ -197,7 +131,6 @@ const CreativesPage = () => {
         groupBy={groupBy} setGroupBy={setGroupBy} viewMode={viewMode}
       />
 
-
       {isLoading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : creatives.length === 0 ? (
@@ -218,7 +151,6 @@ const CreativesPage = () => {
       )}
 
       <CreativesPagination page={page} totalPages={totalPages} totalItems={totalCreatives} pageSize={CREATIVES_PAGE_SIZE} onPageChange={setPage} />
-
       <CreativeDetailModal creative={creatives.find((c: any) => c.ad_id === selectedCreativeId) || null} open={!!selectedCreativeId} onClose={() => setSelectedCreativeId(null)} />
     </AppLayout>
   );
