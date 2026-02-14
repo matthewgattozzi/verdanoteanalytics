@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Image as ImageIcon, ExternalLink, Play, Video, AlertCircle } from "lucide-react";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, forwardRef } from "react";
 import { CreativeMetrics } from "@/components/creative-detail/CreativeMetrics";
 import { CreativeTagEditor } from "@/components/creative-detail/CreativeTagEditor";
 import { CreativeIterationAnalysis } from "@/components/creative-detail/CreativeIterationAnalysis";
@@ -137,7 +137,7 @@ function MediaPreview({ creative }: { creative: any }) {
   );
 }
 
-export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailModalProps) {
+export const CreativeDetailModal = forwardRef<HTMLDivElement, CreativeDetailModalProps>(function CreativeDetailModal({ creative, open, onClose }, ref) {
   if (!creative) return null;
 
   return (
@@ -172,4 +172,4 @@ export function CreativeDetailModal({ creative, open, onClose }: CreativeDetailM
       </DialogContent>
     </Dialog>
   );
-}
+});
