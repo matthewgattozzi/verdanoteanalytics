@@ -7,8 +7,8 @@ serve(async () => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-  const activityThreshold = Date.now() - 10 * 60 * 1000; // 10 min inactivity = stuck
+  const threeMinAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+  const activityThreshold = Date.now() - 2 * 60 * 1000; // 2 min no heartbeat = stuck
   const now = new Date().toISOString();
 
   // Only clean up "running" syncs — "queued" syncs are intentionally waiting
@@ -16,7 +16,7 @@ serve(async () => {
     .from("sync_logs")
     .select("id, sync_state")
     .eq("status", "running")
-    .lt("started_at", tenMinAgo);
+    .lt("started_at", threeMinAgo);
 
   if (!candidates?.length) {
     return new Response(JSON.stringify({ cleaned: 0 }), {
