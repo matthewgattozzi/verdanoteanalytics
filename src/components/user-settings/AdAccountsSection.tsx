@@ -3,18 +3,20 @@ import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash2, RefreshCw, Loader2, Building2, Pencil } from "lucide-react";
+import { Plus, Trash2, RefreshCw, Loader2, Building2, Pencil, Image } from "lucide-react";
 
 interface AdAccountsSectionProps {
   accounts: any[];
   syncPending: boolean;
   onSyncAll: () => void;
+  onRefreshAllMedia: () => void;
+  refreshAllMediaPending: boolean;
   onOpenAddModal: () => void;
   onRename: (account: { id: string; name: string }) => void;
   onDelete: (id: string) => void;
 }
 
-export function AdAccountsSection({ accounts, syncPending, onSyncAll, onOpenAddModal, onRename, onDelete }: AdAccountsSectionProps) {
+export function AdAccountsSection({ accounts, syncPending, onSyncAll, onRefreshAllMedia, refreshAllMediaPending, onOpenAddModal, onRename, onDelete }: AdAccountsSectionProps) {
   return (
     <section className="glass-panel p-6 space-y-4">
       <div className="flex items-center justify-between">
@@ -24,10 +26,16 @@ export function AdAccountsSection({ accounts, syncPending, onSyncAll, onOpenAddM
         </div>
         <div className="flex gap-2">
           {accounts?.length > 0 && (
-            <Button size="sm" variant="outline" onClick={onSyncAll} disabled={syncPending}>
-              {syncPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
-              Sync All
-            </Button>
+            <>
+              <Button size="sm" variant="outline" onClick={onSyncAll} disabled={syncPending}>
+                {syncPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+                Sync All
+              </Button>
+              <Button size="sm" variant="outline" onClick={onRefreshAllMedia} disabled={refreshAllMediaPending}>
+                {refreshAllMediaPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Image className="h-3.5 w-3.5 mr-1.5" />}
+                Refresh All Media
+              </Button>
+            </>
           )}
           <Button size="sm" onClick={onOpenAddModal}>
             <Plus className="h-3.5 w-3.5 mr-1.5" />Add
