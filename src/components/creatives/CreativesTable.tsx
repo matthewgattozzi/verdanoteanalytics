@@ -54,7 +54,11 @@ function renderCell(c: any, key: string) {
   if (cfg) {
     const value = c[cfg.field];
     if (cfg.format) {
-      return <TableCell key={key} className="text-xs text-right">{fmt(value, cfg.format.prefix, cfg.format.suffix, cfg.format.decimals)}</TableCell>;
+      return (
+        <TableCell key={key} className="text-right font-display tabular-nums">
+          {fmt(value, cfg.format.prefix, cfg.format.suffix, cfg.format.decimals)}
+        </TableCell>
+      );
     }
     return <TableCell key={key} className={`text-xs ${cfg.truncate ? "truncate max-w-[150px]" : ""}`}>{value || "—"}</TableCell>;
   }
