@@ -338,6 +338,7 @@ serve(async (req) => {
       if (!accounts.length) return new Response(JSON.stringify({ error: "No accounts to sync" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
       const HARD_DEADLINE_MS = 8 * 60 * 1000;
+      const MEDIA_BUDGET_MS = 2 * 60 * 1000; // max 2 min on media caching
       const syncStartGlobal = Date.now();
       let cancelledFlag = false;
       const isCancelled = async (logId: number) => {
@@ -502,6 +503,8 @@ serve(async (req) => {
             // Extract video URLs from object_story_spec embedded in Phase 1 data
             if (!skipAdFetch && fetchedAds.length > 0) {
               let videoCount = 0;
+              // Collect ads needing video source lookup in batch
+              const needsSourceLookup: string[] = [];
               for (const ad of fetchedAds) {
                 const spec = ad.creative?.object_story_spec;
                 const url = extractVideoFromSpec(spec);
@@ -509,16 +512,33 @@ serve(async (req) => {
                   videoUrlMap.set(ad.id, url);
                   videoCount++;
                 } else {
-                  // Fallback: try video_id from spec
                   const videoId = spec?.video_data?.video_id || spec?.template_data?.video_data?.video_id;
-                  if (videoId && !isTimedOut()) {
-                    const src = await tryVideoSourceById(videoId);
+                  if (videoId) needsSourceLookup.push(videoId + ":" + ad.id);
+                }
+              }
+              // Batch video source lookups (50 at a time via ?ids=)
+              if (needsSourceLookup.length > 0 && !isTimedOut()) {
+                console.log(`  Batch-fetching ${needsSourceLookup.length} video sources...`);
+                for (let i = 0; i < needsSourceLookup.length && !isTimedOut(); i += 50) {
+                  const batch = needsSourceLookup.slice(i, i + 50);
+                  const videoIdToAdId = new Map(batch.map(s => { const [vid, aid] = s.split(":"); return [vid, aid]; }));
+                  const ids = Array.from(videoIdToAdId.keys()).join(",");
+                  try {
                     ctx.metaApiCalls++;
-                    if (src) {
-                      videoUrlMap.set(ad.id, src);
-                      videoCount++;
+                    const resp = await fetch(
+                      `https://graph.facebook.com/v21.0/?ids=${ids}&fields=source&access_token=${encodeURIComponent(metaToken)}`
+                    );
+                    const json = await resp.json();
+                    if (!json.error) {
+                      for (const [videoId, data] of Object.entries(json as Record<string, any>)) {
+                        if ((data as any)?.source) {
+                          const adId = videoIdToAdId.get(videoId);
+                          if (adId) { videoUrlMap.set(adId, (data as any).source); videoCount++; }
+                        }
+                      }
                     }
-                  }
+                  } catch (_) { /* ignore batch failure */ }
+                  if (i + 50 < needsSourceLookup.length) await new Promise(r => setTimeout(r, 300));
                 }
               }
               console.log(`Phase 2.5: Extracted ${videoCount} video URLs from object_story_spec`);
@@ -527,7 +547,8 @@ serve(async (req) => {
               const { data: existingAds } = await supabase.from("creatives")
                 .select("ad_id")
                 .eq("account_id", account.id)
-                .is("video_url", null);
+                .is("video_url", null)
+                .limit(200);
 
               if (existingAds && existingAds.length > 0) {
                 console.log(`Phase 2.5: Fetching object_story_spec for ${existingAds.length} ads missing video URLs...`);
@@ -607,16 +628,22 @@ serve(async (req) => {
               }
             }
 
-            for (let i = 0; i < upsertBatch.length; i += 100) {
-              const chunk = upsertBatch.slice(i, i + 100);
+            for (let i = 0; i < upsertBatch.length; i += 200) {
+              const chunk = upsertBatch.slice(i, i + 200);
               const { error } = await supabase.from("creatives").upsert(chunk, { onConflict: "ad_id" });
               if (!error) creativesUpserted += chunk.length;
               else console.error("Upsert error:", error.message);
+              // Save progress every 400 creatives
+              if (i % 400 === 0 && i > 0) await saveProgress("running");
             }
-            for (const item of manualUpdateBatch) {
-              const { ad_id, ...metrics } = item;
-              await supabase.from("creatives").update(metrics).eq("ad_id", ad_id);
-              creativesUpserted++;
+            // Batch manual updates instead of one-by-one
+            for (let i = 0; i < manualUpdateBatch.length; i += 50) {
+              const batch = manualUpdateBatch.slice(i, i + 50);
+              await Promise.all(batch.map(item => {
+                const { ad_id, ...metrics } = item;
+                return supabase.from("creatives").update(metrics).eq("ad_id", ad_id);
+              }));
+              creativesUpserted += batch.length;
             }
             console.log(`Phase 3 complete: ${creativesUpserted} upserted`);
           } else if (skipAdFetch && insightsMap.size > 0) {
@@ -644,7 +671,10 @@ serve(async (req) => {
             console.log(`Phase 3 complete: ${updated} creatives updated with insights`);
           }
 
-          // ─── PHASE 3.6: Cache uncached videos to storage ──────────
+          // ─── PHASE 3.6: Cache uncached videos to storage (budget-limited) ──
+          const mediaBudgetStart = Date.now();
+          const isMediaBudgetExhausted = () => (Date.now() - mediaBudgetStart) > MEDIA_BUDGET_MS || isTimedOut();
+
           if (!isTimedOut()) {
             const { data: uncachedVids } = await supabase.from("creatives")
               .select("ad_id, video_url")
@@ -652,14 +682,13 @@ serve(async (req) => {
               .not("video_url", "is", null)
               .neq("video_url", "no-video")
               .not("video_url", "like", "%/storage/v1/object/public/%")
-              .limit(50);
+              .limit(15); // Reduced from 50 — defer rest to background job
 
             const toCache = uncachedVids || [];
             if (toCache.length > 0) {
-              console.log(`Phase 3.6: Caching ${toCache.length} videos while CDN links are fresh...`);
+              console.log(`Phase 3.6: Caching up to ${toCache.length} videos (2min budget)...`);
               let vidCached = 0;
-              // Process 3 at a time to avoid timeout from large downloads
-              for (let i = 0; i < toCache.length && !isTimedOut(); i += 3) {
+              for (let i = 0; i < toCache.length && !isMediaBudgetExhausted(); i += 3) {
                 const batch = toCache.slice(i, i + 3);
                 const results = await Promise.allSettled(
                   batch.map(async (c: any) => {
@@ -679,20 +708,20 @@ serve(async (req) => {
 
           await saveProgress("running");
 
-          // ─── PHASE 3.5: Cache uncached thumbnails to storage ──────
-          if (!isTimedOut()) {
+          // ─── PHASE 3.5: Cache uncached thumbnails to storage (budget-limited) ──
+          if (!isMediaBudgetExhausted()) {
             const { data: uncachedThumbs } = await supabase.from("creatives")
               .select("ad_id, thumbnail_url")
               .eq("account_id", account.id)
               .not("thumbnail_url", "is", null)
               .not("thumbnail_url", "like", "%/storage/v1/object/public/%")
-              .limit(500);
+              .limit(100); // Reduced from 500
 
             const toCache = uncachedThumbs || [];
             if (toCache.length > 0) {
               console.log(`Phase 3.5: Caching ${toCache.length} thumbnails...`);
               let thumbCached = 0;
-              for (let i = 0; i < toCache.length && !isTimedOut(); i += 10) {
+              for (let i = 0; i < toCache.length && !isMediaBudgetExhausted(); i += 10) {
                 const batch = toCache.slice(i, i + 10);
                 const results = await Promise.allSettled(
                   batch.map(async (c: any) => {
@@ -803,8 +832,8 @@ serve(async (req) => {
             }
           }
 
-          for (let i = 0; i < tagUpdates.length; i += 50) {
-            const batch = tagUpdates.slice(i, i + 50);
+          for (let i = 0; i < tagUpdates.length; i += 100) {
+            const batch = tagUpdates.slice(i, i + 100);
             await Promise.all(batch.map(({ ad_id, tags, source }) =>
               supabase.from("creatives").update({ ...tags, tag_source: source }).eq("ad_id", ad_id)
             ));
