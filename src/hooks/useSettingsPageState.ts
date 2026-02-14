@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAccounts, useToggleAccount, useRenameAccount, useUploadMappings, useUpdateAccountSettings } from "@/hooks/useAccountsApi";
-import { useSync } from "@/hooks/useSyncApi";
+import { useSync, useRefreshMedia } from "@/hooks/useSyncApi";
 import { useAccountContext } from "@/contexts/AccountContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ export function useSettingsPageState() {
   const uploadMappings = useUploadMappings();
   const updateAccountSettings = useUpdateAccountSettings();
   const sync = useSync();
+  const refreshMedia = useRefreshMedia();
   const queryClient = useQueryClient();
 
   // Modal state
@@ -156,7 +157,7 @@ export function useSettingsPageState() {
   return {
     isBuilder, accounts, account, selectedAccountId, setSelectedAccountId,
     // Mutations
-    toggleAccount, renameAccount, sync, updateAccountSettings, uploadMappings,
+    toggleAccount, renameAccount, sync, refreshMedia, updateAccountSettings, uploadMappings,
     // Modal state
     renamingAccount, setRenamingAccount,
     showCsvModal, setShowCsvModal, csvPreview, setCsvPreview, csvMappings, setCsvMappings,
