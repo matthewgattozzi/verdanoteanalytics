@@ -46,16 +46,16 @@ export function SyncStatusBanner() {
     2: "Loading insights",
     3: "Saving creatives",
     4: "Daily metrics",
-    5: "Tagging",
-    6: "Finalizing",
+    5: "Finalizing",
   };
   const phaseLabel = isQueued ? "Queued" : (phaseLabels[currentPhase] || "Starting");
 
-  // Phase-based progress: 6 phases, each ~16.7%
+  // Phase-based progress: 5 phases, each 20%
+  const TOTAL_PHASES = 5;
   const hasMetrics = fetched > 0 || upserted > 0;
-  const phaseProgress = Math.max(5, ((currentPhase - 1) / 6) * 100);
+  const phaseProgress = Math.max(5, ((currentPhase - 1) / TOTAL_PHASES) * 100);
   const progressPercent = hasMetrics
-    ? Math.min(95, phaseProgress + (upserted / Math.max(fetched, 1)) * (100 / 6))
+    ? Math.min(95, phaseProgress + (upserted / Math.max(fetched, 1)) * (100 / TOTAL_PHASES))
     : Math.min(90, phaseProgress);
 
   return (
@@ -83,7 +83,7 @@ export function SyncStatusBanner() {
               <Clock className="h-3 w-3" />
               {timeStr}
             </span>
-            <span className="font-mono text-[10px]">Phase {currentPhase}/6</span>
+            <span className="font-mono text-[10px]">Phase {Math.min(currentPhase, 5)}/5</span>
             {fetched > 0 && (
               <span className="inline-flex items-center gap-1">
                 <Download className="h-3 w-3" />
