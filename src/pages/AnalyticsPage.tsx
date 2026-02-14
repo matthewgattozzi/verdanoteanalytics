@@ -3,6 +3,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
+import { MetricCardSkeletonRow } from "@/components/skeletons/MetricCardSkeleton";
+import { ChartSkeleton } from "@/components/skeletons/ChartSkeleton";
 import { SaveViewButton } from "@/components/SaveViewButton";
 import { CreativeDetailModal } from "@/components/CreativeDetailModal";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
@@ -25,7 +27,15 @@ const AnalyticsPage = () => {
   } = useAnalyticsPageState();
 
   if (isLoading) {
-    return <AppLayout><div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div></AppLayout>;
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          <div className="h-8 w-48 rounded-md bg-muted relative overflow-hidden"><div className="absolute inset-0 shimmer-slide" /></div>
+          <MetricCardSkeletonRow />
+          <ChartSkeleton />
+        </div>
+      </AppLayout>
+    );
   }
 
   return (

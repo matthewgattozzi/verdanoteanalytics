@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RefreshCw, LayoutGrid, List, Loader2, Download, Search, X } from "lucide-react";
 import { useMemo } from "react";
+import { MetricCardSkeletonRow } from "@/components/skeletons/MetricCardSkeleton";
+import { TableSkeleton } from "@/components/skeletons/TableSkeleton";
 import { useCreatives, CREATIVES_PAGE_SIZE, useCreativeFilters } from "@/hooks/useCreatives";
 import { useSync } from "@/hooks/useSyncApi";
 import { useIsSyncing } from "@/hooks/useIsSyncing";
@@ -120,12 +122,17 @@ const CreativesPage = () => {
         }
       />
 
-      <div className="grid grid-cols-4 gap-3 mb-4">
-        <MetricCard label="Ad Spend" value={avgMetrics.totalSpend} />
-        <MetricCard label="Total Creatives" value={totalCreatives} />
-        <MetricCard label="Avg CPA" value={avgMetrics.cpa} />
-        <MetricCard label="Avg ROAS" value={avgMetrics.roas} />
-      </div>
+
+      {isLoading ? (
+        <MetricCardSkeletonRow />
+      ) : (
+        <div className="grid grid-cols-4 gap-3 mb-4">
+          <MetricCard label="Ad Spend" value={avgMetrics.totalSpend} />
+          <MetricCard label="Total Creatives" value={totalCreatives} />
+          <MetricCard label="Avg CPA" value={avgMetrics.cpa} />
+          <MetricCard label="Avg ROAS" value={avgMetrics.roas} />
+        </div>
+      )}
 
       <div className="relative mb-3 max-w-sm">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -144,7 +151,7 @@ const CreativesPage = () => {
       />
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+        <TableSkeleton rows={10} cols={8} />
       ) : creatives.length === 0 ? (
         <div className="glass-panel flex flex-col items-center justify-center py-20 text-center animate-fade-in">
           <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4"><LayoutGrid className="h-6 w-6 text-muted-foreground" /></div>
