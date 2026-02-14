@@ -8,6 +8,7 @@ import {
   LogOut,
   UserCog,
   Bookmark,
+  Tags,
 } from "lucide-react";
 import {
   Select,
@@ -24,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 const baseNavItems = [
   { title: "Creatives", url: "/", icon: LayoutGrid },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
+  { title: "Tagging", url: "/tagging", icon: Tags },
   { title: "Reports", url: "/reports", icon: FileText },
   { title: "Saved Views", url: "/saved-views", icon: Bookmark },
 ];
