@@ -233,7 +233,14 @@ serve(async (req) => {
     const url = new URL(req.url);
     const forceRefresh = url.searchParams.get("force") === "true";
 
-    // Find uncached thumbnails (or ALL thumbnails if force refresh)
+    // Find creatives missing thumbnails entirely (Tier 1 sync doesn't fetch them)
+    const { data: missingThumbs } = await supabase
+      .from("creatives")
+      .select("ad_id, account_id, thumbnail_url")
+      .is("thumbnail_url", null)
+      .limit(MAX_TOTAL);
+
+    // Find uncached thumbnails (have URL but not in storage)
     let thumbQuery = supabase
       .from("creatives")
       .select("ad_id, account_id, thumbnail_url")
@@ -245,8 +252,10 @@ serve(async (req) => {
 
     const { data: uncachedThumbs } = await thumbQuery.limit(MAX_TOTAL);
 
+    // Combine: prioritize missing thumbnails, then uncached
+    const allThumbWork = [...(missingThumbs || []), ...(uncachedThumbs || [])].slice(0, MAX_TOTAL);
+
     // Find ads missing video_url — only actual video ads, exclude already-checked ones
-    // Use 'no-video' as sentinel for ads we've checked and confirmed have no accessible video
     const { data: missingVideos } = await supabase
       .from("creatives")
       .select("ad_id, account_id")
@@ -263,7 +272,7 @@ serve(async (req) => {
       .neq("video_url", "no-video")
       .limit(50);
 
-    const thumbs = uncachedThumbs || [];
+    const thumbs = allThumbWork;
     const noVideos = missingVideos || [];
     const videos = uncachedVideos || [];
 
@@ -276,7 +285,9 @@ serve(async (req) => {
 
     console.log(`Found ${thumbs.length} thumbnails to process, ${noVideos.length} ads missing video_url, ${videos.length} uncached videos`);
 
-    // Process thumbnails — fetch full-res images from Meta API
+    // Process thumbnails — two strategies:
+    // 1. Creatives with NO thumbnail: just save Meta URL directly (fast)
+    // 2. Creatives with uncached thumbnail: download and cache to storage
     let thumbCached = 0, thumbFailed = 0;
     for (let i = 0; i < thumbs.length; i += BATCH_SIZE) {
       const batch = thumbs.slice(i, i + BATCH_SIZE);
@@ -284,6 +295,14 @@ serve(async (req) => {
         batch.map(async (c: any) => {
           const freshUrl = await getFreshImageUrl(c.ad_id, c.account_id);
           if (!freshUrl) { return false; }
+
+          // If creative has no thumbnail yet, just store the URL directly (fast path)
+          if (!c.thumbnail_url) {
+            await supabase.from("creatives").update({ thumbnail_url: freshUrl }).eq("ad_id", c.ad_id);
+            return true;
+          }
+
+          // Otherwise, download and cache to storage
           const storageUrl = await downloadAndCache(supabase, THUMB_BUCKET, c.account_id, c.ad_id, freshUrl, "image");
           if (storageUrl) {
             await supabase.from("creatives").update({ thumbnail_url: storageUrl }).eq("ad_id", c.ad_id);
