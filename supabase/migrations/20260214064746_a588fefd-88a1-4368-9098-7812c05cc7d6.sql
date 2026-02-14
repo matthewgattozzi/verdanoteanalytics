@@ -1,0 +1,2 @@
+ALTER TABLE public.sync_logs DROP CONSTRAINT sync_logs_status_check;
+ALTER TABLE public.sync_logs ADD CONSTRAINT sync_logs_status_check CHECK (status = ANY (ARRAY['running'::text, 'completed'::text, 'failed'::text, 'completed_with_errors'::text, 'cancelled'::text, 'queued'::text]));
