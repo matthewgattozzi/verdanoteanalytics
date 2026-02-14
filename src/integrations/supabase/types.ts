@@ -655,6 +655,7 @@ export type Database = {
           completed_at: string | null
           creatives_fetched: number | null
           creatives_upserted: number | null
+          current_phase: number
           date_range_end: string | null
           date_range_start: string | null
           duration_ms: number | null
@@ -662,6 +663,7 @@ export type Database = {
           meta_api_calls: number | null
           started_at: string
           status: string
+          sync_state: Json
           sync_type: string
           tags_csv_matched: number | null
           tags_manual_preserved: number | null
@@ -674,6 +676,7 @@ export type Database = {
           completed_at?: string | null
           creatives_fetched?: number | null
           creatives_upserted?: number | null
+          current_phase?: number
           date_range_end?: string | null
           date_range_start?: string | null
           duration_ms?: number | null
@@ -681,6 +684,7 @@ export type Database = {
           meta_api_calls?: number | null
           started_at?: string
           status?: string
+          sync_state?: Json
           sync_type?: string
           tags_csv_matched?: number | null
           tags_manual_preserved?: number | null
@@ -693,6 +697,7 @@ export type Database = {
           completed_at?: string | null
           creatives_fetched?: number | null
           creatives_upserted?: number | null
+          current_phase?: number
           date_range_end?: string | null
           date_range_start?: string | null
           duration_ms?: number | null
@@ -700,6 +705,7 @@ export type Database = {
           meta_api_calls?: number | null
           started_at?: string
           status?: string
+          sync_state?: Json
           sync_type?: string
           tags_csv_matched?: number | null
           tags_manual_preserved?: number | null
