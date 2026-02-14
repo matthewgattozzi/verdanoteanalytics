@@ -1,9 +1,8 @@
 import { useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  useAccounts, useToggleAccount, useRenameAccount, useUploadMappings, useSync, useUpdateAccountSettings,
-} from "@/hooks/useApi";
+import { useAccounts, useToggleAccount, useRenameAccount, useUploadMappings, useUpdateAccountSettings } from "@/hooks/useAccountsApi";
+import { useSync } from "@/hooks/useSyncApi";
 import { useAccountContext } from "@/contexts/AccountContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";

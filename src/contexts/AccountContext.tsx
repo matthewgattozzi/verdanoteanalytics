@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { useAccounts } from "@/hooks/useApi";
+import { useAccounts } from "@/hooks/useAccountsApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 

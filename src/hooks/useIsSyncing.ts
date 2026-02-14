@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useSyncHistory } from "@/hooks/useApi";
+import { useSyncHistory } from "@/hooks/useSyncApi";
 import { toast } from "sonner";
 
 /** Returns true when any sync is currently running. Also toasts when a sync finishes. */

@@ -134,8 +134,7 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
   }
 }
 
-/** Fetch a fresh video source URL from Meta Graph API */
-/** Fetch a fresh video source URL from Meta Graph API */
+/** Fetch a fresh video source URL from Meta Graph API. */
 async function getFreshVideoUrl(adId: string): Promise<string | null> {
   try {
     // Get creative with object_story_spec and video_id
