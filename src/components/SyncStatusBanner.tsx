@@ -37,13 +37,24 @@ export function SyncStatusBanner() {
   const accountName = (accounts || []).find((a: any) => a.id === accountId)?.name || accountId;
   const fetched = runningLog?.creatives_fetched ?? 0;
   const upserted = runningLog?.creatives_upserted ?? 0;
+  const currentPhase = runningLog?.current_phase ?? 0;
 
-  // Animated progress — pulse between 15% and 85% based on elapsed time
-  // If we have fetched/upserted data, show a more meaningful bar
+  const phaseLabels: Record<number, string> = {
+    1: "Fetching ads",
+    2: "Loading insights",
+    3: "Saving creatives",
+    4: "Daily metrics",
+    5: "Tagging",
+    6: "Finalizing",
+  };
+  const phaseLabel = phaseLabels[currentPhase] || "Starting";
+
+  // Phase-based progress: 6 phases, each ~16.7%
   const hasMetrics = fetched > 0 || upserted > 0;
+  const phaseProgress = Math.max(5, ((currentPhase - 1) / 6) * 100);
   const progressPercent = hasMetrics
-    ? Math.min(90, Math.max(10, (upserted / Math.max(fetched, 1)) * 80 + 10))
-    : Math.min(80, 5 + elapsed * 0.8);
+    ? Math.min(95, phaseProgress + (upserted / Math.max(fetched, 1)) * (100 / 6))
+    : Math.min(90, phaseProgress);
 
   return (
     <div className="bg-primary/5 border border-primary/20 rounded-lg mb-4 overflow-hidden animate-fade-in">
@@ -62,13 +73,14 @@ export function SyncStatusBanner() {
 
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-foreground">
-            Syncing {accountName}…
+            Syncing {accountName} — <span className="text-primary">{phaseLabel}</span>
           </p>
           <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <Clock className="h-3 w-3" />
               {timeStr}
             </span>
+            <span className="font-mono text-[10px]">Phase {currentPhase}/6</span>
             {fetched > 0 && (
               <span className="inline-flex items-center gap-1">
                 <Download className="h-3 w-3" />
