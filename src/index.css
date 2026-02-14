@@ -140,6 +140,32 @@
 }
 
 @layer utilities {
+  /* ── Neumorphic button states ── */
+  .neu-raised {
+    box-shadow:
+      3px 3px 6px var(--shadow-dark),
+      -2px -2px 5px var(--shadow-light);
+  }
+
+  .neu-raised-hover {
+    box-shadow:
+      4px 4px 8px var(--shadow-dark),
+      -3px -3px 6px var(--shadow-light);
+    filter: brightness(1.04);
+  }
+
+  .neu-pressed {
+    box-shadow:
+      inset 2px 2px 4px var(--shadow-inset-dark),
+      inset -1px -1px 3px var(--shadow-inset-light) !important;
+    filter: brightness(0.97);
+  }
+
+  .neu-pressed-subtle {
+    box-shadow:
+      inset 1px 1px 3px var(--shadow-inset-dark),
+      inset -1px -1px 2px var(--shadow-inset-light);
+  }
   /* ── Glass panel — neumorphic raised card ── */
   .glass-panel {
     @apply bg-card rounded-xl;
