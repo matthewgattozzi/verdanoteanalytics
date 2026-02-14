@@ -4,7 +4,7 @@ import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { Loader2, Leaf } from "lucide-react";
 
 const LoginPage = () => {
   const { signIn, user, isLoading: authLoading } = useAuth();
@@ -15,7 +15,9 @@ const LoginPage = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center" style={{
+        background: 'radial-gradient(ellipse 120% 80% at 30% 20%, hsl(82 16% 88% / 0.8) 0%, transparent 50%), radial-gradient(ellipse 100% 60% at 70% 80%, hsl(95 14% 84% / 0.6) 0%, transparent 50%), hsl(80 12% 92%)',
+      }}>
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -33,57 +35,98 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="flex flex-col items-center gap-3">
-          <img src="/favicon.png" alt="Verdanote" className="h-12 w-12" />
+    <div
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{
+        background: 'radial-gradient(ellipse 120% 80% at 30% 20%, hsl(82 16% 88% / 0.8) 0%, transparent 50%), radial-gradient(ellipse 100% 60% at 70% 80%, hsl(95 14% 84% / 0.6) 0%, transparent 50%), hsl(80 12% 92%)',
+      }}
+    >
+      <div className="w-full max-w-sm space-y-8">
+        {/* Logo & branding */}
+        <div className="flex flex-col items-center gap-4">
+          <div
+            className="h-16 w-16 rounded-2xl flex items-center justify-center overflow-hidden"
+            style={{
+              boxShadow: '5px 5px 10px hsl(82 12% 76%), -4px -4px 8px hsl(80 14% 98%)',
+              background: 'hsl(80 10% 95%)',
+            }}
+          >
+            <img src="/favicon.png" alt="Verdanote" className="h-14 w-14" />
+          </div>
           <div className="text-center">
-            <h1 className="text-xl font-semibold tracking-tight">Verdanote</h1>
-            <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
+            <h1 className="text-2xl font-semibold tracking-tight font-serif">Verdanote</h1>
+            <p className="text-sm text-muted-foreground mt-1.5">Creative analytics, simplified</p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="glass-panel p-6 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              required
-              className="bg-background"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-sm">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              className="bg-background"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <a href="/reset-password" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-              Forgot password?
-            </a>
-          </div>
-          {error && (
-            <p className="text-xs text-destructive">{error}</p>
-          )}
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-            Sign In
-          </Button>
-        </form>
+        {/* Login card */}
+        <div
+          className="rounded-2xl p-8 space-y-5"
+          style={{
+            background: 'hsl(80 10% 95%)',
+            boxShadow: '8px 8px 16px hsl(82 12% 76%), -6px -6px 12px hsl(80 14% 98%)',
+            border: '1px solid hsl(80 12% 94% / 0.6)',
+          }}
+        >
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Email
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Password
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+              />
+            </div>
 
-        <p className="text-[11px] text-center text-muted-foreground">
-          Accounts are created by your admin. Contact them if you need access.
+            <div className="flex items-center justify-end">
+              <a
+                href="/reset-password"
+                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+              >
+                Forgot password?
+              </a>
+            </div>
+
+            {error && (
+              <div
+                className="rounded-xl px-3 py-2 text-xs text-destructive"
+                style={{
+                  boxShadow: 'inset 2px 2px 4px hsl(82 12% 78%), inset -1px -1px 3px hsl(80 14% 97%)',
+                  background: 'hsl(80 12% 92%)',
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            <Button type="submit" className="w-full h-11 text-sm font-semibold" disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Leaf className="h-4 w-4 mr-1.5" />}
+              Sign In
+            </Button>
+          </form>
+        </div>
+
+        {/* Footer */}
+        <p className="text-[11px] text-center text-muted-foreground/60">
+          Accounts are provisioned by your admin.
         </p>
       </div>
     </div>
