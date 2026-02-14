@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, forwardRef } from "react";
 import { Loader2, LineChart, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { startOfWeek, startOfMonth, format } from "date-fns";
 import { MultiLineTrendChart, type TrendLine } from "@/components/MultiLineTrendChart";
@@ -85,7 +85,7 @@ function SummaryCard({ label, value, change, invertColor }: { label: string; val
   );
 }
 
-export function TrendsTab({ trendData, isLoading }: TrendsTabProps) {
+export const TrendsTab = forwardRef<HTMLDivElement, TrendsTabProps>(function TrendsTab({ trendData, isLoading }, ref) {
   const [granularity, setGranularity] = useState<Granularity>("daily");
   const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(new Set(["spend", "cpa"]));
 
@@ -167,7 +167,7 @@ export function TrendsTab({ trendData, isLoading }: TrendsTabProps) {
     : `${chartData.length} ${granLabel}`;
 
   return (
-    <>
+    <div ref={ref}>
       <div className="flex items-center justify-between mb-1">
         <div className="flex border border-border rounded-md">
           {(["daily", "weekly", "monthly"] as Granularity[]).map(g => (
@@ -216,6 +216,6 @@ export function TrendsTab({ trendData, isLoading }: TrendsTabProps) {
         lines={trendLines}
         height={300}
       />
-    </>
+    </div>
   );
-}
+});
