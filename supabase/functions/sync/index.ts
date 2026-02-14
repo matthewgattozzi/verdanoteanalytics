@@ -350,9 +350,11 @@ serve(async (req) => {
       const isTimedOut = () => (Date.now() - syncStartGlobal) > HARD_DEADLINE_MS;
       const allResults = [];
 
+      let lastSyncLogId: number | null = null;
+
       for (const account of accounts) {
         if (isTimedOut() || cancelledFlag) break;
-        if (await isCancelled(syncLogId)) break;
+        if (lastSyncLogId && await isCancelled(lastSyncLogId)) break;
 
         const startedAt = Date.now();
         const dateRangeDays = sync_type === "initial" ? 90 : (account.date_range_days || 14);
@@ -369,6 +371,7 @@ serve(async (req) => {
         }).select().single();
         if (logError) { console.error("Log create error:", logError); continue; }
         const syncLogId = logEntry.id;
+        lastSyncLogId = syncLogId;
 
         let creativesFetched = 0, creativesUpserted = 0;
         let tagsParsed = 0, tagsCsvMatched = 0, tagsManualPreserved = 0, tagsUntagged = 0;
