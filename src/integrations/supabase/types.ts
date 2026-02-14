@@ -371,6 +371,57 @@ export type Database = {
           },
         ]
       }
+      media_refresh_logs: {
+        Row: {
+          account_id: string
+          api_errors: string | null
+          completed_at: string | null
+          current_phase: number
+          duration_ms: number | null
+          id: number
+          started_at: string
+          status: string
+          thumbs_cached: number | null
+          thumbs_failed: number | null
+          thumbs_total: number | null
+          videos_cached: number | null
+          videos_failed: number | null
+          videos_total: number | null
+        }
+        Insert: {
+          account_id?: string
+          api_errors?: string | null
+          completed_at?: string | null
+          current_phase?: number
+          duration_ms?: number | null
+          id?: never
+          started_at?: string
+          status?: string
+          thumbs_cached?: number | null
+          thumbs_failed?: number | null
+          thumbs_total?: number | null
+          videos_cached?: number | null
+          videos_failed?: number | null
+          videos_total?: number | null
+        }
+        Update: {
+          account_id?: string
+          api_errors?: string | null
+          completed_at?: string | null
+          current_phase?: number
+          duration_ms?: number | null
+          id?: never
+          started_at?: string
+          status?: string
+          thumbs_cached?: number | null
+          thumbs_failed?: number | null
+          thumbs_total?: number | null
+          videos_cached?: number | null
+          videos_failed?: number | null
+          videos_total?: number | null
+        }
+        Relationships: []
+      }
       name_mappings: {
         Row: {
           account_id: string

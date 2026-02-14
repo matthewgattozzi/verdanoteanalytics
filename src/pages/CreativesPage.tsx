@@ -22,6 +22,7 @@ import { exportCreativesCSV } from "@/lib/csv";
 import { useCreativesPageState } from "@/hooks/useCreativesPageState";
 import { useAuth } from "@/contexts/AuthContext";
 import { SyncStatusBanner } from "@/components/SyncStatusBanner";
+import { MediaRefreshBanner } from "@/components/MediaRefreshBanner";
 
 const CreativesPage = () => {
   const { isClient } = useAuth();
@@ -85,6 +86,7 @@ const CreativesPage = () => {
     <AppLayout>
       {!isClient && <OnboardingBanner />}
       <SyncStatusBanner />
+      <MediaRefreshBanner />
       <PageHeader
         title="Creatives"
         description="View and manage your ad creatives with performance data and tags."

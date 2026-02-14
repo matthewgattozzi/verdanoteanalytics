@@ -1,5 +1,6 @@
 import { AppLayout } from "@/components/AppLayout";
 import { SyncStatusBanner } from "@/components/SyncStatusBanner";
+import { MediaRefreshBanner } from "@/components/MediaRefreshBanner";
 import { PageHeader } from "@/components/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, User, Shield } from "lucide-react";
@@ -34,6 +35,7 @@ const UserSettingsPage = () => {
     <AppLayout>
       <PageHeader title="User Settings" description="Manage your profile, security, and admin preferences." />
       <SyncStatusBanner />
+      <MediaRefreshBanner />
 
       <div className="max-w-2xl">
         <Tabs defaultValue="profile" className="space-y-6">
