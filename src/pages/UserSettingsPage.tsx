@@ -76,6 +76,8 @@ const UserSettingsPage = () => {
                 accounts={s.accounts}
                 syncPending={s.sync.isPending || isSyncing}
                 onSyncAll={() => s.sync.mutate({ account_id: "all" })}
+                onRefreshAllMedia={() => s.refreshMedia.mutate(undefined)}
+                refreshAllMediaPending={s.refreshMedia.isPending}
                 onOpenAddModal={s.handleOpenAddModal}
                 onRename={s.setRenamingAccount}
                 onDelete={s.setShowDeleteConfirm}

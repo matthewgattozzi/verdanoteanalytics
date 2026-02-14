@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSettings, useTestMeta } from "@/hooks/useSettingsApi";
 import { useAccounts, useAddAccount, useDeleteAccount, useRenameAccount } from "@/hooks/useAccountsApi";
-import { useSync } from "@/hooks/useSyncApi";
+import { useSync, useRefreshMedia } from "@/hooks/useSyncApi";
 import { useUsers, useCreateUser, useDeleteUser } from "@/hooks/useUsersApi";
 
 export function useUserSettingsPageState() {
@@ -46,6 +46,7 @@ export function useUserSettingsPageState() {
   const deleteAccount = useDeleteAccount();
   const renameAccount = useRenameAccount();
   const sync = useSync();
+  const refreshMedia = useRefreshMedia();
   const { data: users } = useUsers();
   const createUser = useCreateUser();
   const deleteUser = useDeleteUser();
@@ -189,7 +190,7 @@ export function useUserSettingsPageState() {
     handleOpenAddModal, handleAddAccount, addAccount,
     renamingAccount, setRenamingAccount, renameAccount,
     showDeleteConfirm, setShowDeleteConfirm, deleteAccount,
-    sync,
+    sync, refreshMedia,
     // Users
     users,
     showCreateUser, setShowCreateUser,

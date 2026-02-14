@@ -233,18 +233,30 @@ serve(async (req) => {
     const url = new URL(req.url);
     const forceRefresh = url.searchParams.get("force") === "true";
 
+    // Accept optional account_id filter from query string or body
+    let accountFilter: string | null = url.searchParams.get("account_id");
+    if (!accountFilter && req.method === "POST") {
+      try {
+        const body = await req.clone().json();
+        accountFilter = body?.account_id || null;
+      } catch { /* no body */ }
+    }
+    if (accountFilter) console.log(`Filtering to account: ${accountFilter}`);
+
     // Find creatives missing thumbnails entirely (Tier 1 sync doesn't fetch them)
-    const { data: missingThumbs } = await supabase
+    let missingThumbsQuery = supabase
       .from("creatives")
       .select("ad_id, account_id, thumbnail_url")
-      .is("thumbnail_url", null)
-      .limit(MAX_TOTAL);
+      .is("thumbnail_url", null);
+    if (accountFilter) missingThumbsQuery = missingThumbsQuery.eq("account_id", accountFilter);
+    const { data: missingThumbs } = await missingThumbsQuery.limit(MAX_TOTAL);
 
     // Find uncached thumbnails (have URL but not in storage)
     let thumbQuery = supabase
       .from("creatives")
       .select("ad_id, account_id, thumbnail_url")
       .not("thumbnail_url", "is", null);
+    if (accountFilter) thumbQuery = thumbQuery.eq("account_id", accountFilter);
 
     if (!forceRefresh) {
       thumbQuery = thumbQuery.not("thumbnail_url", "like", `%/storage/v1/object/public/%`);
@@ -256,21 +268,23 @@ serve(async (req) => {
     const allThumbWork = [...(missingThumbs || []), ...(uncachedThumbs || [])].slice(0, MAX_TOTAL);
 
     // Find ads missing video_url — only actual video ads, exclude already-checked ones
-    const { data: missingVideos } = await supabase
+    let missingVideosQuery = supabase
       .from("creatives")
       .select("ad_id, account_id")
       .is("video_url", null)
-      .gt("video_views", 0)
-      .limit(100);
+      .gt("video_views", 0);
+    if (accountFilter) missingVideosQuery = missingVideosQuery.eq("account_id", accountFilter);
+    const { data: missingVideos } = await missingVideosQuery.limit(100);
 
     // Find uncached videos (have video_url but not in storage, excluding sentinel)
-    const { data: uncachedVideos } = await supabase
+    let uncachedVideosQuery = supabase
       .from("creatives")
       .select("ad_id, account_id, video_url")
       .not("video_url", "is", null)
       .not("video_url", "like", `%/storage/v1/object/public/%`)
-      .neq("video_url", "no-video")
-      .limit(50);
+      .neq("video_url", "no-video");
+    if (accountFilter) uncachedVideosQuery = uncachedVideosQuery.eq("account_id", accountFilter);
+    const { data: uncachedVideos } = await uncachedVideosQuery.limit(50);
 
     const thumbs = allThumbWork;
     const noVideos = missingVideos || [];

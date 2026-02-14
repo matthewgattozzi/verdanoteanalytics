@@ -34,7 +34,8 @@ export function useSyncHistory(accountId?: string) {
 
 export function useRefreshMedia() {
   return useMutationWithToast({
-    mutationFn: (_?: unknown) => apiFetch("refresh-thumbnails", ""),
+    mutationFn: (params?: { account_id?: string }) =>
+      apiFetch("refresh-thumbnails", params?.account_id ? `?account_id=${params.account_id}` : ""),
     invalidateKeys: [["creatives"], ["all-creatives"]],
     successMessage: (data: any) =>
       `Media refreshed — ${data?.thumbnails?.cached ?? 0} thumbnails, ${data?.videos?.cached ?? 0} videos cached`,
