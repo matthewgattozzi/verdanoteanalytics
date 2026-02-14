@@ -87,10 +87,15 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply text-foreground antialiased;
     font-family: 'DM Sans', system-ui, sans-serif;
     font-size: 14px;
     line-height: 1.6;
+    background:
+      radial-gradient(ellipse 120% 80% at 20% 10%, hsl(82 16% 88% / 0.6) 0%, transparent 50%),
+      radial-gradient(ellipse 100% 60% at 80% 90%, hsl(95 14% 86% / 0.5) 0%, transparent 50%),
+      hsl(var(--background));
+    background-attachment: fixed;
   }
 
   h1, h2, h3, h4, h5, h6 {
