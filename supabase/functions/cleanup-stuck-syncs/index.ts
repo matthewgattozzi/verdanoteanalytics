@@ -8,7 +8,7 @@ serve(async () => {
   );
 
   const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-  const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+  const activityThreshold = Date.now() - 10 * 60 * 1000; // 10 min inactivity = stuck
   const now = new Date().toISOString();
 
   // Only clean up "running" syncs — "queued" syncs are intentionally waiting
@@ -27,7 +27,7 @@ serve(async () => {
   // Only mark as stuck if there's been no activity in the last 5 minutes
   const trulyStuck = candidates.filter((s: any) => {
     const lastActivity = s.sync_state?.last_activity;
-    if (lastActivity && new Date(lastActivity).getTime() > fiveMinAgo) return false;
+    if (lastActivity && new Date(lastActivity).getTime() > activityThreshold) return false;
     return true;
   });
 

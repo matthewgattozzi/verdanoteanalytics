@@ -208,6 +208,7 @@ function extractVideoFromSpec(spec: any): string | null {
 
 // ─── Phase Budget ────────────────────────────────────────────────────────────
 const PHASE_BUDGET_MS = 2 * 60 * 1000;
+const HEARTBEAT_INTERVAL_MS = 20 * 1000; // Update heartbeat every 20 seconds
 
 // ─── Promote Next Queued Sync ────────────────────────────────────────────────
 async function promoteNextQueued(supabase: any) {
@@ -238,6 +239,20 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
   const startMs = Date.now();
   const isTimedOut = () => (Date.now() - startMs) > PHASE_BUDGET_MS;
   const ctx = { metaApiCalls: 0, apiErrors: [] as { timestamp: string; message: string }[], isTimedOut };
+
+  // Lightweight heartbeat: updates only last_activity in sync_state every ~20s
+  let lastHeartbeat = Date.now();
+  const heartbeat = async () => {
+    if (Date.now() - lastHeartbeat < HEARTBEAT_INTERVAL_MS) return;
+    lastHeartbeat = Date.now();
+    try {
+      const { data: current } = await supabase.from("sync_logs").select("sync_state").eq("id", syncLog.id).single();
+      const currentState = current?.sync_state || {};
+      await supabase.from("sync_logs").update({
+        sync_state: { ...currentState, last_activity: new Date().toISOString() },
+      }).eq("id", syncLog.id);
+    } catch (_) { /* best effort */ }
+  };
 
   const accountId = syncLog.account_id;
   const { data: account } = await supabase.from("ad_accounts").select("*").eq("id", accountId).single();
@@ -321,6 +336,7 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
       );
 
       while (nextUrl && !isTimedOut()) {
+        await heartbeat();
         const result = await metaFetch(nextUrl, ctx);
         if (result.error) {
           if (result.rateLimited && hasExistingAds) {
@@ -390,6 +406,7 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
       );
 
       while (nextUrl && !isTimedOut()) {
+        await heartbeat();
         const result = await metaFetch(nextUrl, ctx);
         if (result.error) break;
         if (result.data) {
@@ -579,6 +596,7 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
 
         const rows: any[] = [];
         while (nextUrl && !isTimedOut()) {
+          await heartbeat();
           const result = await metaFetch(nextUrl, ctx);
           if (result.error) { nextUrl = null; break; }
           if (result.data) {
