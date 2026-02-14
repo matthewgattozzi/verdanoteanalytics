@@ -340,11 +340,11 @@ serve(async (req) => {
       const HARD_DEADLINE_MS = 8 * 60 * 1000;
       const syncStartGlobal = Date.now();
       let cancelledFlag = false;
-      const isCancelled = async () => {
+      const isCancelled = async (logId: number) => {
         if (cancelledFlag) return true;
-        // Check every call if status changed to cancelled
-        const { data: logCheck } = await supabase.from("sync_logs").select("status").eq("status", "cancelled").limit(1);
-        if (logCheck?.length) { cancelledFlag = true; return true; }
+        // Check only the current sync log's status
+        const { data: logCheck } = await supabase.from("sync_logs").select("status").eq("id", logId).single();
+        if (logCheck?.status === "cancelled") { cancelledFlag = true; return true; }
         return false;
       };
       const isTimedOut = () => (Date.now() - syncStartGlobal) > HARD_DEADLINE_MS;
@@ -352,7 +352,7 @@ serve(async (req) => {
 
       for (const account of accounts) {
         if (isTimedOut() || cancelledFlag) break;
-        if (await isCancelled()) break;
+        if (await isCancelled(syncLogId)) break;
 
         const startedAt = Date.now();
         const dateRangeDays = sync_type === "initial" ? 90 : (account.date_range_days || 14);
