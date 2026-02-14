@@ -338,7 +338,7 @@ serve(async (req) => {
       if (!accounts.length) return new Response(JSON.stringify({ error: "No accounts to sync" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
       const HARD_DEADLINE_MS = 8 * 60 * 1000;
-      const MEDIA_BUDGET_MS = 2 * 60 * 1000; // max 2 min on media caching
+      // Media caching is deferred to background job
       const syncStartGlobal = Date.now();
       let cancelledFlag = false;
       const isCancelled = async (logId: number) => {
@@ -410,7 +410,7 @@ serve(async (req) => {
             console.log("Phase 1: Fetching ads metadata...");
              const adsUrl = `https://graph.facebook.com/v21.0/${account.id}/ads?` +
               `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,object_story_spec},preview_shareable_link` +
-              `&limit=50&access_token=${encodeURIComponent(metaToken)}`;
+              `&limit=200&access_token=${encodeURIComponent(metaToken)}`;
 
             let nextAdsUrl: string | null = adsUrl;
             let adFetchFailed = false;
@@ -431,7 +431,7 @@ serve(async (req) => {
                 console.log(`  Ads fetched: ${fetchedAds.length}`);
               }
               nextAdsUrl = result.next;
-              if (nextAdsUrl) await new Promise(r => setTimeout(r, 500));
+              if (nextAdsUrl) await new Promise(r => setTimeout(r, 200));
             }
 
             if (!skipAdFetch) {
@@ -439,6 +439,7 @@ serve(async (req) => {
               console.log(`Phase 1 complete: ${creativesFetched} ads`);
             }
           }
+          await saveProgress("running");
 
           // ─── PHASE 2: Fetch aggregated insights (account-level) ──────
           const insightsMap = new Map<string, any>();
@@ -484,20 +485,7 @@ serve(async (req) => {
             return null;
           }
 
-          /** Try fetching video source directly from Meta video endpoint (requires pages_read_engagement). */
-          async function tryVideoSourceById(videoId: string): Promise<string | null> {
-            if (!videoId) return null;
-            try {
-              const vidRes = await fetch(
-                `https://graph.facebook.com/v21.0/${videoId}?fields=source&access_token=${encodeURIComponent(metaToken)}`
-              );
-              if (vidRes.ok) {
-                const vidData = await vidRes.json();
-                if (vidData?.source) return vidData.source;
-              }
-            } catch (_) { /* ignore */ }
-            return null;
-          }
+          // Video source lookups are done in batch below
 
           if (!isTimedOut()) {
             // Extract video URLs from object_story_spec embedded in Phase 1 data
@@ -671,84 +659,31 @@ serve(async (req) => {
             console.log(`Phase 3 complete: ${updated} creatives updated with insights`);
           }
 
-          // ─── PHASE 3.6: Cache uncached videos to storage (budget-limited) ──
-          const mediaBudgetStart = Date.now();
-          const isMediaBudgetExhausted = () => (Date.now() - mediaBudgetStart) > MEDIA_BUDGET_MS || isTimedOut();
-
-          if (!isTimedOut()) {
-            const { data: uncachedVids } = await supabase.from("creatives")
-              .select("ad_id, video_url")
-              .eq("account_id", account.id)
-              .not("video_url", "is", null)
-              .neq("video_url", "no-video")
-              .not("video_url", "like", "%/storage/v1/object/public/%")
-              .limit(15); // Reduced from 50 — defer rest to background job
-
-            const toCache = uncachedVids || [];
-            if (toCache.length > 0) {
-              console.log(`Phase 3.6: Caching up to ${toCache.length} videos (2min budget)...`);
-              let vidCached = 0;
-              for (let i = 0; i < toCache.length && !isMediaBudgetExhausted(); i += 3) {
-                const batch = toCache.slice(i, i + 3);
-                const results = await Promise.allSettled(
-                  batch.map(async (c: any) => {
-                    const storageUrl = await cacheVideo(supabase, account.id, c.ad_id, c.video_url);
-                    if (storageUrl) {
-                      await supabase.from("creatives").update({ video_url: storageUrl }).eq("ad_id", c.ad_id);
-                      return true;
-                    }
-                    return false;
-                  })
-                );
-                vidCached += results.filter((r: any) => r.status === "fulfilled" && r.value).length;
-              }
-              console.log(`Phase 3.6 complete: ${vidCached}/${toCache.length} videos cached`);
-            }
-          }
+          // Media caching (thumbnails + videos) is deferred entirely to the
+          // background refresh-thumbnails job to maximize sync speed.
+          // The background job runs every 6 hours and handles all uncached media.
 
           await saveProgress("running");
-
-          // ─── PHASE 3.5: Cache uncached thumbnails to storage (budget-limited) ──
-          if (!isMediaBudgetExhausted()) {
-            const { data: uncachedThumbs } = await supabase.from("creatives")
-              .select("ad_id, thumbnail_url")
-              .eq("account_id", account.id)
-              .not("thumbnail_url", "is", null)
-              .not("thumbnail_url", "like", "%/storage/v1/object/public/%")
-              .limit(100); // Reduced from 500
-
-            const toCache = uncachedThumbs || [];
-            if (toCache.length > 0) {
-              console.log(`Phase 3.5: Caching ${toCache.length} thumbnails...`);
-              let thumbCached = 0;
-              for (let i = 0; i < toCache.length && !isMediaBudgetExhausted(); i += 10) {
-                const batch = toCache.slice(i, i + 10);
-                const results = await Promise.allSettled(
-                  batch.map(async (c: any) => {
-                    const url = await cacheThumbnail(supabase, account.id, c.ad_id, c.thumbnail_url);
-                    if (url) {
-                      await supabase.from("creatives").update({ thumbnail_url: url }).eq("ad_id", c.ad_id);
-                      return true;
-                    }
-                    return false;
-                  })
-                );
-                thumbCached += results.filter((r: any) => r.status === "fulfilled" && r.value).length;
-              }
-              console.log(`Phase 3.5 complete: ${thumbCached}/${toCache.length} cached`);
-            }
-          }
 
           // ─── PHASE 4: Daily breakdowns ───────────────────────────────
           const dailyRows: any[] = [];
 
           if (!isTimedOut()) {
-            console.log("Phase 4: Fetching daily breakdowns...");
+            // For repeat syncs, limit daily metrics to last 30 days to avoid
+            // massive API loads (180 days × 500 ads = 90k+ rows per account)
+            const dailyDays = hasExistingAds && sync_type !== "initial"
+              ? Math.min(dateRangeDays, 30)
+              : dateRangeDays;
+            const dailyStartDate = new Date();
+            dailyStartDate.setDate(dailyStartDate.getDate() - dailyDays);
+
+            console.log(`Phase 4: Fetching daily breakdowns (${dailyDays} days)...`);
 
             // Use 30-day chunks for daily breakdowns to reduce API round-trips
             const DAILY_CHUNK_DAYS = 30;
-            const chunkStart = new Date(startDate);
+            const chunkStart = new Date(dailyStartDate);
             while (chunkStart < endDate && !isTimedOut()) {
+              if (await isCancelled(syncLogId)) break;
               const chunkEnd = new Date(chunkStart);
               chunkEnd.setDate(chunkEnd.getDate() + DAILY_CHUNK_DAYS - 1);
               if (chunkEnd > endDate) chunkEnd.setTime(endDate.getTime());
@@ -788,15 +723,15 @@ serve(async (req) => {
               // Upsert this chunk immediately to avoid losing data on timeout
               if (dailyRows.length > 0) {
                 const pendingRows = dailyRows.splice(0, dailyRows.length);
-                for (let i = 0; i < pendingRows.length; i += 200) {
-                  const batch = pendingRows.slice(i, i + 200);
+                for (let i = 0; i < pendingRows.length; i += 500) {
+                  const batch = pendingRows.slice(i, i + 500);
                   const { error } = await supabase.from("creative_daily_metrics").upsert(batch, { onConflict: "ad_id,date" });
                   if (error) console.error("Daily upsert error:", error.message);
                 }
               }
 
               chunkStart.setDate(chunkStart.getDate() + DAILY_CHUNK_DAYS);
-              if (chunkStart < endDate) await new Promise(r => setTimeout(r, 300));
+              if (chunkStart < endDate) await new Promise(r => setTimeout(r, 200));
             }
 
             // Daily rows already upserted per-chunk above
