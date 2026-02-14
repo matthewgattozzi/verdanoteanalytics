@@ -7,7 +7,7 @@ export function useIsSyncing() {
   const { data: logs } = useSyncHistory();
   const wasSyncing = useRef(false);
 
-  const isSyncing = (logs || []).some((l: any) => l.status === "running");
+  const isSyncing = (logs || []).some((l: any) => l.status === "running" || l.status === "queued");
 
   useEffect(() => {
     if (wasSyncing.current && !isSyncing && logs?.length) {

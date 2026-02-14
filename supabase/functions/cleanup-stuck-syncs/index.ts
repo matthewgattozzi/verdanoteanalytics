@@ -11,6 +11,7 @@ serve(async () => {
   const fiveMinAgo = Date.now() - 5 * 60 * 1000;
   const now = new Date().toISOString();
 
+  // Only clean up "running" syncs — "queued" syncs are intentionally waiting
   const { data: candidates } = await supabase
     .from("sync_logs")
     .select("id, sync_state")
@@ -24,7 +25,6 @@ serve(async () => {
   }
 
   // Only mark as stuck if there's been no activity in the last 5 minutes
-  // (the continuation cron updates last_activity on every invocation)
   const trulyStuck = candidates.filter((s: any) => {
     const lastActivity = s.sync_state?.last_activity;
     if (lastActivity && new Date(lastActivity).getTime() > fiveMinAgo) return false;
@@ -45,6 +45,21 @@ serve(async () => {
       completed_at: now,
     })
     .in("id", trulyStuck.map((s: any) => s.id));
+
+  // After cleaning up stuck syncs, promote the next queued sync
+  const { data: nextQueued } = await supabase
+    .from("sync_logs")
+    .select("id")
+    .eq("status", "queued")
+    .order("started_at", { ascending: true })
+    .limit(1);
+  if (nextQueued?.length) {
+    await supabase.from("sync_logs").update({
+      status: "running",
+      sync_state: { last_activity: now },
+    }).eq("id", nextQueued[0].id);
+    console.log(`Promoted queued sync ${nextQueued[0].id} after cleanup`);
+  }
 
   console.log(`Cleaned up ${trulyStuck.length} stuck sync(s), skipped ${candidates.length - trulyStuck.length} active`);
 
