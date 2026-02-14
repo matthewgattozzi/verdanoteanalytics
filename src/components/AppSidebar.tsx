@@ -1,4 +1,5 @@
 import { NavLink } from "@/components/NavLink";
+import { motion } from "framer-motion";
 import {
   Settings,
   LayoutGrid,
@@ -98,18 +99,24 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map((item) => (
-          <NavLink
+        {navItems.map((item, i) => (
+          <motion.div
             key={item.url}
-            to={item.url}
-            end={item.url === "/"}
-            className="sidebar-nav-item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-all duration-150 hover:text-foreground"
-            activeClassName="sidebar-nav-active"
-            onClick={onNavigate}
+            initial={{ opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.25, delay: 0.1 + i * 0.04 }}
           >
-            <item.icon className="h-4 w-4 flex-shrink-0" />
-            {item.title}
-          </NavLink>
+            <NavLink
+              to={item.url}
+              end={item.url === "/"}
+              className="sidebar-nav-item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-all duration-150 hover:text-foreground"
+              activeClassName="sidebar-nav-active"
+              onClick={onNavigate}
+            >
+              <item.icon className="h-4 w-4 flex-shrink-0" />
+              {item.title}
+            </NavLink>
+          </motion.div>
         ))}
         {showSettings && (
           <NavLink
