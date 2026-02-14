@@ -16,7 +16,7 @@ const LoginPage = () => {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{
-        background: 'radial-gradient(ellipse 120% 80% at 30% 20%, hsl(82 16% 88% / 0.8) 0%, transparent 50%), radial-gradient(ellipse 100% 60% at 70% 80%, hsl(95 14% 84% / 0.6) 0%, transparent 50%), hsl(80 12% 92%)',
+        background: 'radial-gradient(ellipse 120% 80% at 30% 20%, hsl(147 22% 90% / 0.7) 0%, transparent 50%), radial-gradient(ellipse 100% 60% at 70% 80%, hsl(152 18% 88% / 0.5) 0%, transparent 50%), hsl(40 33% 96%)',
       }}>
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
@@ -38,7 +38,7 @@ const LoginPage = () => {
     <div
       className="min-h-screen flex items-center justify-center px-4"
       style={{
-        background: 'radial-gradient(ellipse 120% 80% at 30% 20%, hsl(82 16% 88% / 0.8) 0%, transparent 50%), radial-gradient(ellipse 100% 60% at 70% 80%, hsl(95 14% 84% / 0.6) 0%, transparent 50%), hsl(80 12% 92%)',
+        background: 'radial-gradient(ellipse 120% 80% at 30% 20%, hsl(147 22% 90% / 0.7) 0%, transparent 50%), radial-gradient(ellipse 100% 60% at 70% 80%, hsl(152 18% 88% / 0.5) 0%, transparent 50%), hsl(40 33% 96%)',
       }}
     >
       <div className="w-full max-w-sm space-y-8">
@@ -47,14 +47,14 @@ const LoginPage = () => {
           <div
             className="h-16 w-16 rounded-2xl flex items-center justify-center overflow-hidden"
             style={{
-              boxShadow: '5px 5px 10px hsl(82 12% 76%), -4px -4px 8px hsl(80 14% 98%)',
-              background: 'hsl(80 10% 95%)',
+              boxShadow: '5px 5px 10px hsl(150 12% 82%), -4px -4px 8px hsl(40 30% 99%)',
+              background: 'hsl(40 38% 98%)',
             }}
           >
             <img src="/favicon.png" alt="Verdanote" className="h-14 w-14" />
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-semibold tracking-tight font-serif">Verdanote</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Verdanote</h1>
             <p className="text-sm text-muted-foreground mt-1.5">Creative analytics, simplified</p>
           </div>
         </div>
@@ -63,9 +63,9 @@ const LoginPage = () => {
         <div
           className="rounded-2xl p-8 space-y-5"
           style={{
-            background: 'hsl(80 10% 95%)',
-            boxShadow: '8px 8px 16px hsl(82 12% 76%), -6px -6px 12px hsl(80 14% 98%)',
-            border: '1px solid hsl(80 12% 94% / 0.6)',
+            background: 'hsl(40 38% 98%)',
+            boxShadow: '8px 8px 16px hsl(150 12% 82%), -6px -6px 12px hsl(40 30% 99%)',
+            border: '1px solid hsl(147 22% 94% / 0.6)',
           }}
         >
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -109,8 +109,8 @@ const LoginPage = () => {
               <div
                 className="rounded-xl px-3 py-2 text-xs text-destructive"
                 style={{
-                  boxShadow: 'inset 2px 2px 4px hsl(82 12% 78%), inset -1px -1px 3px hsl(80 14% 97%)',
-                  background: 'hsl(80 12% 92%)',
+                  boxShadow: 'inset 2px 2px 4px hsl(150 12% 84%), inset -1px -1px 3px hsl(40 30% 98%)',
+                  background: 'hsl(40 33% 96%)',
                 }}
               >
                 {error}
