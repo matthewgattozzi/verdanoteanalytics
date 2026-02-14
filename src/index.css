@@ -217,6 +217,14 @@
       -5px -5px 10px var(--shadow-light);
   }
 
+  /* ── Dialog / modal — neumorphic elevated ── */
+  .glass-shine[class*="fixed"] {
+    box-shadow:
+      10px 10px 20px hsl(82 12% 68%),
+      -8px -8px 16px hsl(80 14% 98%);
+    border: 1px solid hsl(80 12% 94% / 0.6);
+  }
+
   /* ── Inset glass panel (for inputs, wells) ── */
   .glass-inset {
     @apply bg-background rounded-lg;
