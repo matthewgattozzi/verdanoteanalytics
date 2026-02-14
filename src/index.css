@@ -89,10 +89,7 @@
     font-family: 'Outfit', sans-serif;
     font-size: 15px;
     line-height: 1.6;
-    background:
-      radial-gradient(ellipse 120% 80% at 20% 10%, hsl(147 22% 90% / 0.5) 0%, transparent 50%),
-      radial-gradient(ellipse 100% 60% at 80% 90%, hsl(152 18% 88% / 0.4) 0%, transparent 50%),
-      hsl(var(--background));
+    background: hsl(var(--background));
     background-attachment: fixed;
   }
 
