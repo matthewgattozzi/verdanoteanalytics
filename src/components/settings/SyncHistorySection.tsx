@@ -216,11 +216,36 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
             </Button>
           </div>
         </div>
-        {(syncMut.isPending || isSyncing) && (
-          <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
-            <div className="h-full rounded-full bg-primary animate-progress-indeterminate" />
-          </div>
-        )}
+        {(syncMut.isPending || isSyncing) && (() => {
+          const runningLog = (logs || []).find((l: any) => l.status === "running");
+          const fetched = runningLog?.creatives_fetched ?? 0;
+          const upserted = runningLog?.creatives_upserted ?? 0;
+          const isDeterminate = runningLog && fetched > 0;
+          const progressPct = isDeterminate
+            ? Math.min(95, (upserted / fetched) * 100)
+            : null;
+
+          return (
+            <div className="space-y-1">
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                {progressPct != null ? (
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-1000 ease-linear"
+                    style={{ width: `${progressPct}%` }}
+                  />
+                ) : (
+                  <div className="h-full rounded-full bg-primary animate-progress-indeterminate" />
+                )}
+              </div>
+              {isDeterminate && (
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground font-mono">
+                  <span>{upserted} / {fetched} creatives</span>
+                  <span>{Math.round(progressPct!)}%</span>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {isLoading ? (
