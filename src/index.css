@@ -340,4 +340,39 @@
     50% { width: 40%; margin-left: 30%; }
     100% { width: 0%; margin-left: 100%; }
   }
+
+  /* ── Hover lift for interactive rows ── */
+  .hover-lift {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      4px 4px 8px var(--shadow-dark),
+      -3px -3px 6px var(--shadow-light);
+  }
+
+  /* ── Stagger children utility ── */
+  .stagger-children > * {
+    animation: stagger-fade-in 0.35s ease-out both;
+  }
+
+  .stagger-children > *:nth-child(1) { animation-delay: 0s; }
+  .stagger-children > *:nth-child(2) { animation-delay: 0.05s; }
+  .stagger-children > *:nth-child(3) { animation-delay: 0.1s; }
+  .stagger-children > *:nth-child(4) { animation-delay: 0.15s; }
+  .stagger-children > *:nth-child(5) { animation-delay: 0.2s; }
+  .stagger-children > *:nth-child(6) { animation-delay: 0.25s; }
+
+  @keyframes stagger-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
