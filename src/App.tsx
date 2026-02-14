@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AccountProvider } from "@/contexts/AccountContext";
 import CreativesPage from "./pages/CreativesPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
+import TaggingPage from "./pages/TaggingPage";
 import ReportsPage from "./pages/ReportsPage";
 import ReportDetailPage from "./pages/ReportDetailPage";
 import PublicReportPage from "./pages/PublicReportPage";
@@ -39,6 +40,7 @@ function ProtectedRoutes() {
       <Routes>
         <Route path="/" element={<CreativesPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
+        <Route path="/tagging" element={<TaggingPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/reports/:id" element={<ReportDetailPage />} />
         <Route path="/settings" element={isClient ? <Navigate to="/" replace /> : <SettingsPage />} />
