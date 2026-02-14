@@ -2,75 +2,82 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    --background: 140 14% 96%;
-    --foreground: 150 20% 12%;
+    /* ── Core palette: warm sage neumorphic ── */
+    --background: 80 12% 92%;
+    --foreground: 90 18% 14%;
 
-    --card: 140 12% 99%;
-    --card-foreground: 150 20% 12%;
+    --card: 80 10% 95%;
+    --card-foreground: 90 18% 14%;
 
-    --popover: 140 12% 99%;
-    --popover-foreground: 150 20% 12%;
+    --popover: 80 10% 95%;
+    --popover-foreground: 90 18% 14%;
 
-    --primary: 152 45% 28%;
-    --primary-foreground: 140 20% 97%;
+    --primary: 95 38% 32%;
+    --primary-foreground: 80 20% 97%;
 
-    --secondary: 145 14% 91%;
-    --secondary-foreground: 150 14% 30%;
+    --secondary: 82 12% 87%;
+    --secondary-foreground: 90 14% 28%;
 
-    --muted: 145 10% 92%;
-    --muted-foreground: 150 8% 46%;
+    --muted: 80 8% 88%;
+    --muted-foreground: 85 8% 44%;
 
-    --accent: 145 16% 89%;
-    --accent-foreground: 150 20% 12%;
+    --accent: 82 14% 85%;
+    --accent-foreground: 90 18% 14%;
 
     --destructive: 2 50% 46%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 148 12% 84%;
-    --input: 148 12% 84%;
-    --ring: 152 45% 28%;
+    --border: 82 10% 82%;
+    --input: 82 10% 82%;
+    --ring: 95 38% 32%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    /* Status colors — warm-shifted */
-    --success: 155 42% 36%;
+    /* Status colors */
+    --success: 140 40% 34%;
     --success-foreground: 0 0% 100%;
-    --warning: 36 75% 48%;
+    --warning: 38 75% 48%;
     --warning-foreground: 20 25% 10%;
-    --info: 205 45% 44%;
+    --info: 182 55% 38%;
     --info-foreground: 0 0% 100%;
 
     /* Tag source colors */
-    --tag-parsed: 155 42% 36%;
-    --tag-csv: 205 45% 44%;
-    --tag-manual: 36 75% 48%;
+    --tag-parsed: 140 40% 34%;
+    --tag-csv: 182 55% 38%;
+    --tag-manual: 38 75% 48%;
     --tag-untagged: 2 50% 46%;
 
     /* Recommendation colors */
-    --scale: 155 42% 36%;
-    --watch: 36 75% 48%;
+    --scale: 140 40% 34%;
+    --watch: 38 75% 48%;
     --kill: 2 50% 46%;
 
-    /* Sidebar — sage green */
-    --sidebar-background: 142 14% 94%;
-    --sidebar-foreground: 150 12% 36%;
-    --sidebar-primary: 152 45% 28%;
-    --sidebar-primary-foreground: 140 20% 97%;
-    --sidebar-accent: 145 16% 88%;
-    --sidebar-accent-foreground: 150 20% 12%;
-    --sidebar-border: 148 12% 84%;
-    --sidebar-ring: 152 45% 28%;
+    /* Sidebar — deeper olive */
+    --sidebar-background: 82 14% 88%;
+    --sidebar-foreground: 90 12% 34%;
+    --sidebar-primary: 95 38% 32%;
+    --sidebar-primary-foreground: 80 20% 97%;
+    --sidebar-accent: 82 14% 83%;
+    --sidebar-accent-foreground: 90 18% 14%;
+    --sidebar-border: 82 10% 80%;
+    --sidebar-ring: 95 38% 32%;
 
     /* Chart palette */
-    --chart-1: 152 45% 28%;
-    --chart-2: 155 42% 36%;
-    --chart-3: 36 75% 48%;
+    --chart-1: 95 38% 32%;
+    --chart-2: 140 40% 34%;
+    --chart-3: 38 75% 48%;
     --chart-4: 340 35% 48%;
-    --chart-5: 205 45% 44%;
+    --chart-5: 182 55% 38%;
+
+    /* ── Neumorphic shadow tokens ── */
+    --shadow-light: hsl(80 14% 98%);
+    --shadow-dark: hsl(82 12% 76%);
+    --shadow-inset-light: hsl(80 14% 97%);
+    --shadow-inset-dark: hsl(82 12% 78%);
   }
 }
 
@@ -98,35 +105,65 @@
 
   /* Softer focus rings */
   *:focus-visible {
-    --tw-ring-opacity: 0.4;
+    --tw-ring-opacity: 0.35;
   }
 }
 
 @layer components {
-  /* Warm button refinements */
+  /* Neumorphic primary button */
   .btn-primary-warm {
-    @apply bg-primary text-primary-foreground shadow-sm;
-    box-shadow: 0 1px 3px 0 hsl(152 45% 28% / 0.2), 0 1px 2px -1px hsl(152 45% 28% / 0.15);
+    @apply bg-primary text-primary-foreground font-medium;
+    border-radius: var(--radius);
+    box-shadow:
+      3px 3px 6px var(--shadow-dark),
+      -2px -2px 5px var(--shadow-light);
+    transition: all 0.15s ease;
   }
 
   .btn-primary-warm:hover {
-    filter: brightness(1.08);
+    filter: brightness(1.06);
+    box-shadow:
+      2px 2px 4px var(--shadow-dark),
+      -1px -1px 3px var(--shadow-light);
+  }
+
+  .btn-primary-warm:active {
+    box-shadow:
+      inset 2px 2px 4px hsl(95 38% 24%),
+      inset -1px -1px 3px hsl(95 38% 40%);
   }
 }
 
 @layer utilities {
+  /* ── Glass panel — neumorphic raised card ── */
   .glass-panel {
-    @apply bg-card border border-border/50 rounded-lg;
-    box-shadow: 0 1px 3px 0 hsl(150 14% 50% / 0.06), 0 1px 2px -1px hsl(150 14% 50% / 0.04);
+    @apply bg-card rounded-xl;
+    box-shadow:
+      5px 5px 10px var(--shadow-dark),
+      -4px -4px 8px var(--shadow-light);
+    border: 1px solid hsl(80 12% 94% / 0.6);
   }
 
   .glass-panel:hover {
-    box-shadow: 0 2px 6px 0 hsl(150 14% 50% / 0.1), 0 1px 3px -1px hsl(150 14% 50% / 0.06);
+    box-shadow:
+      6px 6px 12px var(--shadow-dark),
+      -5px -5px 10px var(--shadow-light);
   }
 
+  /* ── Inset glass panel (for inputs, wells) ── */
+  .glass-inset {
+    @apply bg-background rounded-lg;
+    box-shadow:
+      inset 3px 3px 6px var(--shadow-inset-dark),
+      inset -2px -2px 5px var(--shadow-inset-light);
+    border: 1px solid hsl(82 10% 84% / 0.3);
+  }
+
+  /* ── Metric display numbers — geometric Outfit font ── */
   .metric-value {
-    @apply text-2xl font-semibold tracking-tight font-serif text-foreground;
-    line-height: 1.2;
+    @apply text-2xl font-semibold tracking-tight text-foreground;
+    font-family: 'Outfit', system-ui, sans-serif;
+    line-height: 1.15;
   }
 
   .metric-label {
