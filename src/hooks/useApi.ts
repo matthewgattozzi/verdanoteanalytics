@@ -95,7 +95,6 @@ export function useSync() {
       apiFetch("sync", "", { method: "POST", body: JSON.stringify(params) }),
     invalidateKeys: [["accounts"], ["creatives"], ["all-creatives"], ["daily-trends"], ["sync-history"]],
     successMessage: "Sync started",
-    successDescription: "Running in the background — progress will update automatically.",
     errorMessage: "Sync failed",
   });
 }
