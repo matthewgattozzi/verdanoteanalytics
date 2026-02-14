@@ -37,50 +37,9 @@ function parseAdName(adName: string) {
   return { unique_code, parsed: false, ad_type: null, person: null, style: null, product: null, hook: null, theme: null };
 }
 
-// ─── Thumbnail Caching Helper ────────────────────────────────────────────────
-
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const THUMBNAIL_BUCKET = "ad-thumbnails";
-
-async function cacheThumbnail(
-  supabase: any, accountId: string, adId: string, metaUrl: string
-): Promise<string | null> {
-  try {
-    const resp = await fetch(metaUrl);
-    if (!resp.ok) return null;
-    const blob = await resp.arrayBuffer();
-    const contentType = resp.headers.get("content-type") || "image/jpeg";
-    const ext = contentType.includes("png") ? "png" : "jpg";
-    const path = `${accountId}/${adId}.${ext}`;
-    const { error } = await supabase.storage.from(THUMBNAIL_BUCKET)
-      .upload(path, new Uint8Array(blob), { contentType, upsert: true });
-    if (error) { console.log(`Thumbnail upload error for ${adId}:`, error.message); return null; }
-    return `${SUPABASE_URL}/storage/v1/object/public/${THUMBNAIL_BUCKET}/${path}`;
-  } catch (err) { console.log(`Thumbnail cache error for ${adId}:`, err); return null; }
-}
-
-const VIDEO_BUCKET = "ad-videos";
-
-async function cacheVideo(
-  supabase: any, accountId: string, adId: string, metaUrl: string
-): Promise<string | null> {
-  try {
-    const resp = await fetch(metaUrl);
-    if (!resp.ok) return null;
-    const blob = await resp.arrayBuffer();
-    if (blob.byteLength < 1000 || blob.byteLength > 200 * 1024 * 1024) return null;
-    const contentType = resp.headers.get("content-type") || "video/mp4";
-    const ext = contentType.includes("webm") ? "webm" : "mp4";
-    const path = `${accountId}/${adId}.${ext}`;
-    const { error } = await supabase.storage.from(VIDEO_BUCKET)
-      .upload(path, new Uint8Array(blob), { contentType, upsert: true });
-    if (error) { console.log(`Video upload error for ${adId}:`, error.message); return null; }
-    return `${SUPABASE_URL}/storage/v1/object/public/${VIDEO_BUCKET}/${path}`;
-  } catch (err) { console.log(`Video cache error for ${adId}:`, err); return null; }
-}
-
 // ─── Meta API Helper ─────────────────────────────────────────────────────────
 
+const META_API_VERSION = "v22.0";
 const MAX_RATE_LIMIT_RETRIES = 3;
 
 async function metaFetch(
@@ -195,20 +154,9 @@ function parseInsightsRow(row: any) {
   return { spend, roas, cpa, ctr, clicks, impressions, cpm, cpc, frequency, purchases, purchase_value: purchaseValue, thumb_stop_rate: thumbStopRate, hold_rate: holdRate, video_avg_play_time: videoAvgPlayTime, adds_to_cart: addsToCart, cost_per_add_to_cart: costPerAtc, video_views: videoViews };
 }
 
-// ─── Video URL Extraction ────────────────────────────────────────────────────
-
-function extractVideoFromSpec(spec: any): string | null {
-  if (!spec) return null;
-  if (spec.video_data?.video_url) return spec.video_data.video_url;
-  const ctaLink = spec.video_data?.call_to_action?.value?.link;
-  if (ctaLink && (ctaLink.includes(".mp4") || ctaLink.includes("video"))) return ctaLink;
-  if (spec.template_data?.video_data?.video_url) return spec.template_data.video_data.video_url;
-  return null;
-}
-
 // ─── Phase Budget ────────────────────────────────────────────────────────────
 const PHASE_BUDGET_MS = 2 * 60 * 1000;
-const HEARTBEAT_INTERVAL_MS = 20 * 1000; // Update heartbeat every 20 seconds
+const HEARTBEAT_INTERVAL_MS = 20 * 1000;
 
 // ─── Promote Next Queued Sync ────────────────────────────────────────────────
 async function promoteNextQueued(supabase: any) {
@@ -228,19 +176,19 @@ async function promoteNextQueued(supabase: any) {
 
 // ─── Sync Worker: Resumable Phase Execution ──────────────────────────────────
 // Phases:
-//   1 = Fetch ads from Meta
-//   2 = Fetch aggregated insights
-//   3 = Upsert creatives (merge ads + insights)
-//   4 = Daily metric breakdowns (chunked by 15-day windows)
+//   1 = Fetch ads metadata (lightweight — no media)
+//   2 = Fetch aggregated insights (batch upsert)
+//   3 = Cleanup zero-spend + count
+//   4 = Daily metric breakdowns (batch upsert, chunked)
 //   5 = Tag resolution
-//   6 = Finalize (update counts, mark complete)
+//   6 = Finalize
 
 async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
   const startMs = Date.now();
   const isTimedOut = () => (Date.now() - startMs) > PHASE_BUDGET_MS;
   const ctx = { metaApiCalls: 0, apiErrors: [] as { timestamp: string; message: string }[], isTimedOut };
 
-  // Lightweight heartbeat: updates only last_activity in sync_state every ~20s
+  // Lightweight heartbeat
   let lastHeartbeat = Date.now();
   const heartbeat = async () => {
     if (Date.now() - lastHeartbeat < HEARTBEAT_INTERVAL_MS) return;
@@ -296,7 +244,6 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
       }).eq("id", syncLog.id);
     } catch (saveErr) {
       console.error("saveState failed:", saveErr);
-      // Last-resort: try to at least update last_activity so cleanup doesn't kill us
       try {
         await supabase.from("sync_logs").update({
           sync_state: { ...state, last_activity: new Date().toISOString(), save_error: String(saveErr) },
@@ -304,7 +251,6 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
       } catch (_) { /* truly lost */ }
     }
 
-    // If this sync just completed/failed, promote next queued
     if (status !== "running") {
       await promoteNextQueued(supabase);
     }
@@ -312,21 +258,12 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
 
   try {
     // ═══════════════════════════════════════════════════════════════════
-    // PHASE 1: Fetch ads metadata → upsert directly to creatives table
-    //   No more accumulating in sync_state — writes to DB as we paginate
+    // PHASE 1: Fetch ads metadata — LIGHTWEIGHT (no media fields)
+    //   Always runs to discover new ads. Only fetches essential fields:
+    //   id, name, status, campaign name, adset name.
+    //   Media (thumbnails, videos) are handled by refresh-thumbnails.
     // ═══════════════════════════════════════════════════════════════════
     if (phase === 1) {
-      const { count: existingCount } = await supabase.from("creatives")
-        .select("*", { count: "exact", head: true }).eq("account_id", accountId);
-      const hasExistingAds = (existingCount || 0) > 0;
-
-      // Skip ad fetch for repeat syncs when we already have ads
-      if (hasExistingAds && syncType !== "initial") {
-        console.log(`Phase 1: Skipping — ${existingCount} ads already in DB`);
-        await saveState(2, { creatives_fetched: existingCount, skip_ad_fetch: true });
-        return;
-      }
-
       // Get manual-tagged ad IDs to preserve their tags
       const { data: manualAds } = await supabase.from("creatives").select("ad_id")
         .eq("account_id", accountId).eq("tag_source", "manual");
@@ -335,9 +272,11 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
       const cursor = state.ads_cursor || null;
       let fetchedCount = state.creatives_fetched || 0;
 
+      // STRIPPED DOWN: Only essential fields — no creative{}, no preview_shareable_link
+      // This reduces per-page payload from ~5MB to ~50KB
       let nextUrl = cursor || (
-        `https://graph.facebook.com/v21.0/${accountId}/ads?` +
-        `fields=id,name,status,campaign{name},adset{name},creative{thumbnail_url,object_story_spec},preview_shareable_link` +
+        `https://graph.facebook.com/${META_API_VERSION}/${accountId}/ads?` +
+        `fields=id,name,status,campaign{name},adset{name}` +
         `&limit=200&access_token=${encodeURIComponent(metaToken)}`
       );
 
@@ -345,42 +284,35 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
         await heartbeat();
         const result = await metaFetch(nextUrl, ctx);
         if (result.error) {
-          if (result.rateLimited && hasExistingAds) {
-            console.log("Rate limited — skipping to insights with existing ads");
-            await saveState(2, { creatives_fetched: existingCount, skip_ad_fetch: true });
-            return;
-          }
           ctx.apiErrors.push({ timestamp: new Date().toISOString(), message: "Ad fetch failed" });
           break;
         }
         if (result.data) {
-          // Upsert this page of ads directly to creatives table
           const upsertBatch: any[] = [];
           for (const ad of result.data) {
             const adData: any = {
-              ad_id: ad.id, account_id: accountId, ad_name: ad.name,
+              ad_id: ad.id,
+              account_id: accountId,
+              ad_name: ad.name,
               ad_status: ad.status || "UNKNOWN",
               campaign_name: ad.campaign?.name || null,
               adset_name: ad.adset?.name || null,
-              thumbnail_url: (ad.creative?.thumbnail_url || "").replace(/p\d+x\d+/, "p1080x1080") || null,
-              preview_url: ad.preview_shareable_link || null,
               unique_code: ad.name.split("_")[0],
             };
-            // Extract video URL from creative spec
-            const videoUrl = extractVideoFromSpec(ad.creative?.object_story_spec) || null;
-            if (videoUrl) adData.video_url = videoUrl;
 
-            // Don't overwrite tags for manual-tagged creatives
             if (!manualAdIds.has(ad.id)) {
               upsertBatch.push(adData);
             } else {
-              // For manual ads, only update metadata (not tags)
+              // For manual ads, only update metadata fields
               const { ad_id, unique_code, ...metadataOnly } = adData;
               await supabase.from("creatives").update(metadataOnly).eq("ad_id", ad.id);
             }
           }
           if (upsertBatch.length > 0) {
-            const { error } = await supabase.from("creatives").upsert(upsertBatch, { onConflict: "ad_id" });
+            const { error } = await supabase.from("creatives").upsert(upsertBatch, {
+              onConflict: "ad_id",
+              // ignoreDuplicates: false ensures we update existing rows
+            });
             if (error) console.error("Phase 1 upsert error:", error.message);
           }
           fetchedCount += result.data.length;
@@ -395,14 +327,15 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
         await saveState(1, { ads_cursor: nextUrl, creatives_fetched: fetchedCount });
       } else {
         console.log(`Phase 1 complete: ${fetchedCount} ads`);
-        await saveState(2, { ads_cursor: null, creatives_fetched: fetchedCount, skip_ad_fetch: false });
+        await saveState(2, { ads_cursor: null, creatives_fetched: fetchedCount });
       }
       return;
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // PHASE 2: Fetch aggregated insights → update creatives directly
-    //   No more accumulating insights_map in sync_state
+    // PHASE 2: Fetch aggregated insights → BATCH upsert to creatives
+    //   Groups metrics by ad_id and upserts in batches of 200
+    //   instead of individual row updates.
     // ═══════════════════════════════════════════════════════════════════
     if (phase === 2) {
       const endDate = new Date();
@@ -415,7 +348,7 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
       let insightsCount = state.insights_count || 0;
 
       let nextUrl = cursor || (
-        `https://graph.facebook.com/v21.0/${accountId}/insights?` +
+        `https://graph.facebook.com/${META_API_VERSION}/${accountId}/insights?` +
         `time_range=${encodeURIComponent(timeRange)}&level=ad` +
         `&fields=${insightsFields}` +
         `&limit=500&access_token=${encodeURIComponent(metaToken)}`
@@ -426,21 +359,26 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
         const result = await metaFetch(nextUrl, ctx);
         if (result.error) break;
         if (result.data) {
-          // Update creatives directly with metrics from this page
-          const updates: Promise<any>[] = [];
+          // Batch upsert: build array of {ad_id, ...metrics} and upsert in one call
+          const UPSERT_BATCH_SIZE = 200;
+          const metricsRows: any[] = [];
           for (const row of result.data) {
             const metrics = parseInsightsRow(row);
-            updates.push(
-              supabase.from("creatives").update(metrics).eq("ad_id", row.ad_id)
-            );
-            if (updates.length >= 100) {
-              await Promise.all(updates);
-              updates.length = 0;
-            }
+            metricsRows.push({
+              ad_id: row.ad_id,
+              account_id: accountId,
+              ad_name: row.ad_id, // placeholder — won't overwrite due to onConflict
+              ...metrics,
+            });
           }
-          if (updates.length > 0) await Promise.all(updates);
+          // Upsert in chunks
+          for (let i = 0; i < metricsRows.length; i += UPSERT_BATCH_SIZE) {
+            const batch = metricsRows.slice(i, i + UPSERT_BATCH_SIZE);
+            const { error } = await supabase.from("creatives").upsert(batch, { onConflict: "ad_id" });
+            if (error) console.error("Phase 2 batch upsert error:", error.message);
+          }
           insightsCount += result.data.length;
-          console.log(`  Insights applied: ${insightsCount}`);
+          console.log(`  Insights batch-upserted: ${insightsCount}`);
         }
         nextUrl = result.next;
         if (nextUrl) await new Promise(r => setTimeout(r, 200));
@@ -457,43 +395,35 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // PHASE 3: Video URL lookups + cleanup zero-spend creatives
+    // PHASE 3: Cleanup zero-spend creatives + count
     // ═══════════════════════════════════════════════════════════════════
     if (phase === 3) {
-      console.log("Phase 3: Video URL lookups + cleanup...");
+      console.log("Phase 3: Cleanup zero-spend creatives...");
 
-      // Batch video source lookups for creatives missing video_url
-      // We look for creatives that have ad_name containing video-related patterns
-      // but no video_url yet. We query Meta for video sources.
-      const videoLookupOffset = state.video_lookup_offset || 0;
-      let creativesUpserted = state.creatives_upserted || 0;
-
-      if (videoLookupOffset === 0) {
-        // Delete creatives with zero spend (no insights matched)
-        const { count: beforeCount } = await supabase.from("creatives")
-          .select("*", { count: "exact", head: true })
-          .eq("account_id", accountId).lte("spend", 0);
-        if (beforeCount && beforeCount > 0) {
-          // Don't delete manual-tagged ones
-          await supabase.from("creatives")
-            .delete()
-            .eq("account_id", accountId).lte("spend", 0).neq("tag_source", "manual");
-          console.log(`  Cleaned up ${beforeCount} zero-spend creatives`);
-        }
-
-        // Count remaining
-        const { count: remaining } = await supabase.from("creatives")
-          .select("*", { count: "exact", head: true }).eq("account_id", accountId);
-        creativesUpserted = remaining || 0;
+      // Delete creatives with zero spend (no insights matched), except manual-tagged
+      const { count: zeroSpendCount } = await supabase.from("creatives")
+        .select("*", { count: "exact", head: true })
+        .eq("account_id", accountId).lte("spend", 0).neq("tag_source", "manual");
+      if (zeroSpendCount && zeroSpendCount > 0) {
+        await supabase.from("creatives")
+          .delete()
+          .eq("account_id", accountId).lte("spend", 0).neq("tag_source", "manual");
+        console.log(`  Cleaned up ${zeroSpendCount} zero-spend creatives`);
       }
 
-      console.log(`Phase 3 complete: ${creativesUpserted} creatives`);
-      await saveState(4, { creatives_upserted: creativesUpserted, video_lookup_offset: null });
+      // Count remaining
+      const { count: remaining } = await supabase.from("creatives")
+        .select("*", { count: "exact", head: true }).eq("account_id", accountId);
+      const creativesUpserted = remaining || 0;
+
+      console.log(`Phase 3 complete: ${creativesUpserted} creatives remain`);
+      await saveState(4, { creatives_upserted: creativesUpserted });
       return;
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // PHASE 4: Daily metric breakdowns (chunked, resumable)
+    // PHASE 4: Daily metric breakdowns (chunked, resumable, batch upsert)
+    //   Upserts incrementally per page instead of accumulating in memory
     // ═══════════════════════════════════════════════════════════════════
     if (phase === 4) {
       const { count: existingCount } = await supabase.from("creatives")
@@ -537,34 +467,33 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
         const insightsFields = "ad_id,spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values,video_avg_time_watched_actions,video_thruplay_watched_actions";
 
         let nextUrl = paginationCursor || (
-          `https://graph.facebook.com/v21.0/${accountId}/insights?` +
+          `https://graph.facebook.com/${META_API_VERSION}/${accountId}/insights?` +
           `time_range=${encodeURIComponent(chunkRange)}&time_increment=1&level=ad` +
           `&fields=${insightsFields}` +
           `&limit=500&access_token=${encodeURIComponent(metaToken)}`
         );
 
-        const rows: any[] = [];
         while (nextUrl && !isTimedOut()) {
           await heartbeat();
           const result = await metaFetch(nextUrl, ctx);
           if (result.error) { nextUrl = null; break; }
-          if (result.data) {
-            for (const row of result.data) {
-              const metrics = parseInsightsRow(row);
-              rows.push({ ad_id: row.ad_id, account_id: accountId, date: row.date_start, ...metrics });
+          if (result.data && result.data.length > 0) {
+            // Upsert each page directly — no accumulation
+            const rows = result.data.map((row: any) => ({
+              ad_id: row.ad_id,
+              account_id: accountId,
+              date: row.date_start,
+              ...parseInsightsRow(row),
+            }));
+            for (let i = 0; i < rows.length; i += 500) {
+              const batch = rows.slice(i, i + 500);
+              const { error } = await supabase.from("creative_daily_metrics").upsert(batch, { onConflict: "ad_id,date" });
+              if (error) console.error("Daily upsert error:", error.message);
             }
+            console.log(`    Upserted ${rows.length} daily rows`);
           }
           nextUrl = result.next;
           if (nextUrl) await new Promise(r => setTimeout(r, 150));
-        }
-
-        if (rows.length > 0) {
-          for (let i = 0; i < rows.length; i += 500) {
-            const batch = rows.slice(i, i + 500);
-            const { error } = await supabase.from("creative_daily_metrics").upsert(batch, { onConflict: "ad_id,date" });
-            if (error) console.error("Daily upsert error:", error.message);
-          }
-          console.log(`  Upserted ${rows.length} daily rows`);
         }
 
         if (nextUrl && isTimedOut()) {
@@ -588,7 +517,7 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // PHASE 5: Tag resolution
+    // PHASE 5: Tag resolution (batch updates)
     // ═══════════════════════════════════════════════════════════════════
     if (phase === 5) {
       console.log("Phase 5: Resolving tags...");
@@ -608,7 +537,8 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
 
         if (!unresolved?.length) break;
 
-        const updates: Promise<any>[] = [];
+        // Collect updates and batch them
+        const updatesBySource: Record<string, any[]> = {};
         for (const c of unresolved) {
           const parsed = parseAdName(c.ad_name);
           let tags: any, source: string;
@@ -628,14 +558,21 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
               tagsUntagged++;
             }
           }
-          updates.push(supabase.from("creatives").update({ ...tags, tag_source: source }).eq("ad_id", c.ad_id));
+          if (!updatesBySource[source]) updatesBySource[source] = [];
+          updatesBySource[source].push({ ad_id: c.ad_id, ...tags, tag_source: source });
+        }
 
-          if (updates.length >= 100) {
-            await Promise.all(updates);
-            updates.length = 0;
+        // Batch upsert per source group
+        for (const [, rows] of Object.entries(updatesBySource)) {
+          for (let i = 0; i < rows.length; i += 200) {
+            const batch = rows.slice(i, i + 200);
+            // Use individual updates in parallel (tags differ per row)
+            await Promise.all(batch.map((row: any) => {
+              const { ad_id, ...fields } = row;
+              return supabase.from("creatives").update(fields).eq("ad_id", ad_id);
+            }));
           }
         }
-        if (updates.length > 0) await Promise.all(updates);
 
         offset += unresolved.length;
         if (unresolved.length < BATCH) break;
@@ -735,7 +672,6 @@ serve(async (req) => {
 
     // ─── POST /sync/cancel ─────────────────────────────────────────────
     if (req.method === "POST" && path === "cancel") {
-      // Cancel both running and queued syncs
       const { data: activeSyncs } = await supabase.from("sync_logs").select("id, started_at").in("status", ["running", "queued"]);
       if (!activeSyncs?.length) {
         return new Response(JSON.stringify({ message: "No running sync to cancel" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -751,7 +687,6 @@ serve(async (req) => {
 
     // ─── POST /sync/continue ───────────────────────────────────────────
     if (req.method === "POST" && path === "continue") {
-      // Find syncs that need continuation (running first, then promote queued)
       const { data: runningSyncs } = await supabase.from("sync_logs")
         .select("*")
         .eq("status", "running")
@@ -759,14 +694,12 @@ serve(async (req) => {
         .limit(1);
 
       if (!runningSyncs?.length) {
-        // No running syncs — try to promote a queued one
         await promoteNextQueued(supabase);
         return new Response(JSON.stringify({ message: "No syncs to continue, promoted queued if any" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       const syncLog = runningSyncs[0];
 
-      // Get Meta token
       let metaToken = Deno.env.get("META_ACCESS_TOKEN");
       if (!metaToken) {
         const { data: tokenRow } = await supabase.from("settings").select("value").eq("key", "meta_access_token").single();
@@ -776,7 +709,6 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: "No Meta token" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      // Mark activity timestamp before processing
       await supabase.from("sync_logs").update({
         sync_state: { ...syncLog.sync_state, last_activity: new Date().toISOString() },
       }).eq("id", syncLog.id);
@@ -791,13 +723,11 @@ serve(async (req) => {
       const body = await req.json();
       const { account_id, sync_type = "manual" } = body;
 
-      // Prevent concurrent syncs — check both running and queued
       const { data: activeSyncs } = await supabase.from("sync_logs").select("id, account_id, started_at").in("status", ["running", "queued"]).limit(1);
       if (activeSyncs?.length) {
         return new Response(JSON.stringify({ error: "Sync already running" }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      // Get Meta token
       let metaToken = Deno.env.get("META_ACCESS_TOKEN");
       if (!metaToken) {
         const { data: tokenRow } = await supabase.from("settings").select("value").eq("key", "meta_access_token").single();
@@ -805,7 +735,6 @@ serve(async (req) => {
       }
       if (!metaToken) return new Response(JSON.stringify({ error: "No Meta access token configured" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      // Get accounts
       let accounts: any[] = [];
       if (account_id && account_id !== "all") {
         const { data } = await supabase.from("ad_accounts").select("*").eq("id", account_id).single();
@@ -816,7 +745,6 @@ serve(async (req) => {
       }
       if (!accounts.length) return new Response(JSON.stringify({ error: "No accounts to sync" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      // First account = "running", rest = "queued"
       const created = [];
       for (let i = 0; i < accounts.length; i++) {
         const account = accounts[i];
@@ -842,7 +770,6 @@ serve(async (req) => {
         created.push({ id: logEntry.id, account_id: account.id, account_name: account.name });
       }
 
-      // Immediately start the first sync phase
       if (created.length > 0) {
         const { data: firstLog } = await supabase.from("sync_logs").select("*").eq("id", created[0].id).single();
         if (firstLog) {

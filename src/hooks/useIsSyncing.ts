@@ -18,6 +18,12 @@ export function useIsSyncing() {
             ? `${latest.creatives_upserted} creatives updated.`
             : undefined,
         });
+      } else if (latest.status === "completed_with_errors") {
+        toast.warning("Sync finished with errors", {
+          description: latest.creatives_upserted != null
+            ? `${latest.creatives_upserted} creatives updated. Some API errors occurred.`
+            : "Some API errors occurred during sync.",
+        });
       } else if (latest.status === "failed") {
         toast.error("Sync failed", {
           description: latest.api_errors || "Check sync history for details.",
