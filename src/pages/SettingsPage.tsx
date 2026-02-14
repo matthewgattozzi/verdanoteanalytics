@@ -63,6 +63,8 @@ const SettingsPage = () => {
           syncPending={s.sync.isPending || isSyncing}
           onUploadCsv={() => { s.setShowCsvModal(s.account!.id); s.setCsvPreview([]); s.setCsvMappings([]); }}
           onToggle={(checked) => s.toggleAccount.mutate({ id: s.account!.id, is_active: checked })}
+          onRefreshMedia={() => s.refreshMedia.mutate(undefined)}
+          refreshMediaPending={s.refreshMedia.isPending}
         />
 
 
