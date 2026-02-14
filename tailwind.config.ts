@@ -17,6 +17,7 @@ export default {
         sans: ["DM Sans", "system-ui", "sans-serif"],
         serif: ["Lora", "Georgia", "serif"],
         mono: ["IBM Plex Mono", "monospace"],
+        display: ["Outfit", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
