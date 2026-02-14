@@ -359,23 +359,17 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
         const result = await metaFetch(nextUrl, ctx);
         if (result.error) break;
         if (result.data) {
-          // Batch upsert: build array of {ad_id, ...metrics} and upsert in one call
-          const UPSERT_BATCH_SIZE = 200;
-          const metricsRows: any[] = [];
+          // Batch update metrics — Phase 1 already created the rows
+          const UPDATE_BATCH_SIZE = 50;
+          const metricsRows: { ad_id: string; metrics: any }[] = [];
           for (const row of result.data) {
-            const metrics = parseInsightsRow(row);
-            metricsRows.push({
-              ad_id: row.ad_id,
-              account_id: accountId,
-              ad_name: row.ad_id, // placeholder — won't overwrite due to onConflict
-              ...metrics,
-            });
+            metricsRows.push({ ad_id: row.ad_id, metrics: parseInsightsRow(row) });
           }
-          // Upsert in chunks
-          for (let i = 0; i < metricsRows.length; i += UPSERT_BATCH_SIZE) {
-            const batch = metricsRows.slice(i, i + UPSERT_BATCH_SIZE);
-            const { error } = await supabase.from("creatives").upsert(batch, { onConflict: "ad_id" });
-            if (error) console.error("Phase 2 batch upsert error:", error.message);
+          for (let i = 0; i < metricsRows.length; i += UPDATE_BATCH_SIZE) {
+            const batch = metricsRows.slice(i, i + UPDATE_BATCH_SIZE);
+            await Promise.all(batch.map(({ ad_id, metrics }) =>
+              supabase.from("creatives").update(metrics).eq("ad_id", ad_id)
+            ));
           }
           insightsCount += result.data.length;
           console.log(`  Insights batch-upserted: ${insightsCount}`);
@@ -633,24 +627,32 @@ serve(async (req) => {
 
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-  // Auth
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  const authToken = authHeader.replace("Bearer ", "");
+  const url = new URL(req.url);
+  const path = url.pathname.replace(/^\/sync\/?/, "").replace(/\/$/, "");
 
-  const isAnonKey = authToken === Deno.env.get("SUPABASE_ANON_KEY");
+  // The /sync/continue endpoint is called by pg_cron — no user auth needed
+  // (same pattern as cleanup-stuck-syncs)
+  const isCronPath = path === "continue";
 
-  if (!isAnonKey) {
-    const { data: { user }, error: authError } = await supabase.auth.getUser(authToken);
-    if (authError || !user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    const { data: userRole } = await supabase.from("user_roles").select("role").eq("user_id", user.id).single();
-    if (!userRole || !["builder", "employee"].includes(userRole.role)) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  // Auth (skip for cron-only paths)
+  if (!isCronPath) {
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const authToken = authHeader.replace("Bearer ", "");
+
+    const isAnonKey = authToken === Deno.env.get("SUPABASE_ANON_KEY") || authToken === Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
+
+    if (!isAnonKey) {
+      const { data: { user }, error: authError } = await supabase.auth.getUser(authToken);
+      if (authError || !user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const { data: userRole } = await supabase.from("user_roles").select("role").eq("user_id", user.id).single();
+      if (!userRole || !["builder", "employee"].includes(userRole.role)) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
     }
   }
 
-  const url = new URL(req.url);
-  const path = url.pathname.replace(/^\/sync\/?/, "").replace(/\/$/, "");
+  // url and path already parsed above
 
   try {
     // ─── GET /sync/history ─────────────────────────────────────────────
