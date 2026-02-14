@@ -13,7 +13,7 @@ export function SyncStatusBanner() {
   const [elapsed, setElapsed] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
 
-  const runningLog = (logs || []).find((l: any) => l.status === "running");
+  const runningLog = (logs || []).find((l: any) => l.status === "running") || (logs || []).find((l: any) => l.status === "queued");
 
   useEffect(() => {
     if (isSyncing && runningLog) {
@@ -38,6 +38,8 @@ export function SyncStatusBanner() {
   const fetched = runningLog?.creatives_fetched ?? 0;
   const upserted = runningLog?.creatives_upserted ?? 0;
   const currentPhase = runningLog?.current_phase ?? 0;
+  const isQueued = runningLog?.status === "queued";
+  const queuedCount = (logs || []).filter((l: any) => l.status === "queued").length;
 
   const phaseLabels: Record<number, string> = {
     1: "Fetching ads",
@@ -47,7 +49,7 @@ export function SyncStatusBanner() {
     5: "Tagging",
     6: "Finalizing",
   };
-  const phaseLabel = phaseLabels[currentPhase] || "Starting";
+  const phaseLabel = isQueued ? "Queued" : (phaseLabels[currentPhase] || "Starting");
 
   // Phase-based progress: 6 phases, each ~16.7%
   const hasMetrics = fetched > 0 || upserted > 0;
@@ -74,6 +76,7 @@ export function SyncStatusBanner() {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-foreground">
             Syncing {accountName} — <span className="text-primary">{phaseLabel}</span>
+            {queuedCount > 0 && !isQueued && <span className="text-muted-foreground"> (+{queuedCount} queued)</span>}
           </p>
           <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">

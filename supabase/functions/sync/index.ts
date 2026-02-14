@@ -207,9 +207,23 @@ function extractVideoFromSpec(spec: any): string | null {
 }
 
 // ─── Phase Budget ────────────────────────────────────────────────────────────
-// Each invocation gets a 2-minute soft deadline. This lets the cron pick up
-// the next phase quickly and keeps us well under Deno's hard limit.
 const PHASE_BUDGET_MS = 2 * 60 * 1000;
+
+// ─── Promote Next Queued Sync ────────────────────────────────────────────────
+async function promoteNextQueued(supabase: any) {
+  const { data: next } = await supabase.from("sync_logs")
+    .select("id")
+    .eq("status", "queued")
+    .order("started_at", { ascending: true })
+    .limit(1);
+  if (next?.length) {
+    await supabase.from("sync_logs").update({
+      status: "running",
+      sync_state: { last_activity: new Date().toISOString() },
+    }).eq("id", next[0].id);
+    console.log(`Promoted queued sync ${next[0].id} to running`);
+  }
+}
 
 // ─── Sync Worker: Resumable Phase Execution ──────────────────────────────────
 // Phases:
@@ -219,10 +233,6 @@ const PHASE_BUDGET_MS = 2 * 60 * 1000;
 //   4 = Daily metric breakdowns (chunked by 15-day windows)
 //   5 = Tag resolution
 //   6 = Finalize (update counts, mark complete)
-//
-// State is persisted in sync_logs.sync_state (JSONB) between invocations.
-// Each phase reads its cursor from state, does work, and either advances
-// the phase or saves cursor for continuation.
 
 async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
   const startMs = Date.now();
@@ -233,6 +243,7 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
   const { data: account } = await supabase.from("ad_accounts").select("*").eq("id", accountId).single();
   if (!account) {
     await supabase.from("sync_logs").update({ status: "failed", api_errors: JSON.stringify([{ timestamp: new Date().toISOString(), message: "Account not found" }]), completed_at: new Date().toISOString() }).eq("id", syncLog.id);
+    await promoteNextQueued(supabase);
     return;
   }
 
@@ -245,25 +256,43 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
 
   // Check cancellation
   const { data: statusCheck } = await supabase.from("sync_logs").select("status").eq("id", syncLog.id).single();
-  if (statusCheck?.status === "cancelled") return;
+  if (statusCheck?.status === "cancelled") {
+    await promoteNextQueued(supabase);
+    return;
+  }
 
   const saveState = async (nextPhase: number, newState: any, status = "running") => {
     const merged = { ...state, ...newState, last_activity: new Date().toISOString() };
-    await supabase.from("sync_logs").update({
-      current_phase: nextPhase,
-      sync_state: merged,
-      status,
-      creatives_fetched: merged.creatives_fetched ?? syncLog.creatives_fetched ?? 0,
-      creatives_upserted: merged.creatives_upserted ?? syncLog.creatives_upserted ?? 0,
-      tags_parsed: merged.tags_parsed ?? syncLog.tags_parsed ?? 0,
-      tags_csv_matched: merged.tags_csv_matched ?? syncLog.tags_csv_matched ?? 0,
-      tags_manual_preserved: merged.tags_manual_preserved ?? syncLog.tags_manual_preserved ?? 0,
-      tags_untagged: merged.tags_untagged ?? syncLog.tags_untagged ?? 0,
-      meta_api_calls: (syncLog.meta_api_calls || 0) + ctx.metaApiCalls,
-      api_errors: JSON.stringify([...JSON.parse(syncLog.api_errors || "[]"), ...ctx.apiErrors]),
-      duration_ms: (syncLog.duration_ms || 0) + (Date.now() - startMs),
-      ...(status !== "running" ? { completed_at: new Date().toISOString() } : {}),
-    }).eq("id", syncLog.id);
+    try {
+      await supabase.from("sync_logs").update({
+        current_phase: nextPhase,
+        sync_state: merged,
+        status,
+        creatives_fetched: merged.creatives_fetched ?? syncLog.creatives_fetched ?? 0,
+        creatives_upserted: merged.creatives_upserted ?? syncLog.creatives_upserted ?? 0,
+        tags_parsed: merged.tags_parsed ?? syncLog.tags_parsed ?? 0,
+        tags_csv_matched: merged.tags_csv_matched ?? syncLog.tags_csv_matched ?? 0,
+        tags_manual_preserved: merged.tags_manual_preserved ?? syncLog.tags_manual_preserved ?? 0,
+        tags_untagged: merged.tags_untagged ?? syncLog.tags_untagged ?? 0,
+        meta_api_calls: (syncLog.meta_api_calls || 0) + ctx.metaApiCalls,
+        api_errors: JSON.stringify([...JSON.parse(syncLog.api_errors || "[]"), ...ctx.apiErrors]),
+        duration_ms: (syncLog.duration_ms || 0) + (Date.now() - startMs),
+        ...(status !== "running" ? { completed_at: new Date().toISOString() } : {}),
+      }).eq("id", syncLog.id);
+    } catch (saveErr) {
+      console.error("saveState failed:", saveErr);
+      // Last-resort: try to at least update last_activity so cleanup doesn't kill us
+      try {
+        await supabase.from("sync_logs").update({
+          sync_state: { ...state, last_activity: new Date().toISOString(), save_error: String(saveErr) },
+        }).eq("id", syncLog.id);
+      } catch (_) { /* truly lost */ }
+    }
+
+    // If this sync just completed/failed, promote next queued
+    if (status !== "running") {
+      await promoteNextQueued(supabase);
+    }
   };
 
   try {
@@ -303,7 +332,6 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
           break;
         }
         if (result.data) {
-          // Store ad IDs + essential data compactly — full objects stored in batches
           for (const ad of result.data) {
             fetchedSoFar.push({
               id: ad.id, name: ad.name, status: ad.status,
@@ -323,7 +351,6 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
       }
 
       if (nextUrl && isTimedOut()) {
-        // Save cursor to resume later
         console.log(`Phase 1 paused at ${fetchedSoFar.length} ads — will resume`);
         await saveState(1, {
           ads_cursor: nextUrl,
@@ -331,7 +358,6 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
           creatives_fetched: fetchedSoFar.length,
         });
       } else {
-        // Phase 1 complete
         console.log(`Phase 1 complete: ${fetchedSoFar.length} ads`);
         await saveState(2, {
           ads_cursor: null,
@@ -398,10 +424,9 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
       const manualAdIds = new Set((manualAds || []).map((a: any) => a.ad_id));
 
       if (!skipAdFetch) {
-        // Full upsert from fetched ads
         const fetchedAds: any[] = state.ads_fetched_list ? JSON.parse(state.ads_fetched_list) : [];
 
-        // Batch video source lookups for ads with video_id but no video_url
+        // Batch video source lookups
         const needsVideoLookup = fetchedAds.filter(ad => ad.video_id && !ad.video_url);
         if (needsVideoLookup.length > 0 && upsertOffset === 0) {
           console.log(`  Batch-fetching ${needsVideoLookup.length} video sources...`);
@@ -425,7 +450,6 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
           }
         }
 
-        // Build upsert/update batches from offset
         const upsertBatch: any[] = [];
         const manualUpdateBatch: any[] = [];
         let creativesUpserted = state.creatives_upserted || 0;
@@ -456,7 +480,6 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
             upsertBatch.push({ ...creativeData, unique_code: ad.name.split("_")[0] });
           }
 
-          // Flush every 500 rows
           if (upsertBatch.length >= 500) {
             const { error } = await supabase.from("creatives").upsert(upsertBatch, { onConflict: "ad_id" });
             if (!error) creativesUpserted += upsertBatch.length;
@@ -465,12 +488,10 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
           }
         }
 
-        // Flush remaining
         if (upsertBatch.length > 0) {
           const { error } = await supabase.from("creatives").upsert(upsertBatch, { onConflict: "ad_id" });
           if (!error) creativesUpserted += upsertBatch.length;
         }
-        // Batch manual updates
         for (let i = 0; i < manualUpdateBatch.length; i += 50) {
           const batch = manualUpdateBatch.slice(i, i + 50);
           await Promise.all(batch.map(item => {
@@ -484,12 +505,10 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
         await saveState(4, {
           creatives_upserted: creativesUpserted,
           tags_manual_preserved: manualUpdateBatch.length,
-          // Free memory — don't carry full lists to next phases
           ads_fetched_list: null,
           insights_map: null,
         });
       } else {
-        // Skip ad fetch — just update existing creatives with insights
         console.log("Phase 3: Updating existing creatives with insights...");
         let updated = 0;
         const entries = Object.entries(insightsMap);
@@ -515,18 +534,15 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
         .select("*", { count: "exact", head: true }).eq("account_id", accountId);
       const hasExistingAds = (existingCount || 0) > 0;
 
-      // For repeat syncs, limit daily to 30 days max
       const dailyDays = hasExistingAds && syncType !== "initial"
         ? Math.min(dateRangeDays, 30)
         : dateRangeDays;
 
-      // Use 15-day windows for massive accounts
       const CHUNK_DAYS = 15;
       const endDate = new Date();
       const fullStartDate = new Date();
       fullStartDate.setDate(fullStartDate.getDate() - dailyDays);
 
-      // Resume from saved chunk offset
       const chunkOffset = state.daily_chunk_offset || 0;
       const dailyCursor = state.daily_cursor || null;
       const totalChunks = Math.ceil(dailyDays / CHUNK_DAYS);
@@ -537,7 +553,6 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
       let paginationCursor = dailyCursor;
 
       while (currentChunk < totalChunks && !isTimedOut()) {
-        // Check cancellation every chunk
         const { data: sc } = await supabase.from("sync_logs").select("status").eq("id", syncLog.id).single();
         if (sc?.status === "cancelled") return;
 
@@ -576,7 +591,6 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
           if (nextUrl) await new Promise(r => setTimeout(r, 150));
         }
 
-        // Upsert collected rows in large batches
         if (rows.length > 0) {
           for (let i = 0; i < rows.length; i += 500) {
             const batch = rows.slice(i, i + 500);
@@ -587,13 +601,11 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
         }
 
         if (nextUrl && isTimedOut()) {
-          // Save pagination cursor within this chunk
           console.log(`Phase 4 paused mid-chunk ${currentChunk + 1}`);
           await saveState(4, { daily_chunk_offset: currentChunk, daily_cursor: nextUrl });
           return;
         }
 
-        // Chunk complete — advance
         paginationCursor = null;
         currentChunk++;
       }
@@ -602,7 +614,6 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
         console.log("Phase 4 complete");
         await saveState(5, { daily_chunk_offset: null, daily_cursor: null });
       } else {
-        // Timed out between chunks
         console.log(`Phase 4 paused after chunk ${currentChunk}`);
         await saveState(4, { daily_chunk_offset: currentChunk, daily_cursor: null });
       }
@@ -619,7 +630,6 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
       const { data: allMappings } = await supabase.from("name_mappings").select("*").eq("account_id", accountId);
       const mappingsByCode = new Map((allMappings || []).map((m: any) => [m.unique_code, m]));
 
-      // Process in batches of 1000 to handle massive accounts
       let offset = state.tag_offset || 0;
       const BATCH = 1000;
 
@@ -653,7 +663,6 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
           }
           updates.push(supabase.from("creatives").update({ ...tags, tag_source: source }).eq("ad_id", c.ad_id));
 
-          // Flush every 100 concurrent updates
           if (updates.length >= 100) {
             await Promise.all(updates);
             updates.length = 0;
@@ -701,12 +710,15 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
     const errMsg = err instanceof Error ? err.message : "Unknown error";
     console.error(`Phase ${phase} error:`, errMsg);
     ctx.apiErrors.push({ timestamp: new Date().toISOString(), message: errMsg });
-    await supabase.from("sync_logs").update({
-      status: "failed",
-      api_errors: JSON.stringify([...JSON.parse(syncLog.api_errors || "[]"), ...ctx.apiErrors]),
-      completed_at: new Date().toISOString(),
-      duration_ms: (syncLog.duration_ms || 0) + (Date.now() - startMs),
-    }).eq("id", syncLog.id);
+    try {
+      await supabase.from("sync_logs").update({
+        status: "failed",
+        api_errors: JSON.stringify([...JSON.parse(syncLog.api_errors || "[]"), ...ctx.apiErrors]),
+        completed_at: new Date().toISOString(),
+        duration_ms: (syncLog.duration_ms || 0) + (Date.now() - startMs),
+      }).eq("id", syncLog.id);
+    } catch (_) { /* can't save error status */ }
+    await promoteNextQueued(supabase);
   }
 }
 
@@ -722,7 +734,6 @@ serve(async (req) => {
   if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   const authToken = authHeader.replace("Bearer ", "");
 
-  // Allow cron calls with anon key (for continue endpoint)
   const isAnonKey = authToken === Deno.env.get("SUPABASE_ANON_KEY");
 
   if (!isAnonKey) {
@@ -757,8 +768,9 @@ serve(async (req) => {
 
     // ─── POST /sync/cancel ─────────────────────────────────────────────
     if (req.method === "POST" && path === "cancel") {
-      const { data: runningSyncs } = await supabase.from("sync_logs").select("id, started_at").eq("status", "running");
-      if (!runningSyncs?.length) {
+      // Cancel both running and queued syncs
+      const { data: activeSyncs } = await supabase.from("sync_logs").select("id, started_at").in("status", ["running", "queued"]);
+      if (!activeSyncs?.length) {
         return new Response(JSON.stringify({ message: "No running sync to cancel" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       const now = new Date().toISOString();
@@ -766,35 +778,13 @@ serve(async (req) => {
         status: "cancelled",
         api_errors: JSON.stringify([{ timestamp: now, message: "Cancelled by user" }]),
         completed_at: now,
-      }).in("id", runningSyncs.map((s: any) => s.id));
-      return new Response(JSON.stringify({ cancelled: runningSyncs.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }).in("id", activeSyncs.map((s: any) => s.id));
+      return new Response(JSON.stringify({ cancelled: activeSyncs.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // ─── POST /sync/continue ───────────────────────────────────────────
-    // Called by cron to continue incomplete syncs
     if (req.method === "POST" && path === "continue") {
-      // Clean up stuck syncs (running > 10 min without progress)
-      const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-      const { data: stuckSyncs } = await supabase.from("sync_logs").select("id").eq("status", "running").lt("started_at", tenMinAgo);
-
-      // But only mark stuck if duration_ms hasn't updated recently
-      // (a sync actively being processed will have recent duration updates)
-      if (stuckSyncs?.length) {
-        for (const stuck of stuckSyncs) {
-          const { data: log } = await supabase.from("sync_logs").select("duration_ms, sync_state").eq("id", stuck.id).single();
-          const lastActivity = log?.sync_state?.last_activity;
-          if (lastActivity && (Date.now() - new Date(lastActivity).getTime()) < 5 * 60 * 1000) {
-            continue; // Still active
-          }
-          await supabase.from("sync_logs").update({
-            status: "failed",
-            api_errors: JSON.stringify([{ timestamp: new Date().toISOString(), message: "Sync timed out (auto-cleanup)" }]),
-            completed_at: new Date().toISOString(),
-          }).eq("id", stuck.id);
-        }
-      }
-
-      // Find syncs that need continuation
+      // Find syncs that need continuation (running first, then promote queued)
       const { data: runningSyncs } = await supabase.from("sync_logs")
         .select("*")
         .eq("status", "running")
@@ -802,7 +792,9 @@ serve(async (req) => {
         .limit(1);
 
       if (!runningSyncs?.length) {
-        return new Response(JSON.stringify({ message: "No syncs to continue" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        // No running syncs — try to promote a queued one
+        await promoteNextQueued(supabase);
+        return new Response(JSON.stringify({ message: "No syncs to continue, promoted queued if any" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       const syncLog = runningSyncs[0];
@@ -817,7 +809,7 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: "No Meta token" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      // Mark activity timestamp
+      // Mark activity timestamp before processing
       await supabase.from("sync_logs").update({
         sync_state: { ...syncLog.sync_state, last_activity: new Date().toISOString() },
       }).eq("id", syncLog.id);
@@ -832,9 +824,9 @@ serve(async (req) => {
       const body = await req.json();
       const { account_id, sync_type = "manual" } = body;
 
-      // Prevent concurrent syncs
-      const { data: runningSyncs } = await supabase.from("sync_logs").select("id, account_id, started_at").eq("status", "running").limit(1);
-      if (runningSyncs?.length) {
+      // Prevent concurrent syncs — check both running and queued
+      const { data: activeSyncs } = await supabase.from("sync_logs").select("id, account_id, started_at").in("status", ["running", "queued"]).limit(1);
+      if (activeSyncs?.length) {
         return new Response(JSON.stringify({ error: "Sync already running" }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
@@ -857,18 +849,21 @@ serve(async (req) => {
       }
       if (!accounts.length) return new Response(JSON.stringify({ error: "No accounts to sync" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      // For "sync all", create a sync log for each account
-      // The cron will process them one by one
+      // First account = "running", rest = "queued"
       const created = [];
-      for (const account of accounts) {
+      for (let i = 0; i < accounts.length; i++) {
+        const account = accounts[i];
         const dateRangeDays = sync_type === "initial" ? 90 : (account.date_range_days || 14);
         const endDate = new Date();
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - dateRangeDays);
 
+        const isFirst = i === 0;
         const { data: logEntry, error: logError } = await supabase.from("sync_logs").insert({
-          account_id: account.id, sync_type, status: "running",
-          current_phase: 1, sync_state: {},
+          account_id: account.id, sync_type,
+          status: isFirst ? "running" : "queued",
+          current_phase: 1,
+          sync_state: { last_activity: new Date().toISOString() },
           date_range_start: startDate.toISOString().split("T")[0],
           date_range_end: endDate.toISOString().split("T")[0],
         }).select().single();
@@ -880,7 +875,7 @@ serve(async (req) => {
         created.push({ id: logEntry.id, account_id: account.id, account_name: account.name });
       }
 
-      // Immediately start the first sync phase for the first account
+      // Immediately start the first sync phase
       if (created.length > 0) {
         const { data: firstLog } = await supabase.from("sync_logs").select("*").eq("id", created[0].id).single();
         if (firstLog) {
