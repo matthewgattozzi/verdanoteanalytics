@@ -2,82 +2,80 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600;700&display=swap');
-
 @layer base {
   :root {
-    /* ── Core palette: warm sage neumorphic ── */
-    --background: 80 12% 92%;
-    --foreground: 90 18% 14%;
+    /* ── Core palette: verdant/cream neumorphic ── */
+    --background: 40 33% 96%;
+    --foreground: 0 0% 17%;
 
-    --card: 80 10% 95%;
-    --card-foreground: 90 18% 14%;
+    --card: 40 38% 98%;
+    --card-foreground: 0 0% 17%;
 
-    --popover: 80 10% 95%;
-    --popover-foreground: 90 18% 14%;
+    --popover: 40 38% 98%;
+    --popover-foreground: 0 0% 17%;
 
-    --primary: 95 38% 32%;
-    --primary-foreground: 80 20% 97%;
+    --primary: 152 63% 29%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 82 12% 87%;
-    --secondary-foreground: 90 14% 28%;
+    --secondary: 150 18% 72%;
+    --secondary-foreground: 155 56% 15%;
 
-    --muted: 80 8% 88%;
-    --muted-foreground: 85 8% 44%;
+    --muted: 40 20% 93%;
+    --muted-foreground: 220 9% 46%;
 
-    --accent: 82 14% 85%;
-    --accent-foreground: 90 18% 14%;
+    --accent: 147 22% 90%;
+    --accent-foreground: 155 56% 15%;
 
-    --destructive: 2 50% 46%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 82 10% 82%;
-    --input: 82 10% 82%;
-    --ring: 95 38% 32%;
+    --border: 152 20% 80%;
+    --input: 152 20% 80%;
+    --ring: 152 63% 29%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
     /* Status colors */
-    --success: 140 40% 34%;
+    --success: 152 63% 29%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 75% 48%;
-    --warning-foreground: 20 25% 10%;
-    --info: 182 55% 38%;
+    --warning: 40 70% 55%;
+    --warning-foreground: 30 30% 12%;
+    --info: 200 60% 45%;
     --info-foreground: 0 0% 100%;
 
     /* Tag source colors */
-    --tag-parsed: 140 40% 34%;
-    --tag-csv: 182 55% 38%;
-    --tag-manual: 38 75% 48%;
-    --tag-untagged: 2 50% 46%;
+    --tag-parsed: 152 63% 29%;
+    --tag-csv: 200 60% 45%;
+    --tag-manual: 40 70% 55%;
+    --tag-untagged: 0 84% 60%;
 
     /* Recommendation colors */
-    --scale: 140 40% 34%;
-    --watch: 38 75% 48%;
-    --kill: 2 50% 46%;
+    --scale: 152 63% 29%;
+    --watch: 40 70% 55%;
+    --kill: 0 84% 60%;
 
-    /* Sidebar — deeper olive */
-    --sidebar-background: 82 14% 88%;
-    --sidebar-foreground: 90 12% 34%;
-    --sidebar-primary: 95 38% 32%;
-    --sidebar-primary-foreground: 80 20% 97%;
-    --sidebar-accent: 82 14% 83%;
-    --sidebar-accent-foreground: 90 18% 14%;
-    --sidebar-border: 82 10% 80%;
-    --sidebar-ring: 95 38% 32%;
+    /* Sidebar */
+    --sidebar-background: 147 22% 90%;
+    --sidebar-foreground: 220 9% 46%;
+    --sidebar-primary: 152 63% 29%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 147 22% 86%;
+    --sidebar-accent-foreground: 155 56% 15%;
+    --sidebar-border: 152 20% 80%;
+    --sidebar-ring: 152 63% 29%;
 
     /* Chart palette */
-    --chart-1: 95 38% 32%;
-    --chart-2: 140 40% 34%;
-    --chart-3: 38 75% 48%;
+    --chart-1: 152 63% 29%;
+    --chart-2: 152 63% 36%;
+    --chart-3: 40 70% 55%;
     --chart-4: 340 35% 48%;
-    --chart-5: 182 55% 38%;
+    --chart-5: 200 60% 45%;
 
     /* ── Neumorphic shadow tokens ── */
-    --shadow-light: hsl(80 14% 98%);
-    --shadow-dark: hsl(82 12% 76%);
-    --shadow-inset-light: hsl(80 14% 97%);
-    --shadow-inset-dark: hsl(82 12% 78%);
+    --shadow-light: hsl(40 30% 99%);
+    --shadow-dark: hsl(150 12% 82%);
+    --shadow-inset-light: hsl(40 30% 98%);
+    --shadow-inset-dark: hsl(150 12% 84%);
   }
 }
 
@@ -88,24 +86,40 @@
 
   body {
     @apply text-foreground antialiased;
-    font-family: 'DM Sans', system-ui, sans-serif;
-    font-size: 14px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 15px;
     line-height: 1.6;
     background:
-      radial-gradient(ellipse 120% 80% at 20% 10%, hsl(82 16% 88% / 0.6) 0%, transparent 50%),
-      radial-gradient(ellipse 100% 60% at 80% 90%, hsl(95 14% 86% / 0.5) 0%, transparent 50%),
+      radial-gradient(ellipse 120% 80% at 20% 10%, hsl(147 22% 90% / 0.5) 0%, transparent 50%),
+      radial-gradient(ellipse 100% 60% at 80% 90%, hsl(152 18% 88% / 0.4) 0%, transparent 50%),
       hsl(var(--background));
     background-attachment: fixed;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Lora', Georgia, serif;
+    font-family: 'Outfit', sans-serif;
+    color: hsl(155 56% 15%);
+    line-height: 1.2;
+  }
+
+  h1 {
+    font-size: 1.875rem;
     font-weight: 600;
     letter-spacing: -0.01em;
   }
 
+  h2 {
+    font-size: 1.375rem;
+    font-weight: 600;
+  }
+
+  h3 {
+    font-size: 1.125rem;
+    font-weight: 500;
+  }
+
   code, .font-mono {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Space Mono', monospace;
   }
 
   /* Softer focus rings */
@@ -134,8 +148,8 @@
 
   .btn-primary-warm:active {
     box-shadow:
-      inset 2px 2px 4px hsl(95 38% 24%),
-      inset -1px -1px 3px hsl(95 38% 40%);
+      inset 2px 2px 4px hsl(152 63% 20%),
+      inset -1px -1px 3px hsl(152 63% 38%);
   }
 }
 
@@ -166,6 +180,7 @@
       inset 1px 1px 3px var(--shadow-inset-dark),
       inset -1px -1px 2px var(--shadow-inset-light);
   }
+
   /* ── Glass shine overlay ── */
   .glass-shine {
     position: relative;
@@ -193,7 +208,7 @@
     box-shadow:
       5px 5px 10px var(--shadow-dark),
       -4px -4px 8px var(--shadow-light);
-    border: 1px solid hsl(80 12% 94% / 0.6);
+    border: 1px solid hsl(147 22% 94% / 0.6);
   }
 
   .glass-panel::before {
@@ -220,9 +235,9 @@
   /* ── Dialog / modal — neumorphic elevated ── */
   .glass-shine[class*="fixed"] {
     box-shadow:
-      10px 10px 20px hsl(82 12% 68%),
-      -8px -8px 16px hsl(80 14% 98%);
-    border: 1px solid hsl(80 12% 94% / 0.6);
+      10px 10px 20px hsl(150 12% 74%),
+      -8px -8px 16px hsl(40 30% 99%);
+    border: 1px solid hsl(147 22% 94% / 0.6);
   }
 
   /* ── Inset glass panel (for inputs, wells) ── */
@@ -231,7 +246,7 @@
     box-shadow:
       inset 3px 3px 6px var(--shadow-inset-dark),
       inset -2px -2px 5px var(--shadow-inset-light);
-    border: 1px solid hsl(82 10% 84% / 0.3);
+    border: 1px solid hsl(152 20% 84% / 0.3);
   }
 
   /* ── Sidebar nav items — neumorphic ── */
@@ -240,32 +255,70 @@
   }
 
   .sidebar-nav-item:hover {
-    background: hsl(82 14% 85%);
+    background: hsl(147 22% 86%);
     box-shadow:
-      inset 2px 2px 4px hsl(82 12% 74%),
-      inset -1px -1px 3px hsl(80 14% 94%);
+      inset 2px 2px 4px hsl(150 12% 78%),
+      inset -1px -1px 3px hsl(40 30% 96%);
   }
 
   .sidebar-nav-active {
-    background: hsl(82 14% 84%) !important;
-    color: hsl(90 18% 14%);
+    background: hsl(147 22% 85%) !important;
+    color: hsl(155 56% 15%);
     font-weight: 600;
     box-shadow:
-      inset 3px 3px 6px hsl(82 12% 72%),
-      inset -2px -2px 5px hsl(80 14% 94%) !important;
+      inset 3px 3px 6px hsl(150 12% 76%),
+      inset -2px -2px 5px hsl(40 30% 96%) !important;
   }
 
-  /* ── Metric display numbers — geometric Outfit font ── */
+  /* ── Typography utility classes ── */
+  .text-page-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.875rem;
+    font-weight: 600;
+    color: hsl(155 56% 15%);
+    letter-spacing: -0.01em;
+  }
+
   .metric-value {
-    @apply text-2xl font-semibold tracking-tight text-foreground;
-    font-family: 'Outfit', system-ui, sans-serif;
-    line-height: 1.15;
+    font-family: 'Space Mono', monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: hsl(var(--foreground));
+    letter-spacing: -0.02em;
+    line-height: 1.2;
   }
 
   .metric-label {
-    @apply text-[11px] font-medium uppercase tracking-widest text-muted-foreground;
-    font-family: 'DM Sans', system-ui, sans-serif;
-    letter-spacing: 0.08em;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: hsl(var(--muted-foreground));
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .text-table-header {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: hsl(var(--muted-foreground));
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .text-table-data {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.9375rem;
+    font-weight: 400;
+    color: hsl(var(--foreground));
+    font-variant-numeric: tabular-nums;
+  }
+
+  .text-badge {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
   }
 
   .status-dot {
