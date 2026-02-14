@@ -248,7 +248,7 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
   if (statusCheck?.status === "cancelled") return;
 
   const saveState = async (nextPhase: number, newState: any, status = "running") => {
-    const merged = { ...state, ...newState };
+    const merged = { ...state, ...newState, last_activity: new Date().toISOString() };
     await supabase.from("sync_logs").update({
       current_phase: nextPhase,
       sync_state: merged,
