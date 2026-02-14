@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { RefreshCw, LayoutGrid, List, Loader2, Download, Search, X } from "lucide-react";
 import { useMemo } from "react";
 import { useCreatives, CREATIVES_PAGE_SIZE, useCreativeFilters } from "@/hooks/useCreatives";
-import { useSync } from "@/hooks/useApi";
+import { useSync } from "@/hooks/useSyncApi";
 import { useIsSyncing } from "@/hooks/useIsSyncing";
 import { exportCreativesCSV } from "@/lib/csv";
 import { useCreativesPageState } from "@/hooks/useCreativesPageState";

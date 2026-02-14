@@ -1,5 +1,6 @@
 import { useIsSyncing } from "@/hooks/useIsSyncing";
-import { useSyncHistory, useAccounts, useCancelSync } from "@/hooks/useApi";
+import { useSyncHistory, useCancelSync } from "@/hooks/useSyncApi";
+import { useAccounts } from "@/hooks/useAccountsApi";
 import { Loader2, Clock, X, Download, UploadCloud } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";

@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import {
-  useSettings, useTestMeta, useAccounts, useAddAccount, useDeleteAccount,
-  useRenameAccount, useSync, useUsers, useCreateUser, useDeleteUser,
-} from "@/hooks/useApi";
+import { useSettings, useTestMeta } from "@/hooks/useSettingsApi";
+import { useAccounts, useAddAccount, useDeleteAccount, useRenameAccount } from "@/hooks/useAccountsApi";
+import { useSync } from "@/hooks/useSyncApi";
+import { useUsers, useCreateUser, useDeleteUser } from "@/hooks/useUsersApi";
 
 export function useUserSettingsPageState() {
   const { user, role, isBuilder } = useAuth();

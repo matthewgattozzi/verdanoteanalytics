@@ -1,4 +1,5 @@
-import { useSettings, useAccounts } from "@/hooks/useApi";
+import { useSettings } from "@/hooks/useSettingsApi";
+import { useAccounts } from "@/hooks/useAccountsApi";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { X } from "lucide-react";

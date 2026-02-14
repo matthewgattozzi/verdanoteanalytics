@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { TrendingUp, Download, ArrowUp, ArrowDown, Minus, AlertTriangle, ArrowLeft, Send, Loader2 } from "lucide-react";
 import { exportReportCSV } from "@/lib/csv";
-import { useReports, useSendReportToSlack } from "@/hooks/useApi";
+import { useReports, useSendReportToSlack } from "@/hooks/useReportsApi";
 import { useParams, useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { CreativeDetailModal } from "@/components/CreativeDetailModal";

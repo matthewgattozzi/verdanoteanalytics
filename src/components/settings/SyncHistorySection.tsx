@@ -11,7 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, XCircle, AlertTriangle, Clock, RefreshCw, History, ChevronLeft, ChevronRight, Ban } from "lucide-react";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useSyncHistory, useAccounts, useSync, useCancelSync } from "@/hooks/useApi";
+import { useSyncHistory, useSync, useCancelSync } from "@/hooks/useSyncApi";
+import { useAccounts } from "@/hooks/useAccountsApi";
 import { useIsSyncing } from "@/hooks/useIsSyncing";
 import { toast } from "sonner";
 
