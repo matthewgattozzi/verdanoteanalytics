@@ -185,35 +185,42 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
     <div className="space-y-4">
       <SyncProgressBanner logs={logs || []} onCancel={() => cancelMut.mutate(undefined as any)} cancelPending={cancelMut.isPending} />
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-semibold">Sync History</h3>
-          <p className="text-xs text-muted-foreground">Recent sync operations for this account.</p>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold">Sync History</h3>
+            <p className="text-xs text-muted-foreground">Recent sync operations for this account.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select value={statusFilter} onValueChange={handleStatusChange}>
+              <SelectTrigger className="w-32 h-8 text-xs bg-background">
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="completed_with_errors">Partial</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
+                <SelectItem value="running">Running</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => syncMut.mutate({ account_id: accountId || "all" })}
+              disabled={syncMut.isPending || isSyncing}
+            >
+              {(syncMut.isPending || isSyncing) ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+              {(syncMut.isPending || isSyncing) ? "Syncing…" : "Resync"}
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Select value={statusFilter} onValueChange={handleStatusChange}>
-            <SelectTrigger className="w-32 h-8 text-xs bg-background">
-              <SelectValue placeholder="All statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="completed_with_errors">Partial</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
-              <SelectItem value="running">Running</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => syncMut.mutate({ account_id: accountId || "all" })}
-            disabled={syncMut.isPending || isSyncing}
-          >
-            {(syncMut.isPending || isSyncing) ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
-            {(syncMut.isPending || isSyncing) ? "Syncing…" : "Resync"}
-          </Button>
-        </div>
+        {(syncMut.isPending || isSyncing) && (
+          <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+            <div className="h-full rounded-full bg-primary animate-progress-indeterminate" />
+          </div>
+        )}
       </div>
 
       {isLoading ? (
