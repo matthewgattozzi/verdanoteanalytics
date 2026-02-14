@@ -180,7 +180,7 @@ async function promoteNextQueued(supabase: any) {
 //   2 = Fetch aggregated insights (batch upsert)
 //   3 = Cleanup zero-spend + count
 //   4 = Daily metric breakdowns (batch upsert, chunked)
-//   5 = Tag resolution
+//   5 = (Removed — tagging handled via CSV upload or manual)
 //   6 = Finalize
 
 async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
@@ -511,8 +511,8 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
       }
 
       if (currentChunk >= totalChunks) {
-        console.log("Phase 4 complete");
-        await saveState(5, { daily_chunk_offset: null, daily_cursor: null });
+        console.log("Phase 4 complete — skipping tagging, going to finalize");
+        await saveState(6, { daily_chunk_offset: null, daily_cursor: null });
       } else {
         console.log(`Phase 4 paused after chunk ${currentChunk}`);
         await saveState(4, { daily_chunk_offset: currentChunk, daily_cursor: null });
@@ -521,74 +521,12 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // PHASE 5: Tag resolution (batch updates)
+    // PHASE 5: (Removed — tagging now handled via CSV upload or manual)
+    //   If a sync resumes into phase 5, just advance to phase 6.
     // ═══════════════════════════════════════════════════════════════════
     if (phase === 5) {
-      console.log("Phase 5: Resolving tags...");
-      let tagsParsed = 0, tagsCsvMatched = 0, tagsUntagged = 0;
-
-      const { data: allMappings } = await supabase.from("name_mappings").select("*").eq("account_id", accountId);
-      const mappingsByCode = new Map((allMappings || []).map((m: any) => [m.unique_code, m]));
-
-      let offset = state.tag_offset || 0;
-      const BATCH = 1000;
-
-      while (!isTimedOut()) {
-        const { data: unresolved } = await supabase.from("creatives")
-          .select("ad_id, ad_name, tag_source, unique_code")
-          .eq("account_id", accountId).neq("tag_source", "manual")
-          .range(offset, offset + BATCH - 1);
-
-        if (!unresolved?.length) break;
-
-        // Collect updates and batch them
-        const updatesBySource: Record<string, any[]> = {};
-        for (const c of unresolved) {
-          const parsed = parseAdName(c.ad_name);
-          let tags: any, source: string;
-          if (parsed.parsed) {
-            tags = { unique_code: parsed.unique_code, ad_type: parsed.ad_type, person: parsed.person, style: parsed.style, product: parsed.product, hook: parsed.hook, theme: parsed.theme };
-            source = "parsed";
-            tagsParsed++;
-          } else {
-            const mapping = mappingsByCode.get(parsed.unique_code);
-            if (mapping) {
-              tags = { unique_code: parsed.unique_code, ad_type: mapping.ad_type, person: mapping.person, style: mapping.style, product: mapping.product, hook: mapping.hook, theme: mapping.theme };
-              source = "csv_match";
-              tagsCsvMatched++;
-            } else {
-              tags = { unique_code: parsed.unique_code };
-              source = "untagged";
-              tagsUntagged++;
-            }
-          }
-          if (!updatesBySource[source]) updatesBySource[source] = [];
-          updatesBySource[source].push({ ad_id: c.ad_id, ...tags, tag_source: source });
-        }
-
-        // Batch upsert per source group
-        for (const [, rows] of Object.entries(updatesBySource)) {
-          for (let i = 0; i < rows.length; i += 200) {
-            const batch = rows.slice(i, i + 200);
-            // Use individual updates in parallel (tags differ per row)
-            await Promise.all(batch.map((row: any) => {
-              const { ad_id, ...fields } = row;
-              return supabase.from("creatives").update(fields).eq("ad_id", ad_id);
-            }));
-          }
-        }
-
-        offset += unresolved.length;
-        if (unresolved.length < BATCH) break;
-      }
-
-      console.log(`Phase 5: ${tagsParsed} parsed, ${tagsCsvMatched} csv, ${tagsUntagged} untagged`);
-      await saveState(6, {
-        tags_parsed: (state.tags_parsed || 0) + tagsParsed,
-        tags_csv_matched: (state.tags_csv_matched || 0) + tagsCsvMatched,
-        tags_untagged: (state.tags_untagged || 0) + tagsUntagged,
-        tag_offset: null,
-      });
+      console.log("Phase 5: Skipped (tagging removed from sync) — advancing to finalize");
+      await saveState(6, {});
       return;
     }
 
