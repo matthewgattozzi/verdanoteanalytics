@@ -472,19 +472,29 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
           const result = await metaFetch(nextUrl, ctx);
           if (result.error) { nextUrl = null; break; }
           if (result.data && result.data.length > 0) {
-            // Upsert each page directly — no accumulation
-            const rows = result.data.map((row: any) => ({
-              ad_id: row.ad_id,
-              account_id: accountId,
-              date: row.date_start,
-              ...parseInsightsRow(row),
-            }));
+            // Filter to only ads that exist in creatives table (FK constraint)
+            const validAdIds = new Set<string>();
+            const adIdsInBatch = [...new Set(result.data.map((r: any) => r.ad_id))];
+            for (let i = 0; i < adIdsInBatch.length; i += 200) {
+              const chunk = adIdsInBatch.slice(i, i + 200);
+              const { data: existing } = await supabase.from("creatives").select("ad_id").in("ad_id", chunk);
+              if (existing) existing.forEach((e: any) => validAdIds.add(e.ad_id));
+            }
+
+            const rows = result.data
+              .filter((row: any) => validAdIds.has(row.ad_id))
+              .map((row: any) => ({
+                ad_id: row.ad_id,
+                account_id: accountId,
+                date: row.date_start,
+                ...parseInsightsRow(row),
+              }));
             for (let i = 0; i < rows.length; i += 500) {
               const batch = rows.slice(i, i + 500);
               const { error } = await supabase.from("creative_daily_metrics").upsert(batch, { onConflict: "ad_id,date" });
               if (error) console.error("Daily upsert error:", error.message);
             }
-            console.log(`    Upserted ${rows.length} daily rows`);
+            console.log(`    Upserted ${rows.length} daily rows (filtered from ${result.data.length})`);
           }
           nextUrl = result.next;
           if (nextUrl) await new Promise(r => setTimeout(r, 150));
