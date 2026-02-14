@@ -180,8 +180,7 @@ async function promoteNextQueued(supabase: any) {
 //   2 = Fetch aggregated insights (batch upsert)
 //   3 = Cleanup zero-spend + count
 //   4 = Daily metric breakdowns (batch upsert, chunked)
-//   5 = (Removed — tagging handled via CSV upload or manual)
-//   6 = Finalize
+//   5 = Finalize
 
 async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
   const startMs = Date.now();
@@ -511,8 +510,8 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
       }
 
       if (currentChunk >= totalChunks) {
-        console.log("Phase 4 complete — skipping tagging, going to finalize");
-        await saveState(6, { daily_chunk_offset: null, daily_cursor: null });
+        console.log("Phase 4 complete — moving to finalize");
+        await saveState(5, { daily_chunk_offset: null, daily_cursor: null });
       } else {
         console.log(`Phase 4 paused after chunk ${currentChunk}`);
         await saveState(4, { daily_chunk_offset: currentChunk, daily_cursor: null });
@@ -521,20 +520,10 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // PHASE 5: (Removed — tagging now handled via CSV upload or manual)
-    //   If a sync resumes into phase 5, just advance to phase 6.
+    // PHASE 5: Finalize
     // ═══════════════════════════════════════════════════════════════════
-    if (phase === 5) {
-      console.log("Phase 5: Skipped (tagging removed from sync) — advancing to finalize");
-      await saveState(6, {});
-      return;
-    }
-
-    // ═══════════════════════════════════════════════════════════════════
-    // PHASE 6: Finalize
-    // ═══════════════════════════════════════════════════════════════════
-    if (phase === 6) {
-      console.log("Phase 6: Finalizing...");
+    if (phase === 5 || phase === 6) {
+      console.log("Phase 5: Finalizing...");
 
       const { count: totalCount } = await supabase.from("creatives")
         .select("*", { count: "exact", head: true }).eq("account_id", accountId);
@@ -547,7 +536,7 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
       }).eq("id", accountId);
 
       const finalStatus = (JSON.parse(syncLog.api_errors || "[]")).length > 0 ? "completed_with_errors" : "completed";
-      await saveState(6, {}, finalStatus);
+      await saveState(5, {}, finalStatus);
       console.log(`\n✅ Sync complete for ${account.name}: ${finalStatus}`);
       return;
     }
