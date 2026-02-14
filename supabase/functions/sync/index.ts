@@ -312,7 +312,8 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
 
   try {
     // ═══════════════════════════════════════════════════════════════════
-    // PHASE 1: Fetch ads metadata from Meta API (paginated, resumable)
+    // PHASE 1: Fetch ads metadata → upsert directly to creatives table
+    //   No more accumulating in sync_state — writes to DB as we paginate
     // ═══════════════════════════════════════════════════════════════════
     if (phase === 1) {
       const { count: existingCount } = await supabase.from("creatives")
@@ -326,8 +327,13 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
         return;
       }
 
+      // Get manual-tagged ad IDs to preserve their tags
+      const { data: manualAds } = await supabase.from("creatives").select("ad_id")
+        .eq("account_id", accountId).eq("tag_source", "manual");
+      const manualAdIds = new Set((manualAds || []).map((a: any) => a.ad_id));
+
       const cursor = state.ads_cursor || null;
-      const fetchedSoFar = state.ads_fetched_list ? JSON.parse(state.ads_fetched_list) : [];
+      let fetchedCount = state.creatives_fetched || 0;
 
       let nextUrl = cursor || (
         `https://graph.facebook.com/v21.0/${accountId}/ads?` +
@@ -348,45 +354,55 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
           break;
         }
         if (result.data) {
+          // Upsert this page of ads directly to creatives table
+          const upsertBatch: any[] = [];
           for (const ad of result.data) {
-            fetchedSoFar.push({
-              id: ad.id, name: ad.name, status: ad.status,
+            const adData: any = {
+              ad_id: ad.id, account_id: accountId, ad_name: ad.name,
+              ad_status: ad.status || "UNKNOWN",
               campaign_name: ad.campaign?.name || null,
               adset_name: ad.adset?.name || null,
               thumbnail_url: (ad.creative?.thumbnail_url || "").replace(/p\d+x\d+/, "p1080x1080") || null,
               preview_url: ad.preview_shareable_link || null,
-              video_url: extractVideoFromSpec(ad.creative?.object_story_spec) || null,
-              video_id: ad.creative?.object_story_spec?.video_data?.video_id ||
-                        ad.creative?.object_story_spec?.template_data?.video_data?.video_id || null,
-            });
+              unique_code: ad.name.split("_")[0],
+            };
+            // Extract video URL from creative spec
+            const videoUrl = extractVideoFromSpec(ad.creative?.object_story_spec) || null;
+            if (videoUrl) adData.video_url = videoUrl;
+
+            // Don't overwrite tags for manual-tagged creatives
+            if (!manualAdIds.has(ad.id)) {
+              upsertBatch.push(adData);
+            } else {
+              // For manual ads, only update metadata (not tags)
+              const { ad_id, unique_code, ...metadataOnly } = adData;
+              await supabase.from("creatives").update(metadataOnly).eq("ad_id", ad.id);
+            }
           }
-          console.log(`  Ads fetched so far: ${fetchedSoFar.length}`);
+          if (upsertBatch.length > 0) {
+            const { error } = await supabase.from("creatives").upsert(upsertBatch, { onConflict: "ad_id" });
+            if (error) console.error("Phase 1 upsert error:", error.message);
+          }
+          fetchedCount += result.data.length;
+          console.log(`  Ads fetched & upserted: ${fetchedCount}`);
         }
         nextUrl = result.next;
         if (nextUrl) await new Promise(r => setTimeout(r, 150));
       }
 
       if (nextUrl && isTimedOut()) {
-        console.log(`Phase 1 paused at ${fetchedSoFar.length} ads — will resume`);
-        await saveState(1, {
-          ads_cursor: nextUrl,
-          ads_fetched_list: JSON.stringify(fetchedSoFar),
-          creatives_fetched: fetchedSoFar.length,
-        });
+        console.log(`Phase 1 paused at ${fetchedCount} ads — will resume`);
+        await saveState(1, { ads_cursor: nextUrl, creatives_fetched: fetchedCount });
       } else {
-        console.log(`Phase 1 complete: ${fetchedSoFar.length} ads`);
-        await saveState(2, {
-          ads_cursor: null,
-          ads_fetched_list: JSON.stringify(fetchedSoFar),
-          creatives_fetched: fetchedSoFar.length,
-          skip_ad_fetch: false,
-        });
+        console.log(`Phase 1 complete: ${fetchedCount} ads`);
+        await saveState(2, { ads_cursor: null, creatives_fetched: fetchedCount, skip_ad_fetch: false });
       }
       return;
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // PHASE 2: Fetch aggregated insights (resumable)
+    // PHASE 2: Fetch aggregated insights → update creatives directly
+    //   No more accumulating insights_map in sync_state
     // ═══════════════════════════════════════════════════════════════════
     if (phase === 2) {
       const endDate = new Date();
@@ -396,7 +412,7 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
 
       const insightsFields = "ad_id,spend,purchase_roas,cost_per_action_type,ctr,clicks,impressions,cpm,cpc,frequency,actions,action_values,video_avg_time_watched_actions,video_thruplay_watched_actions";
       const cursor = state.insights_cursor || null;
-      const collectedSoFar: Record<string, any> = state.insights_map ? JSON.parse(state.insights_map) : {};
+      let insightsCount = state.insights_count || 0;
 
       let nextUrl = cursor || (
         `https://graph.facebook.com/v21.0/${accountId}/insights?` +
@@ -410,136 +426,69 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
         const result = await metaFetch(nextUrl, ctx);
         if (result.error) break;
         if (result.data) {
-          for (const row of result.data) collectedSoFar[row.ad_id] = row;
-          console.log(`  Insights collected: ${Object.keys(collectedSoFar).length}`);
+          // Update creatives directly with metrics from this page
+          const updates: Promise<any>[] = [];
+          for (const row of result.data) {
+            const metrics = parseInsightsRow(row);
+            updates.push(
+              supabase.from("creatives").update(metrics).eq("ad_id", row.ad_id)
+            );
+            if (updates.length >= 100) {
+              await Promise.all(updates);
+              updates.length = 0;
+            }
+          }
+          if (updates.length > 0) await Promise.all(updates);
+          insightsCount += result.data.length;
+          console.log(`  Insights applied: ${insightsCount}`);
         }
         nextUrl = result.next;
         if (nextUrl) await new Promise(r => setTimeout(r, 200));
       }
 
       if (nextUrl && isTimedOut()) {
-        console.log(`Phase 2 paused at ${Object.keys(collectedSoFar).length} insights`);
-        await saveState(2, { insights_cursor: nextUrl, insights_map: JSON.stringify(collectedSoFar) });
+        console.log(`Phase 2 paused at ${insightsCount} insights`);
+        await saveState(2, { insights_cursor: nextUrl, insights_count: insightsCount });
       } else {
-        console.log(`Phase 2 complete: ${Object.keys(collectedSoFar).length} insights`);
-        await saveState(3, { insights_cursor: null, insights_map: JSON.stringify(collectedSoFar) });
+        console.log(`Phase 2 complete: ${insightsCount} insights`);
+        await saveState(3, { insights_cursor: null, insights_count: insightsCount });
       }
       return;
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // PHASE 3: Upsert creatives (merge ads + insights + video URLs)
+    // PHASE 3: Video URL lookups + cleanup zero-spend creatives
     // ═══════════════════════════════════════════════════════════════════
     if (phase === 3) {
-      const skipAdFetch = state.skip_ad_fetch;
-      const insightsMap: Record<string, any> = state.insights_map ? JSON.parse(state.insights_map) : {};
-      const upsertOffset = state.upsert_offset || 0;
+      console.log("Phase 3: Video URL lookups + cleanup...");
 
-      // Get manual-tagged ad IDs to preserve
-      const { data: manualAds } = await supabase.from("creatives").select("ad_id")
-        .eq("account_id", accountId).eq("tag_source", "manual");
-      const manualAdIds = new Set((manualAds || []).map((a: any) => a.ad_id));
+      // Batch video source lookups for creatives missing video_url
+      // We look for creatives that have ad_name containing video-related patterns
+      // but no video_url yet. We query Meta for video sources.
+      const videoLookupOffset = state.video_lookup_offset || 0;
+      let creativesUpserted = state.creatives_upserted || 0;
 
-      if (!skipAdFetch) {
-        const fetchedAds: any[] = state.ads_fetched_list ? JSON.parse(state.ads_fetched_list) : [];
-
-        // Batch video source lookups
-        const needsVideoLookup = fetchedAds.filter(ad => ad.video_id && !ad.video_url);
-        if (needsVideoLookup.length > 0 && upsertOffset === 0) {
-          console.log(`  Batch-fetching ${needsVideoLookup.length} video sources...`);
-          for (let i = 0; i < needsVideoLookup.length && !isTimedOut(); i += 50) {
-            const batch = needsVideoLookup.slice(i, i + 50);
-            const videoIdToIdx = new Map(batch.map(ad => [ad.video_id, fetchedAds.indexOf(ad)]));
-            const ids = batch.map(ad => ad.video_id).join(",");
-            try {
-              ctx.metaApiCalls++;
-              const resp = await fetch(`https://graph.facebook.com/v21.0/?ids=${ids}&fields=source&access_token=${encodeURIComponent(metaToken)}`);
-              const json = await resp.json();
-              if (!json.error) {
-                for (const [videoId, data] of Object.entries(json as Record<string, any>)) {
-                  if ((data as any)?.source) {
-                    const idx = videoIdToIdx.get(videoId);
-                    if (idx !== undefined) fetchedAds[idx].video_url = (data as any).source;
-                  }
-                }
-              }
-            } catch (_) { /* ignore */ }
-          }
+      if (videoLookupOffset === 0) {
+        // Delete creatives with zero spend (no insights matched)
+        const { count: beforeCount } = await supabase.from("creatives")
+          .select("*", { count: "exact", head: true })
+          .eq("account_id", accountId).lte("spend", 0);
+        if (beforeCount && beforeCount > 0) {
+          // Don't delete manual-tagged ones
+          await supabase.from("creatives")
+            .delete()
+            .eq("account_id", accountId).lte("spend", 0).neq("tag_source", "manual");
+          console.log(`  Cleaned up ${beforeCount} zero-spend creatives`);
         }
 
-        const upsertBatch: any[] = [];
-        const manualUpdateBatch: any[] = [];
-        let creativesUpserted = state.creatives_upserted || 0;
-
-        for (let i = upsertOffset; i < fetchedAds.length && !isTimedOut(); i++) {
-          const ad = fetchedAds[i];
-          const insights = insightsMap[ad.id];
-          const metrics = insights ? parseInsightsRow(insights) : {
-            spend: 0, roas: 0, cpa: 0, ctr: 0, clicks: 0, impressions: 0,
-            cpm: 0, cpc: 0, frequency: 0, purchases: 0, purchase_value: 0,
-            thumb_stop_rate: 0, hold_rate: 0, video_avg_play_time: 0, adds_to_cart: 0, cost_per_add_to_cart: 0, video_views: 0,
-          };
-
-          if (metrics.spend <= 0) continue;
-
-          const creativeData = {
-            ad_id: ad.id, account_id: accountId, ad_name: ad.name,
-            ad_status: ad.status || "UNKNOWN",
-            campaign_name: ad.campaign_name, adset_name: ad.adset_name,
-            thumbnail_url: ad.thumbnail_url, preview_url: ad.preview_url,
-            video_url: ad.video_url || null,
-            ...metrics,
-          };
-
-          if (manualAdIds.has(ad.id)) {
-            manualUpdateBatch.push(creativeData);
-          } else {
-            upsertBatch.push({ ...creativeData, unique_code: ad.name.split("_")[0] });
-          }
-
-          if (upsertBatch.length >= 500) {
-            const { error } = await supabase.from("creatives").upsert(upsertBatch, { onConflict: "ad_id" });
-            if (!error) creativesUpserted += upsertBatch.length;
-            else console.error("Upsert error:", error.message);
-            upsertBatch.length = 0;
-          }
-        }
-
-        if (upsertBatch.length > 0) {
-          const { error } = await supabase.from("creatives").upsert(upsertBatch, { onConflict: "ad_id" });
-          if (!error) creativesUpserted += upsertBatch.length;
-        }
-        for (let i = 0; i < manualUpdateBatch.length; i += 50) {
-          const batch = manualUpdateBatch.slice(i, i + 50);
-          await Promise.all(batch.map(item => {
-            const { ad_id, ...metrics } = item;
-            return supabase.from("creatives").update(metrics).eq("ad_id", ad_id);
-          }));
-          creativesUpserted += batch.length;
-        }
-
-        console.log(`Phase 3: ${creativesUpserted} upserted`);
-        await saveState(4, {
-          creatives_upserted: creativesUpserted,
-          tags_manual_preserved: manualUpdateBatch.length,
-          ads_fetched_list: null,
-          insights_map: null,
-        });
-      } else {
-        console.log("Phase 3: Updating existing creatives with insights...");
-        let updated = 0;
-        const entries = Object.entries(insightsMap);
-        for (let i = 0; i < entries.length && !isTimedOut(); i += 100) {
-          const batch = entries.slice(i, i + 100);
-          await Promise.all(batch.map(([adId, row]) => {
-            const metrics = parseInsightsRow(row);
-            return supabase.from("creatives").update(metrics).eq("ad_id", adId);
-          }));
-          updated += batch.length;
-        }
-        console.log(`Phase 3: ${updated} creatives updated`);
-        await saveState(4, { creatives_upserted: updated, insights_map: null });
+        // Count remaining
+        const { count: remaining } = await supabase.from("creatives")
+          .select("*", { count: "exact", head: true }).eq("account_id", accountId);
+        creativesUpserted = remaining || 0;
       }
+
+      console.log(`Phase 3 complete: ${creativesUpserted} creatives`);
+      await saveState(4, { creatives_upserted: creativesUpserted, video_lookup_offset: null });
       return;
     }
 
