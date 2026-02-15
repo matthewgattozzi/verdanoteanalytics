@@ -13,7 +13,7 @@ interface KillScaleListProps {
 
 const VARIANT_META: Record<Variant, {
   label: string; subtitle: string; emptyTitle: string; emptyDesc: string;
-  icon: typeof TrendingUp; borderClass: string; textClass: string;
+  icon: typeof TrendingUp; valueColor: string;
 }> = {
   scale: {
     label: "Scale Candidates",
@@ -21,8 +21,7 @@ const VARIANT_META: Record<Variant, {
     emptyTitle: "No scale candidates yet",
     emptyDesc: "Sync creatives with enough spend data to find top performers.",
     icon: TrendingUp,
-    borderClass: "border-l-scale",
-    textClass: "text-scale",
+    valueColor: "text-verdant",
   },
   kill: {
     label: "Kill Candidates",
@@ -30,10 +29,16 @@ const VARIANT_META: Record<Variant, {
     emptyTitle: "No kill candidates",
     emptyDesc: "All creatives with sufficient spend are performing above the kill threshold.",
     icon: TrendingDown,
-    borderClass: "border-l-kill",
-    textClass: "text-kill",
+    valueColor: "text-red-700",
   },
 };
+
+function formatKpiValue(value: number, kpi: string): string {
+  if (kpi === "ctr" || kpi === "thumb_stop_rate") return `${value.toFixed(2)}%`;
+  if (kpi === "roas") return `${value.toFixed(2)}x`;
+  if (kpi === "cpa" || kpi === "cpc" || kpi === "cpm") return `$${value.toFixed(2)}`;
+  return value.toFixed(2);
+}
 
 export function KillScaleList({ creatives, config, variant, onCreativeClick }: KillScaleListProps) {
   const { scale, kill, kpiLabel, dirLabel } = useKillScaleLogic(creatives, config);
@@ -42,41 +47,57 @@ export function KillScaleList({ creatives, config, variant, onCreativeClick }: K
   const Icon = meta.icon;
 
   return (
-    <div className="space-y-4">
-      <div className={`glass-panel p-4 border-l-2 ${meta.borderClass}`}>
-        <div className={`metric-label ${meta.textClass} mb-2`}>{meta.label}</div>
-        <div className="metric-value">{items.length}</div>
-        <p className="text-xs text-muted-foreground mt-1">{meta.subtitle}</p>
+    <div className="space-y-5">
+      {/* Hero metric */}
+      <div className="py-3 px-1">
+        <p className="font-label text-[10px] uppercase tracking-[0.05em] text-sage font-medium mb-1.5">{meta.label}</p>
+        <p className="font-data text-[36px] font-semibold text-charcoal tracking-tight leading-none">{items.length}</p>
+        <p className="font-body text-[13px] text-slate font-light mt-1.5">{meta.subtitle}</p>
       </div>
 
-      <p className="text-xs text-muted-foreground">{dirLabel} · Spend &gt; ${config.spendThreshold}</p>
+      {/* Threshold definition */}
+      <p className="font-body text-[12px] text-sage">
+        {dirLabel.split(/(\d+\.?\d*)/g).map((part, i) =>
+          /^\d+\.?\d*$/.test(part)
+            ? <span key={i} className="font-data font-medium text-charcoal">{part}</span>
+            : <span key={i}>{part}</span>
+        )}
+        {" · Spend > "}
+        <span className="font-data font-medium text-charcoal">${config.spendThreshold}</span>
+      </p>
 
       {items.length > 0 ? (
         <div>
-          <h3 className="text-sm font-semibold mb-2">{variant === "scale" ? "Scale" : "Kill"} ({items.length})</h3>
-          <div className="space-y-2">
-            {items.map((c: any) => (
-              <div key={c.ad_id} className={`glass-panel p-3 border-l-2 ${meta.borderClass} cursor-pointer hover:bg-muted/40 transition-colors`} onClick={() => onCreativeClick?.(c)}>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    {c.unique_code && !c.ad_name?.startsWith(c.unique_code) && (
-                      <span className="text-xs font-mono text-muted-foreground">{c.unique_code}</span>
-                    )}
-                    <span className="text-xs font-medium truncate">{c.ad_name}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {c.ad_type && <Badge variant="outline" className="text-[10px]">{c.ad_type}</Badge>}
-                    {c.hook && <Badge variant="outline" className="text-[10px]">{c.hook}</Badge>}
+          <h3 className="font-heading text-[20px] text-forest mb-3">
+            {variant === "scale" ? "Scale" : "Kill"} ({items.length})
+          </h3>
+          <div className="divide-y divide-border-light">
+            {items.map((c: any) => {
+              const kpiValue = Number(c[config.winnerKpi]) || 0;
+              const spend = Number(c.spend) || 0;
+              return (
+                <div
+                  key={c.ad_id}
+                  className="py-3 px-1 cursor-pointer hover:bg-accent/40 transition-colors"
+                  onClick={() => onCreativeClick?.(c)}
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <span className="font-body text-[14px] font-medium text-charcoal truncate block">{c.ad_name}</span>
+                      <span className="font-body text-[11px] text-sage block mt-0.5">{c.reason}</span>
+                    </div>
+                    <div className="flex items-center gap-5 flex-shrink-0">
+                      <span className={`font-data text-[18px] font-semibold ${meta.valueColor}`}>
+                        {formatKpiValue(kpiValue, config.winnerKpi)}
+                      </span>
+                      <span className="font-data text-[13px] font-medium text-slate">
+                        ${spend.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <span>{kpiLabel}: <span className="font-mono text-foreground">{(Number(c[config.winnerKpi]) || 0).toFixed(2)}{config.winnerKpi === "ctr" || config.winnerKpi === "thumb_stop_rate" ? "%" : config.winnerKpi === "roas" ? "x" : ""}</span></span>
-                  <span>Spend: <span className="font-mono text-foreground">${(Number(c.spend) || 0).toFixed(0)}</span></span>
-                  <span>ROAS: <span className="font-mono text-foreground">{(Number(c.roas) || 0).toFixed(2)}x</span></span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">{c.reason}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : (
