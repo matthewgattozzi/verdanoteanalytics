@@ -13,7 +13,8 @@ const VIDEO_BUCKET = "ad-videos";
 const BATCH_SIZE = 20;
 const VIDEO_BATCH_SIZE = 1;
 const MAX_TOTAL = 1000;
-const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB cap to avoid OOM
+const MAX_VIDEO_SIZE = 150 * 1024 * 1024; // 150MB cap
+const TIME_BUDGET_MS = 8 * 60 * 1000; // 8 minutes max per invocation
 
 /** Fetch a fresh high-res image URL from Meta Graph API. */
 async function getFreshImageUrl(adId: string, accountId: string): Promise<string | null> {
@@ -258,6 +259,11 @@ async function downloadAndCache(
   }
 }
 
+/** Helper to check if we've exceeded our time budget */
+function isOverBudget(startTime: number): boolean {
+  return Date.now() - startTime > TIME_BUDGET_MS;
+}
+
 /** Helper to update the progress log row */
 async function updateLog(supabase: any, logId: number, updates: Record<string, any>) {
   await supabase.from("media_refresh_logs").update(updates).eq("id", logId);
@@ -382,6 +388,7 @@ serve(async (req) => {
 
     // Phase 2: Process thumbnails
     if (logId) await updateLog(supabase, logId, { current_phase: 2 });
+    const invocationStart = Date.now();
 
     let thumbCached = 0, thumbFailed = 0;
     for (let i = 0; i < thumbs.length; i += BATCH_SIZE) {
@@ -410,6 +417,10 @@ serve(async (req) => {
         await updateLog(supabase, logId, { thumbs_cached: thumbCached, thumbs_failed: thumbFailed });
       }
 
+      if (isOverBudget(invocationStart)) {
+        console.log(`Time budget reached during thumbnail phase. Processed ${thumbCached + thumbFailed}/${thumbs.length}`);
+        break;
+      }
       if (i + BATCH_SIZE < thumbs.length) await new Promise(r => setTimeout(r, 300));
     }
 
@@ -442,6 +453,10 @@ serve(async (req) => {
         await updateLog(supabase, logId, { videos_cached: videosFetched, videos_failed: videosMarkedNA });
       }
 
+      if (isOverBudget(invocationStart)) {
+        console.log(`Time budget reached during video discovery. Processed ${videosFetched + videosMarkedNA}/${noVideos.length}`);
+        break;
+      }
       if (i + BATCH_SIZE < noVideos.length) await new Promise(r => setTimeout(r, 500));
     }
 
@@ -470,6 +485,10 @@ serve(async (req) => {
         });
       }
 
+      if (isOverBudget(invocationStart)) {
+        console.log(`Time budget reached during video caching. Processed ${videoCached + videoFailed}/${videos.length}`);
+        break;
+      }
       if (i + VIDEO_BATCH_SIZE < videos.length) await new Promise(r => setTimeout(r, 500));
     }
 

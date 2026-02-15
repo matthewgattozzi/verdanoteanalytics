@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.cleanup-stuck-syncs]
 verify_jwt = false
+
+[functions.cleanup-stuck-media]
+verify_jwt = false
