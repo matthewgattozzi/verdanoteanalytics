@@ -313,10 +313,10 @@ const TaggingPage = () => {
         {/* ── CSV Upload Tab ── */}
         <TabsContent value="csv" className="space-y-4">
           <div className="max-w-2xl space-y-4">
-            <div className="glass-panel p-6 space-y-4">
-              <h3 className="font-heading text-[18px] text-forest">Upload Name Mappings</h3>
-              <p className="font-body text-[13px] text-slate font-light">
-                Upload a CSV file with columns: <span className="font-mono text-charcoal font-medium">UniqueCode, Type, Person, Style, Product, Hook, Theme</span>.
+            <div className="bg-white border border-border-light rounded-[8px] p-6 space-y-4">
+              <h3 className="font-heading text-[20px] text-forest">Upload Name Mappings</h3>
+              <p className="font-body text-[13px] text-slate leading-[1.6]">
+                Upload a CSV file with columns: <span className="font-label text-[12px] font-semibold text-charcoal">UniqueCode</span>, <span className="font-label text-[12px] font-semibold text-charcoal">Type</span>, <span className="font-label text-[12px] font-semibold text-charcoal">Person</span>, <span className="font-label text-[12px] font-semibold text-charcoal">Style</span>, <span className="font-label text-[12px] font-semibold text-charcoal">Product</span>, <span className="font-label text-[12px] font-semibold text-charcoal">Hook</span>, <span className="font-label text-[12px] font-semibold text-charcoal">Theme</span>.
                 Each row maps a unique code to its tag values. Matching creatives will be updated automatically.
               </p>
 
@@ -326,22 +326,22 @@ const TaggingPage = () => {
                 </div>
               ) : (
                 <>
-                  <Button onClick={() => setShowCsvModal(true)} className="gap-2">
+                  <Button onClick={() => setShowCsvModal(true)} className="gap-2 bg-verdant text-white hover:bg-verdant-light font-body text-[13px] font-semibold rounded-[6px]">
                     <Upload className="h-4 w-4" />
                     Upload CSV
                   </Button>
                   {currentAccount && (
                     <p className="font-body text-[12px] text-sage">
-                      Uploading to: <span className="font-body font-medium text-charcoal">{currentAccount.name}</span>
+                      Uploading to: <span className="font-body text-[13px] font-semibold text-charcoal">{currentAccount.name}</span>
                     </p>
                   )}
                 </>
               )}
             </div>
 
-            <div className="glass-panel p-6 space-y-3">
-              <h3 className="font-heading text-[18px] text-forest">CSV Format</h3>
-              <div className="bg-muted/50 rounded-md p-3 font-mono text-[11px] leading-relaxed overflow-x-auto">
+            <div className="bg-white border border-border-light rounded-[8px] p-6 space-y-3">
+              <h3 className="font-heading text-[20px] text-forest">CSV Format</h3>
+              <div className="bg-cream border border-border-light rounded-[4px] p-4 font-label text-[12px] text-slate leading-relaxed overflow-x-auto">
                 UniqueCode,Type,Person,Style,Product,Hook,Theme<br />
                 ABC001,Video,Creator,UGC Native,Serum,Problem Callout,Anti-aging<br />
                 ABC002,Static,Founder,Studio Clean,Moisturizer,Authority Intro,Hydration
