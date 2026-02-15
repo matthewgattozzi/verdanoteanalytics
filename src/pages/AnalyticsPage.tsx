@@ -58,12 +58,16 @@ const AnalyticsPage = () => {
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-muted/50">
-          <TabsTrigger value="trends">Trends</TabsTrigger>
-          <TabsTrigger value="winrate">Win Rate</TabsTrigger>
-          <TabsTrigger value="scale">Scale</TabsTrigger>
-          <TabsTrigger value="kill">Kill</TabsTrigger>
-          <TabsTrigger value="iterations">Iterations</TabsTrigger>
+        <TabsList className="bg-transparent border-b border-border-light rounded-none p-0 h-auto gap-0">
+          {["trends", "winrate", "scale", "kill", "iterations"].map((tab) => (
+            <TabsTrigger
+              key={tab}
+              value={tab}
+              className="font-body text-[14px] font-medium text-slate data-[state=active]:text-forest data-[state=active]:font-semibold data-[state=active]:border-b-2 data-[state=active]:border-verdant data-[state=active]:shadow-none rounded-none px-4 py-2.5 bg-transparent"
+            >
+              {tab === "winrate" ? "Win Rate" : tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         <TabsContent value="trends" className="space-y-4">
