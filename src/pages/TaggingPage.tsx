@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
-import { PageHeader } from "@/components/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -15,7 +14,7 @@ import { useUploadMappings } from "@/hooks/useAccountsApi";
 import { TAG_OPTIONS_MAP } from "@/lib/tagOptions";
 import { toast } from "sonner";
 import {
-  Search, ChevronLeft, ChevronRight, Filter, Upload, LayoutGrid, Loader2, Save, X,
+  Search, ChevronLeft, ChevronRight, Filter, Upload, LayoutGrid, Loader2, Save, X, Plus,
 } from "lucide-react";
 import { TableSkeleton } from "@/components/skeletons/TableSkeleton";
 
@@ -35,8 +34,14 @@ function EditableTagCell({
   if (options) {
     return (
       <Select value={value || ""} onValueChange={(v) => onLocalChange(adId, field, v)}>
-        <SelectTrigger className="h-7 text-xs border-border/50 bg-background w-full">
-          <SelectValue placeholder="—" />
+        <SelectTrigger className="h-7 text-xs border-border/50 bg-background w-full font-body text-[12px] text-charcoal">
+          <SelectValue>
+            {value ? (
+              <span className="font-body text-[12px] text-charcoal">{value}</span>
+            ) : (
+              <Plus className="h-3 w-3 text-sage" />
+            )}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__clear__" className="text-xs text-muted-foreground italic">Clear</SelectItem>
@@ -50,10 +55,10 @@ function EditableTagCell({
 
   return (
     <Input
-      className="h-7 text-xs bg-background"
+      className="h-7 text-xs bg-background font-body text-[12px]"
       value={value}
       onChange={(e) => onLocalChange(adId, field, e.target.value)}
-      placeholder="—"
+      placeholder=""
     />
   );
 }
@@ -153,21 +158,36 @@ const TaggingPage = () => {
 
   return (
     <AppLayout>
-      <PageHeader
-        title="Tagging"
-        description="Label your ads manually or upload a CSV of name mappings."
-      />
+      {/* Page header */}
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="font-heading text-[32px] text-forest">Tagging</h1>
+          <p className="font-body text-[13px] text-slate font-light mt-1">
+            Label your ads manually or upload a CSV of name mappings.
+          </p>
+        </div>
+      </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <TabsList>
-            <TabsTrigger value="manual">Manual Tagging</TabsTrigger>
-            <TabsTrigger value="csv">CSV Upload</TabsTrigger>
+          <TabsList className="bg-transparent border-b border-border-light rounded-none p-0 h-auto gap-0">
+            <TabsTrigger
+              value="manual"
+              className="font-body text-[14px] font-medium text-slate data-[state=active]:text-forest data-[state=active]:font-semibold data-[state=active]:border-b-2 data-[state=active]:border-verdant data-[state=active]:shadow-none rounded-none px-4 py-2.5 bg-transparent"
+            >
+              Manual Tagging
+            </TabsTrigger>
+            <TabsTrigger
+              value="csv"
+              className="font-body text-[14px] font-medium text-slate data-[state=active]:text-forest data-[state=active]:font-semibold data-[state=active]:border-b-2 data-[state=active]:border-verdant data-[state=active]:shadow-none rounded-none px-4 py-2.5 bg-transparent"
+            >
+              CSV Upload
+            </TabsTrigger>
           </TabsList>
 
           {activeTab === "manual" && dirtyIds.length > 0 && (
             <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">{dirtyIds.length} unsaved</Badge>
+              <Badge variant="secondary" className="font-label text-[10px]">{dirtyIds.length} unsaved</Badge>
               <Button size="sm" variant="outline" onClick={handleDiscardAll}>
                 <X className="h-3 w-3 mr-1" /> Discard
               </Button>
@@ -184,28 +204,28 @@ const TaggingPage = () => {
           {/* Filters row */}
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-sage" />
               <Input
-                className="h-8 pl-8 text-xs bg-background"
+                className="h-8 pl-8 font-body text-[13px] bg-background placeholder:text-sage"
                 placeholder="Search ads..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(0); }}
               />
             </div>
             <Select value={tagFilter} onValueChange={(v) => { setTagFilter(v); setPage(0); }}>
-              <SelectTrigger className="h-8 w-36 text-xs">
+              <SelectTrigger className="h-8 w-36 font-body text-[13px] text-charcoal">
                 <Filter className="h-3 w-3 mr-1.5" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all" className="text-xs">All Tags</SelectItem>
-                <SelectItem value="untagged" className="text-xs">Untagged</SelectItem>
-                <SelectItem value="manual" className="text-xs">Manual</SelectItem>
-                <SelectItem value="csv_match" className="text-xs">CSV Match</SelectItem>
-                <SelectItem value="parsed" className="text-xs">Parsed</SelectItem>
+                <SelectItem value="all" className="font-body text-[13px]">All Tags</SelectItem>
+                <SelectItem value="untagged" className="font-body text-[13px]">Untagged</SelectItem>
+                <SelectItem value="manual" className="font-body text-[13px]">Manual</SelectItem>
+                <SelectItem value="csv_match" className="font-body text-[13px]">CSV Match</SelectItem>
+                <SelectItem value="parsed" className="font-body text-[13px]">Parsed</SelectItem>
               </SelectContent>
             </Select>
-            <span className="text-xs text-muted-foreground">{total} creatives</span>
+            <span className="font-data text-[13px] font-medium text-sage">{total.toLocaleString()} creatives</span>
           </div>
 
           {/* Table */}
@@ -216,17 +236,17 @@ const TaggingPage = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-xs w-[250px]">Creative</TableHead>
-                  <TableHead className="text-xs w-[80px]">Status</TableHead>
+                  <TableHead className="font-label text-[11px] uppercase tracking-wide text-slate w-[250px]">Creative</TableHead>
+                  <TableHead className="font-label text-[11px] uppercase tracking-wide text-slate w-[80px]">Status</TableHead>
                   {TAG_FIELDS.map((f) => (
-                    <TableHead key={f} className="text-xs min-w-[120px]">{TAG_LABELS[f]}</TableHead>
+                    <TableHead key={f} className="font-label text-[11px] uppercase tracking-wide text-slate min-w-[120px]">{TAG_LABELS[f]}</TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? null : creatives.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-32 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={8} className="h-32 text-center font-body text-[13px] text-sage">
                       No creatives found
                     </TableCell>
                   </TableRow>
@@ -246,8 +266,8 @@ const TaggingPage = () => {
                             )}
                           </div>
                           <div className="min-w-0">
-                            <div className="text-xs font-medium truncate">{c.ad_name}</div>
-                            <div className="text-[10px] font-mono text-muted-foreground">{c.unique_code || "—"}</div>
+                            <div className="font-body text-[13px] font-medium text-charcoal truncate">{c.ad_name}</div>
+                            <div className="font-body text-[11px] text-sage">{c.unique_code || ""}</div>
                           </div>
                         </div>
                       </TableCell>
@@ -275,7 +295,7 @@ const TaggingPage = () => {
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">
+              <p className="font-body text-[12px] text-sage">
                 Page {page + 1} of {totalPages}
               </p>
               <div className="flex gap-1">
@@ -294,14 +314,14 @@ const TaggingPage = () => {
         <TabsContent value="csv" className="space-y-4">
           <div className="max-w-2xl space-y-4">
             <div className="glass-panel p-6 space-y-4">
-              <h3 className="text-sm font-semibold">Upload Name Mappings</h3>
-              <p className="text-xs text-muted-foreground">
-                Upload a CSV file with columns: <span className="font-mono text-foreground">UniqueCode, Type, Person, Style, Product, Hook, Theme</span>.
+              <h3 className="font-heading text-[18px] text-forest">Upload Name Mappings</h3>
+              <p className="font-body text-[13px] text-slate font-light">
+                Upload a CSV file with columns: <span className="font-mono text-charcoal font-medium">UniqueCode, Type, Person, Style, Product, Hook, Theme</span>.
                 Each row maps a unique code to its tag values. Matching creatives will be updated automatically.
               </p>
 
               {selectedAccountId === "all" ? (
-                <div className="text-sm text-muted-foreground bg-muted/50 rounded-md p-4 text-center">
+                <div className="font-body text-[13px] text-sage bg-muted/50 rounded-md p-4 text-center">
                   Select a specific account from the sidebar to upload mappings.
                 </div>
               ) : (
@@ -311,8 +331,8 @@ const TaggingPage = () => {
                     Upload CSV
                   </Button>
                   {currentAccount && (
-                    <p className="text-xs text-muted-foreground">
-                      Uploading to: <span className="font-medium text-foreground">{currentAccount.name}</span>
+                    <p className="font-body text-[12px] text-sage">
+                      Uploading to: <span className="font-body font-medium text-charcoal">{currentAccount.name}</span>
                     </p>
                   )}
                 </>
@@ -320,7 +340,7 @@ const TaggingPage = () => {
             </div>
 
             <div className="glass-panel p-6 space-y-3">
-              <h3 className="text-sm font-semibold">CSV Format</h3>
+              <h3 className="font-heading text-[18px] text-forest">CSV Format</h3>
               <div className="bg-muted/50 rounded-md p-3 font-mono text-[11px] leading-relaxed overflow-x-auto">
                 UniqueCode,Type,Person,Style,Product,Hook,Theme<br />
                 ABC001,Video,Creator,UGC Native,Serum,Problem Callout,Anti-aging<br />
