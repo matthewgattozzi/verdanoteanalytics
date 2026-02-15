@@ -7,35 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
 };
 
-// ─── Tag Parsing ─────────────────────────────────────────────────────────────
-
-const DISPLAY_NAMES: Record<string, string> = {
-  UGCNative: "UGC Native", StudioClean: "Studio Clean", TextForward: "Text Forward",
-  NoTalent: "No Talent", ProblemCallout: "Problem Callout", StatementBold: "Statement Bold",
-  AuthorityIntro: "Authority Intro", BeforeAndAfter: "Before & After", PatternInterrupt: "Pattern Interrupt",
-};
-const VALID_TYPES = ["Video", "Static", "GIF", "Carousel"];
-const VALID_PERSONS = ["Creator", "Customer", "Founder", "Actor", "NoTalent"];
-const VALID_STYLES = ["UGCNative", "StudioClean", "TextForward", "Lifestyle"];
-const VALID_HOOKS = ["ProblemCallout", "Confession", "Question", "StatementBold", "AuthorityIntro", "BeforeAndAfter", "PatternInterrupt"];
-
-function toDisplayName(val: string): string { return DISPLAY_NAMES[val] || val; }
-
-function parseAdName(adName: string) {
-  const segments = adName.split("_");
-  const unique_code = segments[0] || adName;
-  if (segments.length === 7) {
-    const [, type, person, style, product, hook, theme] = segments;
-    if (VALID_TYPES.includes(type) && VALID_PERSONS.includes(person) && VALID_STYLES.includes(style) && VALID_HOOKS.includes(hook)) {
-      return {
-        unique_code, parsed: true,
-        ad_type: toDisplayName(type), person: toDisplayName(person),
-        style: toDisplayName(style), product, hook: toDisplayName(hook), theme,
-      };
-    }
-  }
-  return { unique_code, parsed: false, ad_type: null, person: null, style: null, product: null, hook: null, theme: null };
-}
+// Tag parsing removed from sync — tagging is managed via manual edits or CSV uploads only.
 
 // ─── Meta API Helper ─────────────────────────────────────────────────────────
 
@@ -263,16 +235,15 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
     //   Media (thumbnails, videos) are handled by refresh-thumbnails.
     // ═══════════════════════════════════════════════════════════════════
     if (phase === 1) {
-      // Get manual-tagged ad IDs to preserve their tags
-      const { data: manualAds } = await supabase.from("creatives").select("ad_id")
-        .eq("account_id", accountId).eq("tag_source", "manual");
-      const manualAdIds = new Set((manualAds || []).map((a: any) => a.ad_id));
+      // Get manual/csv-tagged ad IDs to preserve their tags (only update metadata)
+      const { data: taggedAds } = await supabase.from("creatives").select("ad_id")
+        .eq("account_id", accountId).in("tag_source", ["manual", "csv"]);
+      const taggedAdIds = new Set((taggedAds || []).map((a: any) => a.ad_id));
 
       const cursor = state.ads_cursor || null;
       let fetchedCount = state.creatives_fetched || 0;
 
       // STRIPPED DOWN: Only essential fields — no creative{}, no preview_shareable_link
-      // This reduces per-page payload from ~5MB to ~50KB
       let nextUrl = cursor || (
         `https://graph.facebook.com/${META_API_VERSION}/${accountId}/ads?` +
         `fields=id,name,status,campaign{name},adset{name}` +
@@ -288,32 +259,44 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
         }
         if (result.data) {
           const upsertBatch: any[] = [];
+          const metadataBatch: { ad_id: string; data: any }[] = [];
+
           for (const ad of result.data) {
-            const adData: any = {
-              ad_id: ad.id,
-              account_id: accountId,
+            const metadata = {
               ad_name: ad.name,
               ad_status: ad.status || "UNKNOWN",
               campaign_name: ad.campaign?.name || null,
               adset_name: ad.adset?.name || null,
-              unique_code: ad.name.split("_")[0],
             };
 
-            if (!manualAdIds.has(ad.id)) {
-              upsertBatch.push(adData);
+            if (taggedAdIds.has(ad.id)) {
+              // For tagged ads, only update metadata — batch them
+              metadataBatch.push({ ad_id: ad.id, data: metadata });
             } else {
-              // For manual ads, only update metadata fields
-              const { ad_id, unique_code, ...metadataOnly } = adData;
-              await supabase.from("creatives").update(metadataOnly).eq("ad_id", ad.id);
+              upsertBatch.push({
+                ad_id: ad.id,
+                account_id: accountId,
+                unique_code: ad.name.split("_")[0],
+                ...metadata,
+              });
             }
           }
+
           if (upsertBatch.length > 0) {
-            const { error } = await supabase.from("creatives").upsert(upsertBatch, {
-              onConflict: "ad_id",
-              // ignoreDuplicates: false ensures we update existing rows
-            });
+            const { error } = await supabase.from("creatives").upsert(upsertBatch, { onConflict: "ad_id" });
             if (error) console.error("Phase 1 upsert error:", error.message);
           }
+
+          // Batch metadata updates for tagged ads (50 at a time)
+          if (metadataBatch.length > 0) {
+            for (let i = 0; i < metadataBatch.length; i += 50) {
+              const batch = metadataBatch.slice(i, i + 50);
+              await Promise.all(batch.map(({ ad_id, data }) =>
+                supabase.from("creatives").update(data).eq("ad_id", ad_id)
+              ));
+            }
+          }
+
           fetchedCount += result.data.length;
           console.log(`  Ads fetched & upserted: ${fetchedCount}`);
         }
@@ -358,20 +341,25 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
         const result = await metaFetch(nextUrl, ctx);
         if (result.error) break;
         if (result.data) {
-          // Batch update metrics — Phase 1 already created the rows
-          const UPDATE_BATCH_SIZE = 50;
-          const metricsRows: { ad_id: string; metrics: any }[] = [];
-          for (const row of result.data) {
-            metricsRows.push({ ad_id: row.ad_id, metrics: parseInsightsRow(row) });
-          }
-          for (let i = 0; i < metricsRows.length; i += UPDATE_BATCH_SIZE) {
-            const batch = metricsRows.slice(i, i + UPDATE_BATCH_SIZE);
-            await Promise.all(batch.map(({ ad_id, metrics }) =>
+          // Bulk update metrics — use RPC-style batch: group into chunks and update
+          // We use upsert with onConflict to avoid N individual updates.
+          // Only include metric fields + the conflict key (ad_id) + required fields.
+          const BATCH_SIZE = 200;
+          const metricRows = result.data.map((row: any) => {
+            const metrics = parseInsightsRow(row);
+            return { ad_id: row.ad_id, account_id: accountId, ...metrics };
+          });
+
+          for (let i = 0; i < metricRows.length; i += BATCH_SIZE) {
+            const batch = metricRows.slice(i, i + BATCH_SIZE);
+            // Use update per-row but fire all concurrently in large batches (200 at once)
+            await Promise.all(batch.map(({ ad_id, account_id: _aid, ...metrics }) =>
               supabase.from("creatives").update(metrics).eq("ad_id", ad_id)
             ));
+            if (isTimedOut()) break;
           }
           insightsCount += result.data.length;
-          console.log(`  Insights batch-upserted: ${insightsCount}`);
+          console.log(`  Insights bulk-upserted: ${insightsCount}`);
         }
         nextUrl = result.next;
         if (nextUrl) await new Promise(r => setTimeout(r, 200));
@@ -393,14 +381,14 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
     if (phase === 3) {
       console.log("Phase 3: Cleanup zero-spend creatives...");
 
-      // Delete creatives with zero spend (no insights matched), except manual-tagged
+      // Delete creatives with zero spend (no insights matched), except manually/csv-tagged
       const { count: zeroSpendCount } = await supabase.from("creatives")
         .select("*", { count: "exact", head: true })
-        .eq("account_id", accountId).lte("spend", 0).neq("tag_source", "manual");
+        .eq("account_id", accountId).lte("spend", 0).not("tag_source", "in", '("manual","csv")');
       if (zeroSpendCount && zeroSpendCount > 0) {
         await supabase.from("creatives")
           .delete()
-          .eq("account_id", accountId).lte("spend", 0).neq("tag_source", "manual");
+          .eq("account_id", accountId).lte("spend", 0).not("tag_source", "in", '("manual","csv")');
         console.log(`  Cleaned up ${zeroSpendCount} zero-spend creatives`);
       }
 
@@ -660,10 +648,9 @@ serve(async (req) => {
       const body = await req.json();
       const { account_id, sync_type = "manual" } = body;
 
-      const { data: activeSyncs } = await supabase.from("sync_logs").select("id, account_id, started_at").in("status", ["running", "queued"]).limit(1);
-      if (activeSyncs?.length) {
-        return new Response(JSON.stringify({ error: "Sync already running" }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
+      // Check if requested accounts are already running/queued (allow queuing new ones)
+      const { data: activeSyncs } = await supabase.from("sync_logs").select("id, account_id").in("status", ["running", "queued"]);
+      const activeAccountIds = new Set((activeSyncs || []).map((s: any) => s.account_id));
 
       let metaToken = Deno.env.get("META_ACCESS_TOKEN");
       if (!metaToken) {
@@ -682,18 +669,28 @@ serve(async (req) => {
       }
       if (!accounts.length) return new Response(JSON.stringify({ error: "No accounts to sync" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      const created = [];
+      const hasRunning = (activeSyncs || []).some((s: any) => s.status === "running");
+      const created: any[] = [];
+
       for (let i = 0; i < accounts.length; i++) {
         const account = accounts[i];
+
+        // Skip accounts that already have an active sync
+        if (activeAccountIds.has(account.id)) {
+          console.log(`Skipping ${account.name} — already running/queued`);
+          continue;
+        }
+
         const dateRangeDays = sync_type === "initial" ? 90 : (account.date_range_days || 14);
         const endDate = new Date();
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - dateRangeDays);
 
-        const isFirst = i === 0;
+        // First new sync runs immediately only if nothing else is running
+        const shouldRun = !hasRunning && created.length === 0;
         const { data: logEntry, error: logError } = await supabase.from("sync_logs").insert({
           account_id: account.id, sync_type,
-          status: isFirst ? "running" : "queued",
+          status: shouldRun ? "running" : "queued",
           current_phase: 1,
           sync_state: { last_activity: new Date().toISOString() },
           date_range_start: startDate.toISOString().split("T")[0],
@@ -707,11 +704,17 @@ serve(async (req) => {
         created.push({ id: logEntry.id, account_id: account.id, account_name: account.name });
       }
 
-      if (created.length > 0) {
-        const { data: firstLog } = await supabase.from("sync_logs").select("*").eq("id", created[0].id).single();
-        if (firstLog) {
+      // Only run first phase inline if we started a "running" sync (not just queued)
+      const firstRunning = created.find((c: any) => !hasRunning && created.indexOf(c) === 0);
+      if (firstRunning) {
+        const { data: firstLog } = await supabase.from("sync_logs").select("*").eq("id", firstRunning.id).single();
+        if (firstLog && firstLog.status === "running") {
           await runSyncPhase(supabase, firstLog, metaToken);
         }
+      }
+
+      if (!created.length) {
+        return new Response(JSON.stringify({ message: "All requested accounts already syncing" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       return new Response(JSON.stringify({ started: created }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
