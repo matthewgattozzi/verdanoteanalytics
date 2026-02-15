@@ -281,6 +281,19 @@ serve(async (req) => {
     }
     if (accountFilter) console.log(`Filtering to account: ${accountFilter}`);
 
+    // Concurrency guard: skip if another refresh is already running
+    const { data: runningLogs } = await supabase
+      .from("media_refresh_logs")
+      .select("id")
+      .eq("status", "running")
+      .limit(1);
+    if (runningLogs && runningLogs.length > 0) {
+      console.log("Skipping: another media refresh is already running.");
+      return new Response(JSON.stringify({ skipped: true, reason: "already_running" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Create a progress log entry
     const { data: logRow } = await supabase
       .from("media_refresh_logs")
