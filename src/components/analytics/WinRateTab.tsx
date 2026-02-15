@@ -72,21 +72,21 @@ export function WinRateTab({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-4 gap-3">
-        <MetricCard label="Total Creatives" value={winRateData?.total || 0} icon={<BarChart3 className="h-4 w-4" />} />
-        <MetricCard label="Winners" value={winRateData?.winners || 0} icon={<TrendingUp className="h-4 w-4" />} />
-        <MetricCard label="Win Rate" value={winRateData ? `${winRateData.winRate}%` : "—"} icon={<Target className="h-4 w-4" />} />
+      <div className="flex items-stretch divide-x divide-border-light">
+        <MetricCard label="Total Creatives" value={winRateData?.total || 0} icon={<BarChart3 className="h-4 w-4 text-sage" />} />
+        <MetricCard label="Winners" value={winRateData?.winners || 0} icon={<TrendingUp className="h-4 w-4 text-sage" />} />
+        <MetricCard label="Win Rate" value={winRateData ? `${winRateData.winRate}%` : "—"} icon={<Target className="h-4 w-4 text-sage" />} />
         <MetricCard label="Blended ROAS" value={winRateData ? `${winRateData.blendedRoas}x` : "—"} />
       </div>
 
-      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        <span>Winner: <span className="font-medium text-foreground">{kpiLabel} {dirSymbol} {threshold}</span> &amp; spend &gt; ${spendThreshold}</span>
+      <div className="flex items-center gap-3 font-body text-[13px] text-slate">
+        <span>Winner: <span className="font-data font-semibold text-charcoal">{kpiLabel} {dirSymbol} {threshold}</span> &amp; spend &gt; <span className="font-data font-semibold text-charcoal">${spendThreshold}</span></span>
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">Slice by:</span>
+        <span className="font-body text-[13px] text-slate">Slice by:</span>
         <Select value={sliceBy} onValueChange={setSliceBy}>
-          <SelectTrigger className="w-36 h-8 text-xs bg-background"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-36 h-8 font-body text-[13px] text-charcoal bg-background border border-border-light"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ad_type">Type</SelectItem>
             <SelectItem value="person">Person</SelectItem>
@@ -102,24 +102,24 @@ export function WinRateTab({
         <div className="glass-panel overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="text-xs">{sliceBy.replace("ad_", "").replace("_", " ")}</TableHead>
-                <TableHead className="text-xs text-right">Total</TableHead>
-                <TableHead className="text-xs text-right">Winners</TableHead>
-                <TableHead className="text-xs text-right">Win Rate</TableHead>
-                <TableHead className="text-xs">Visual</TableHead>
+              <TableRow className="bg-cream-dark">
+                <TableHead className="font-label text-[11px] uppercase tracking-[0.04em] text-slate font-semibold">{sliceBy.replace("ad_", "").replace("_", " ")}</TableHead>
+                <TableHead className="font-label text-[11px] uppercase tracking-[0.04em] text-slate font-semibold text-right">Total</TableHead>
+                <TableHead className="font-label text-[11px] uppercase tracking-[0.04em] text-slate font-semibold text-right">Winners</TableHead>
+                <TableHead className="font-label text-[11px] uppercase tracking-[0.04em] text-slate font-semibold text-right">Win Rate</TableHead>
+                <TableHead className="font-label text-[11px] uppercase tracking-[0.04em] text-slate font-semibold">Visual</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {winRateData.breakdown.map((row) => (
-                <TableRow key={row.name}>
-                  <TableCell className="text-xs font-medium">{row.name}</TableCell>
-                  <TableCell className="text-xs text-right font-mono">{row.total}</TableCell>
-                  <TableCell className="text-xs text-right font-mono">{row.winners}</TableCell>
-                  <TableCell className="text-xs text-right font-mono">{row.winRate.toFixed(1)}%</TableCell>
+                <TableRow key={row.name} className="border-b border-border-light">
+                  <TableCell className="font-body text-[13px] text-charcoal">{row.name}</TableCell>
+                  <TableCell className="font-data text-[13px] font-medium text-charcoal tabular-nums text-right">{row.total}</TableCell>
+                  <TableCell className="font-data text-[13px] font-medium text-charcoal tabular-nums text-right">{row.winners}</TableCell>
+                  <TableCell className="font-data text-[13px] font-medium text-charcoal tabular-nums text-right">{row.winRate.toFixed(1)}%</TableCell>
                   <TableCell>
                     <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.min(row.winRate, 100)}%` }} />
+                      <div className="h-full bg-verdant rounded-full transition-all" style={{ width: `${Math.min(row.winRate, 100)}%` }} />
                     </div>
                   </TableCell>
                 </TableRow>
