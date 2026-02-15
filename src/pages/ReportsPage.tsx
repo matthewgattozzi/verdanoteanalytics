@@ -280,80 +280,85 @@ const ReportsPage = () => {
 
       {/* Schedule Dialog */}
       <Dialog open={showSchedule} onOpenChange={setShowSchedule}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg bg-white rounded-[8px] shadow-modal p-7">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CalendarClock className="h-4 w-4" />
+            <DialogTitle className="flex items-center gap-2 font-heading text-[22px] text-forest">
+              <CalendarClock className="h-5 w-5 text-sage" />
               Report Schedules
             </DialogTitle>
-            <DialogDescription>Configure automatic report generation per account. Use templates: {"{account}"}, {"{cadence}"}, {"{date}"}.</DialogDescription>
+            <DialogDescription className="font-body text-[13px] text-slate font-light">
+              Configure automatic report generation per account. Use templates: <span className="font-data text-[13px] font-medium text-verdant">{"{account}"}</span>, <span className="font-data text-[13px] font-medium text-verdant">{"{cadence}"}</span>, <span className="font-data text-[13px] font-medium text-verdant">{"{date}"}</span>.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
             {(accounts || []).map((a: any) => (
-              <div key={a.id} className="rounded-lg border bg-card p-3 space-y-3">
-                <div className="text-sm font-medium">{a.name}</div>
-                {CADENCES.map(({ key, label, defaultDays, description }) => {
+              <div key={a.id} className="rounded-card border border-border-light bg-white p-5 space-y-4">
+                <div className="font-body text-[16px] font-semibold text-charcoal">{a.name}</div>
+                {CADENCES.map(({ key, label, defaultDays, description }, idx) => {
                   const schedule = getSchedule(a.id, key);
                   const enabled = schedule?.enabled ?? false;
                   return (
-                    <div key={key} className="rounded-md border bg-background p-2.5 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="text-xs font-medium">{label}</span>
-                          <span className="text-[10px] text-muted-foreground ml-1.5">{description}</span>
+                    <div key={key}>
+                      {idx > 0 && <div className="border-t border-border-light my-4" />}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="font-body text-[14px] font-semibold text-forest">{label}</span>
+                            <span className="font-body text-[12px] text-sage font-normal ml-2">{description}</span>
+                          </div>
+                          <Switch
+                            checked={enabled}
+                            onCheckedChange={(checked) => handleToggleSchedule(a.id, key, checked)}
+                          />
                         </div>
-                        <Switch
-                          checked={enabled}
-                          onCheckedChange={(checked) => handleToggleSchedule(a.id, key, checked)}
-                        />
-                      </div>
-                      {enabled && (
-                        <div className="space-y-2 pt-1 border-t">
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground">Report Name Template</Label>
-                            <Input
-                              className="h-7 text-xs bg-card"
-                              value={schedule?.report_name_template || `{cadence} Report - {account}`}
-                              onChange={(e) => handleUpdateSchedule(a.id, key, "report_name_template", e.target.value)}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground">Date Range (days)</Label>
-                            <Input
-                              type="number"
-                              className="h-7 text-xs bg-card w-24"
-                              value={schedule?.date_range_days ?? defaultDays}
-                              onChange={(e) => handleUpdateSchedule(a.id, key, "date_range_days", parseInt(e.target.value) || defaultDays)}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground">Delivery</Label>
-                            <div className="flex items-center gap-4">
-                              <label className="flex items-center gap-1.5 cursor-pointer">
-                                <Checkbox
-                                  checked={schedule?.deliver_to_app ?? true}
-                                  onCheckedChange={(checked) => handleUpdateSchedule(a.id, key, "deliver_to_app", !!checked)}
-                                />
-                                <span className="text-xs">Save in app</span>
-                              </label>
-                              <label className="flex items-center gap-1.5 cursor-pointer">
-                                <Checkbox
-                                  checked={schedule?.deliver_to_slack ?? false}
-                                  onCheckedChange={(checked) => handleUpdateSchedule(a.id, key, "deliver_to_slack", !!checked)}
-                                />
-                                <span className="text-xs">Send to Slack</span>
-                              </label>
+                        {enabled && (
+                          <div className="space-y-3 pt-3 border-t border-border-light">
+                            <div className="space-y-1">
+                              <Label className="font-label text-[10px] uppercase tracking-[0.06em] text-sage font-medium">Report Name Template</Label>
+                              <Input
+                                className="font-body text-[14px] text-charcoal border-border-light rounded-[4px] bg-background"
+                                value={schedule?.report_name_template || `{cadence} Report - {account}`}
+                                onChange={(e) => handleUpdateSchedule(a.id, key, "report_name_template", e.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="font-label text-[10px] uppercase tracking-[0.06em] text-sage font-medium">Date Range (days)</Label>
+                              <Input
+                                type="number"
+                                className="font-data text-[15px] font-medium text-charcoal border-border-light rounded-[4px] bg-background w-24"
+                                value={schedule?.date_range_days ?? defaultDays}
+                                onChange={(e) => handleUpdateSchedule(a.id, key, "date_range_days", parseInt(e.target.value) || defaultDays)}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="font-label text-[10px] uppercase tracking-[0.06em] text-sage font-medium">Delivery</Label>
+                              <div className="flex items-center gap-4">
+                                <label className="flex items-center gap-1.5 cursor-pointer">
+                                  <Checkbox
+                                    checked={schedule?.deliver_to_app ?? true}
+                                    onCheckedChange={(checked) => handleUpdateSchedule(a.id, key, "deliver_to_app", !!checked)}
+                                  />
+                                  <span className="font-body text-[13px] text-charcoal font-normal">Save in app</span>
+                                </label>
+                                <label className="flex items-center gap-1.5 cursor-pointer">
+                                  <Checkbox
+                                    checked={schedule?.deliver_to_slack ?? false}
+                                    onCheckedChange={(checked) => handleUpdateSchedule(a.id, key, "deliver_to_slack", !!checked)}
+                                  />
+                                  <span className="font-body text-[13px] text-charcoal font-normal">Send to Slack</span>
+                                </label>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   );
                 })}
               </div>
             ))}
             {!(accounts || []).length && (
-              <p className="text-xs text-muted-foreground text-center py-4">No accounts found.</p>
+              <p className="font-body text-[13px] text-sage text-center py-4">No accounts found.</p>
             )}
           </div>
         </DialogContent>
