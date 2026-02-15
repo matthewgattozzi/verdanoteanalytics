@@ -4,41 +4,41 @@
 
 @layer base {
   :root {
-    /* ── Core palette: verdant/cream neumorphic ── */
-    --background: 40 33% 96%;
-    --foreground: 0 0% 17%;
+    /* ── Core palette ── */
+    --background: 39 47% 96%;        /* #FDF8F0 cream */
+    --foreground: 0 0% 17%;          /* #2C2C2C charcoal */
 
-    --card: 40 38% 98%;
+    --card: 0 0% 100%;               /* #FFFFFF */
     --card-foreground: 0 0% 17%;
 
-    --popover: 40 38% 98%;
+    --popover: 0 0% 100%;
     --popover-foreground: 0 0% 17%;
 
-    --primary: 152 63% 29%;
+    --primary: 152 63% 29%;          /* #1B7A4E verdant */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 150 18% 72%;
+    --secondary: 150 18% 72%;        /* #A8C5B2 sage */
     --secondary-foreground: 155 56% 15%;
 
-    --muted: 40 20% 93%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 147 35% 93%;            /* #E8F5EE sage-light */
+    --muted-foreground: 220 9% 46%;  /* #6B7280 slate */
 
-    --accent: 147 22% 90%;
+    --accent: 147 35% 93%;
     --accent-foreground: 155 56% 15%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 84% 50%;        /* #DC2626 */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 152 20% 80%;
-    --input: 152 20% 80%;
+    --border: 152 25% 82%;           /* #C5DDD0 */
+    --input: 150 20% 90%;            /* #E2EDE7 border-light */
     --ring: 152 63% 29%;
 
     --radius: 0.5rem;
 
     /* Status colors */
-    --success: 152 63% 29%;
+    --success: 142 72% 37%;          /* #16A34A */
     --success-foreground: 0 0% 100%;
-    --warning: 40 70% 55%;
+    --warning: 40 60% 55%;           /* #D4A843 gold */
     --warning-foreground: 30 30% 12%;
     --info: 200 60% 45%;
     --info-foreground: 0 0% 100%;
@@ -46,36 +46,36 @@
     /* Tag source colors */
     --tag-parsed: 152 63% 29%;
     --tag-csv: 200 60% 45%;
-    --tag-manual: 40 70% 55%;
-    --tag-untagged: 0 84% 60%;
+    --tag-manual: 40 60% 55%;
+    --tag-untagged: 0 84% 50%;
 
     /* Recommendation colors */
     --scale: 152 63% 29%;
-    --watch: 40 70% 55%;
-    --kill: 0 84% 60%;
+    --watch: 40 60% 55%;
+    --kill: 0 84% 50%;
 
     /* Sidebar */
-    --sidebar-background: 147 22% 90%;
+    --sidebar-background: 39 47% 96%;
     --sidebar-foreground: 220 9% 46%;
     --sidebar-primary: 152 63% 29%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 147 22% 86%;
+    --sidebar-accent: 147 35% 93%;
     --sidebar-accent-foreground: 155 56% 15%;
-    --sidebar-border: 152 20% 80%;
+    --sidebar-border: 150 20% 90%;
     --sidebar-ring: 152 63% 29%;
 
     /* Chart palette */
     --chart-1: 152 63% 29%;
-    --chart-2: 152 63% 36%;
-    --chart-3: 40 70% 55%;
+    --chart-2: 152 55% 36%;
+    --chart-3: 40 60% 55%;
     --chart-4: 340 35% 48%;
     --chart-5: 200 60% 45%;
 
-    /* ── Neumorphic shadow tokens ── */
-    --shadow-light: hsl(40 30% 99%);
-    --shadow-dark: hsl(150 12% 82%);
-    --shadow-inset-light: hsl(40 30% 98%);
-    --shadow-inset-dark: hsl(150 12% 84%);
+    /* ── Shadow tokens ── */
+    --shadow-card: 0 1px 3px rgba(13,59,37,0.06), 0 1px 2px rgba(13,59,37,0.04);
+    --shadow-hover: 0 4px 12px rgba(13,59,37,0.08), 0 2px 4px rgba(13,59,37,0.04);
+    --shadow-modal: 0 12px 40px rgba(13,59,37,0.12), 0 4px 12px rgba(13,59,37,0.06);
+    --shadow-focus: 0 0 0 3px rgba(27,122,78,0.2);
   }
 }
 
@@ -90,204 +90,117 @@
     font-size: 15px;
     line-height: 1.6;
     background-color: hsl(var(--background));
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-    background-attachment: fixed;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Libre Caslon Display', serif;
     color: hsl(155 56% 15%);
-    line-height: 1.2;
+    line-height: 1.15;
+    margin: 0;
   }
 
   h1 {
-    font-size: 1.875rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    font-size: 2rem;
   }
 
   h2 {
-    font-size: 1.375rem;
-    font-weight: 600;
+    font-size: 1.5rem;
   }
 
   h3 {
-    font-size: 1.125rem;
-    font-weight: 500;
+    font-size: 1.25rem;
   }
 
   code, .font-mono {
-    font-family: 'Space Mono', monospace;
+    font-family: 'Crimson Pro', serif;
   }
 
   /* Softer focus rings */
   *:focus-visible {
-    --tw-ring-opacity: 0.35;
+    --tw-ring-opacity: 0.2;
   }
 }
 
 @layer components {
-  /* Neumorphic primary button */
-  .btn-primary-warm {
-    @apply bg-primary text-primary-foreground font-medium;
-    border-radius: var(--radius);
-    box-shadow:
-      3px 3px 6px var(--shadow-dark),
-      -2px -2px 5px var(--shadow-light);
-    transition: all 0.15s ease;
+  /* ── Page Titles ── */
+  .page-title {
+    font-family: 'Libre Caslon Display', serif;
+    font-size: 2rem;
+    color: hsl(155 56% 15%);
+    letter-spacing: -0.01em;
+    line-height: 1.1;
   }
 
-  .btn-primary-warm:hover {
-    filter: brightness(1.06);
-    box-shadow:
-      2px 2px 4px var(--shadow-dark),
-      -1px -1px 3px var(--shadow-light);
+  .page-subtitle {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.8125rem;
+    color: hsl(var(--muted-foreground));
+    margin-top: 4px;
   }
 
-  .btn-primary-warm:active {
-    box-shadow:
-      inset 2px 2px 4px hsl(152 63% 20%),
-      inset -1px -1px 3px hsl(152 63% 38%);
+  /* ── Section Headers ── */
+  .section-title {
+    font-family: 'Libre Caslon Display', serif;
+    font-size: 1.5rem;
+    color: hsl(155 56% 15%);
+    line-height: 1.15;
+  }
+
+  .card-title {
+    font-family: 'Libre Caslon Display', serif;
+    font-size: 1.125rem;
+    color: hsl(155 56% 15%);
+    line-height: 1.2;
   }
 }
 
 @layer utilities {
-  /* ── Neumorphic button states ── */
-  .neu-raised {
-    box-shadow:
-      3px 3px 6px var(--shadow-dark),
-      -2px -2px 5px var(--shadow-light);
-  }
-
-  .neu-raised-hover {
-    box-shadow:
-      4px 4px 8px var(--shadow-dark),
-      -3px -3px 6px var(--shadow-light);
-    filter: brightness(1.04);
-  }
-
-  .neu-pressed {
-    box-shadow:
-      inset 2px 2px 4px var(--shadow-inset-dark),
-      inset -1px -1px 3px var(--shadow-inset-light) !important;
-    filter: brightness(0.97);
-  }
-
-  .neu-pressed-subtle {
-    box-shadow:
-      inset 1px 1px 3px var(--shadow-inset-dark),
-      inset -1px -1px 2px var(--shadow-inset-light);
-  }
-
-  /* ── Glass shine overlay ── */
-  .glass-shine {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .glass-shine::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  /* ── Glass panel — neumorphic raised card ── */
-  .glass-panel {
-    @apply bg-card rounded-xl;
-    box-shadow:
-      5px 5px 10px var(--shadow-dark),
-      -4px -4px 8px var(--shadow-light);
-    border: 1px solid hsl(147 22% 94% / 0.6);
-  }
-
-  .glass-panel::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  .glass-panel:hover {
-    box-shadow:
-      6px 6px 12px var(--shadow-dark),
-      -5px -5px 10px var(--shadow-light);
-  }
-
-  /* ── Dialog / modal — neumorphic elevated ── */
-  .glass-shine[class*="fixed"] {
-    box-shadow:
-      10px 10px 20px hsl(150 12% 74%),
-      -8px -8px 16px hsl(40 30% 99%);
-    border: 1px solid hsl(147 22% 94% / 0.6);
-  }
-
-  /* ── Inset glass panel (for inputs, wells) ── */
-  .glass-inset {
-    @apply bg-background rounded-lg;
-    box-shadow:
-      inset 3px 3px 6px var(--shadow-inset-dark),
-      inset -2px -2px 5px var(--shadow-inset-light);
-    border: 1px solid hsl(152 20% 84% / 0.3);
-  }
-
-  /* ── Sidebar nav items — neumorphic ── */
-  .sidebar-nav-item {
-    transition: all 0.15s ease;
-  }
-
-  .sidebar-nav-item:hover {
-    background: hsl(147 22% 86%);
-    box-shadow:
-      inset 2px 2px 4px hsl(150 12% 78%),
-      inset -1px -1px 3px hsl(40 30% 96%);
-  }
-
-  .sidebar-nav-active {
-    background: hsl(147 22% 85%) !important;
-    color: hsl(155 56% 15%);
-    font-weight: 600;
-    box-shadow:
-      inset 3px 3px 6px hsl(150 12% 76%),
-      inset -2px -2px 5px hsl(40 30% 96%) !important;
-  }
-
-  /* ── Typography utility classes ── */
-  .text-page-title {
-    font-family: 'Outfit', sans-serif;
-    font-size: 1.875rem;
-    font-weight: 600;
-    color: hsl(155 56% 15%);
-    letter-spacing: -0.01em;
-  }
-
+  /* ── Metric Card typography ── */
   .metric-value {
-    font-family: 'Space Mono', monospace;
+    font-family: 'Crimson Pro', serif;
     font-size: 1.5rem;
-    font-weight: 700;
+    font-weight: 600;
     color: hsl(var(--foreground));
-    letter-spacing: -0.02em;
-    line-height: 1.2;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+
+  .metric-value-lg {
+    font-family: 'Crimson Pro', serif;
+    font-size: 2.25rem;
+    font-weight: 600;
+    color: hsl(var(--foreground));
+    letter-spacing: -0.01em;
+    line-height: 1;
   }
 
   .metric-label {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.8125rem;
+    font-size: 0.6875rem;
     font-weight: 500;
     color: hsl(var(--muted-foreground));
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
 
+  .metric-delta-positive {
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: hsl(var(--success));
+  }
+
+  .metric-delta-negative {
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: hsl(var(--destructive));
+  }
+
+  /* ── Data Table typography ── */
   .text-table-header {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.8125rem;
+    font-size: 0.6875rem;
     font-weight: 600;
     color: hsl(var(--muted-foreground));
     text-transform: uppercase;
@@ -295,11 +208,19 @@
   }
 
   .text-table-data {
-    font-family: 'Space Mono', monospace;
-    font-size: 0.9375rem;
-    font-weight: 400;
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.875rem;
+    font-weight: 500;
     color: hsl(var(--foreground));
     font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
+
+  .text-page-title {
+    font-family: 'Libre Caslon Display', serif;
+    font-size: 2rem;
+    color: hsl(155 56% 15%);
+    letter-spacing: -0.01em;
   }
 
   .text-badge {
@@ -309,12 +230,53 @@
     letter-spacing: 0.03em;
   }
 
+  /* ── Cards ── */
+  .glass-panel {
+    @apply bg-card rounded-lg;
+    box-shadow: var(--shadow-card);
+    border: 1px solid hsl(var(--input));
+    transition: box-shadow 200ms ease;
+  }
+
+  .glass-panel:hover {
+    box-shadow: var(--shadow-hover);
+  }
+
+  /* ── Inset panel (for inputs, wells) ── */
+  .glass-inset {
+    @apply bg-background rounded-md;
+    border: 1px solid hsl(var(--input));
+  }
+
+  /* ── Status dot ── */
   .status-dot {
     @apply w-2 h-2 rounded-full inline-block;
   }
 
-  .animate-pulse-subtle {
-    animation: pulse-subtle 2s ease-in-out infinite;
+  /* ── Sidebar nav items ── */
+  .sidebar-nav-item {
+    transition: all 150ms ease;
+  }
+
+  .sidebar-nav-item:hover {
+    background: hsl(var(--accent));
+    color: hsl(155 56% 15%);
+  }
+
+  .sidebar-nav-active {
+    background: hsl(var(--accent)) !important;
+    color: hsl(155 56% 15%);
+    font-weight: 600;
+  }
+
+  /* ── Hover lift for interactive rows ── */
+  .hover-lift {
+    transition: transform 150ms ease, box-shadow 150ms ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-hover);
   }
 
   /* ── Shimmer skeleton ── */
@@ -322,7 +284,7 @@
     background: linear-gradient(
       90deg,
       transparent 0%,
-      hsl(40 30% 99% / 0.6) 50%,
+      hsl(var(--muted) / 0.6) 50%,
       transparent 100%
     );
     animation: shimmer 1.5s ease-in-out infinite;
@@ -331,6 +293,10 @@
   @keyframes shimmer {
     0% { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
+  }
+
+  .animate-pulse-subtle {
+    animation: pulse-subtle 2s ease-in-out infinite;
   }
 
   @keyframes pulse-subtle {
@@ -346,18 +312,6 @@
     0% { width: 0%; margin-left: 0%; }
     50% { width: 40%; margin-left: 30%; }
     100% { width: 0%; margin-left: 100%; }
-  }
-
-  /* ── Hover lift for interactive rows ── */
-  .hover-lift {
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-  }
-
-  .hover-lift:hover {
-    transform: translateY(-1px);
-    box-shadow:
-      4px 4px 8px var(--shadow-dark),
-      -3px -3px 6px var(--shadow-light);
   }
 
   /* ── Stagger children utility ── */
