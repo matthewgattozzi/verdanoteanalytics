@@ -567,17 +567,12 @@ serve(async (req) => {
   const url = new URL(req.url);
   const path = url.pathname.replace(/^\/sync\/?/, "").replace(/\/$/, "");
 
-  // The /sync/continue endpoint is called by pg_cron — validate cron auth
-  const isCronPath = path === "continue";
-
-  // Auth: cron paths validate anon key, user paths validate user token
-  if (isCronPath) {
-    const cronAuth = req.headers.get("authorization");
-    const expectedKey = Deno.env.get("SUPABASE_ANON_KEY");
-    if (!cronAuth || cronAuth !== `Bearer ${expectedKey}`) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-  } else {
+  // Auth: validate user token or cron anon key
+  // The Supabase gateway validates the JWT/apikey before the function runs.
+  // For user-initiated actions (sync start, cancel), we additionally verify role.
+  // For cron paths (continue, history), gateway auth is sufficient.
+  const isCronSafePath = path === "continue" || path.startsWith("history");
+  if (!isCronSafePath) {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const authToken = authHeader.replace("Bearer ", "");
@@ -593,8 +588,6 @@ serve(async (req) => {
       }
     }
   }
-
-  // url and path already parsed above
 
   try {
     // ─── GET /sync/history ─────────────────────────────────────────────
