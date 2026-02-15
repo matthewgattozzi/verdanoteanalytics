@@ -98,15 +98,15 @@ export const ColumnPicker = ({ columns, visibleColumns, onToggle, columnOrder, o
           Columns
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-white rounded-[8px] shadow-modal p-7">
         <DialogHeader>
-          <DialogTitle>Choose & Order Columns</DialogTitle>
-          <DialogDescription>Select data points and drag to reorder them.</DialogDescription>
+          <DialogTitle className="font-heading text-[20px] text-forest">Choose & Order Columns</DialogTitle>
+          <DialogDescription className="font-body text-[13px] text-slate font-light">Select data points and drag to reorder them.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-          {groupOrder.filter(g => groups[g]).map((groupName) => (
-            <div key={groupName}>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{groupName}</h4>
+        <div className="max-h-[70vh] overflow-y-auto pr-1">
+          {groupOrder.filter(g => groups[g]).map((groupName, idx) => (
+            <div key={groupName} className={idx > 0 ? "mt-5" : ""}>
+              <h4 className="font-label text-[10px] font-semibold uppercase tracking-[0.08em] text-sage mb-2">{groupName}</h4>
               <div className="space-y-0.5">
                 {groups[groupName].map((col) => (
                   <div
@@ -116,16 +116,17 @@ export const ColumnPicker = ({ columns, visibleColumns, onToggle, columnOrder, o
                     onDragOver={(e) => handleDragOver(e, col.key)}
                     onDrop={(e) => handleDrop(e, col.key)}
                     onDragEnd={handleDragEnd}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors select-none ${
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded transition-colors select-none ${
                       dragOverKey === col.key && dragKey !== col.key ? "bg-primary/10 border border-primary/30" : "hover:bg-accent"
                     } ${dragKey === col.key ? "opacity-40" : ""}`}
                   >
-                    <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50 cursor-grab flex-shrink-0" />
+                    <GripVertical className="h-3.5 w-3.5 text-sage hover:text-slate cursor-grab flex-shrink-0" />
                     <Checkbox
                       checked={visibleColumns.has(col.key)}
                       onCheckedChange={() => onToggle(col.key)}
+                      className="border-sage data-[state=unchecked]:bg-transparent"
                     />
-                    <span className="truncate cursor-default flex-1">{col.label}</span>
+                    <span className="font-body text-[13px] font-medium text-charcoal truncate cursor-default flex-1">{col.label}</span>
                   </div>
                 ))}
               </div>
