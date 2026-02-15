@@ -15,9 +15,7 @@ const LoginPage = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{
-        background: 'radial-gradient(ellipse 120% 80% at 30% 20%, hsl(147 22% 90% / 0.7) 0%, transparent 50%), radial-gradient(ellipse 100% 60% at 70% 80%, hsl(152 18% 88% / 0.5) 0%, transparent 50%), hsl(40 33% 96%)',
-      }}>
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -35,12 +33,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
-      style={{
-        background: 'hsl(40 33% 96%)',
-      }}
-    >
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden bg-background">
       {/* Soft gradient glow behind modal */}
       <div
         className="absolute pointer-events-none"
@@ -57,33 +50,20 @@ const LoginPage = () => {
       <div className="w-full max-w-sm space-y-8 relative z-10">
         {/* Logo & branding */}
         <div className="flex flex-col items-center gap-4">
-          <div
-            className="h-16 w-16 rounded-2xl flex items-center justify-center overflow-hidden"
-            style={{
-              boxShadow: '5px 5px 10px hsl(150 12% 82%), -4px -4px 8px hsl(40 30% 99%)',
-              background: 'hsl(40 38% 98%)',
-            }}
-          >
+          <div className="h-16 w-16 rounded-lg flex items-center justify-center overflow-hidden bg-card shadow-card border border-border-light">
             <img src="/favicon.png" alt="Verdanote" className="h-14 w-14" />
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-semibold tracking-tight">Verdanote</h1>
+            <h1 className="text-2xl tracking-tight">Verdanote</h1>
             <p className="text-sm text-muted-foreground mt-1.5">Creative analytics, simplified</p>
           </div>
         </div>
 
         {/* Login card */}
-        <div
-          className="rounded-2xl p-8 space-y-5"
-          style={{
-            background: 'hsl(40 38% 98%)',
-            boxShadow: '8px 8px 16px hsl(150 12% 82%), -6px -6px 12px hsl(40 30% 99%)',
-            border: '1px solid hsl(147 22% 94% / 0.6)',
-          }}
-        >
+        <div className="rounded-lg p-8 space-y-5 bg-card shadow-modal border border-border-light">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <Label htmlFor="email" className="font-label text-label uppercase tracking-wider text-muted-foreground">
                 Email
               </Label>
               <Input
@@ -96,7 +76,7 @@ const LoginPage = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <Label htmlFor="password" className="font-label text-label uppercase tracking-wider text-muted-foreground">
                 Password
               </Label>
               <Input
@@ -119,13 +99,7 @@ const LoginPage = () => {
             </div>
 
             {error && (
-              <div
-                className="rounded-xl px-3 py-2 text-xs text-destructive"
-                style={{
-                  boxShadow: 'inset 2px 2px 4px hsl(150 12% 84%), inset -1px -1px 3px hsl(40 30% 98%)',
-                  background: 'hsl(40 33% 96%)',
-                }}
-              >
+              <div className="rounded-md px-3 py-2 text-xs text-destructive bg-destructive/5 border border-destructive/10">
                 {error}
               </div>
             )}
