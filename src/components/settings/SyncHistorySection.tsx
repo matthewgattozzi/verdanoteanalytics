@@ -19,9 +19,9 @@ import { toast } from "sonner";
 const PAGE_SIZE = 10;
 
 const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; className: string }> = {
-  completed: { label: "Completed", icon: CheckCircle2, className: "text-scale" },
-  completed_with_errors: { label: "Partial", icon: AlertTriangle, className: "text-watch" },
-  failed: { label: "Failed", icon: XCircle, className: "text-kill" },
+  completed: { label: "Completed", icon: CheckCircle2, className: "text-verdant" },
+  completed_with_errors: { label: "Partial", icon: AlertTriangle, className: "text-gold" },
+  failed: { label: "Failed", icon: XCircle, className: "text-red-600" },
   running: { label: "Running", icon: Clock, className: "text-primary" },
   cancelled: { label: "Cancelled", icon: Ban, className: "text-muted-foreground" },
 };
@@ -188,12 +188,12 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold">Sync History</h3>
-            <p className="text-xs text-muted-foreground">Recent sync operations for this account.</p>
+            <h3 className="font-heading text-[22px] text-forest">Sync History</h3>
+            <p className="font-body text-[13px] text-slate font-light">Recent sync operations for this account.</p>
           </div>
           <div className="flex items-center gap-2">
             <Select value={statusFilter} onValueChange={handleStatusChange}>
-              <SelectTrigger className="w-32 h-8 text-xs bg-background">
+              <SelectTrigger className="w-32 h-8 font-body text-[13px] text-charcoal bg-background border-border-light rounded-[6px]">
                 <SelectValue placeholder="All statuses" />
               </SelectTrigger>
               <SelectContent>
@@ -208,6 +208,7 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
             <Button
               size="sm"
               variant="outline"
+              className="bg-white font-body text-[13px] font-medium"
               onClick={() => syncMut.mutate({ account_id: accountId || "all" })}
               disabled={syncMut.isPending || isSyncing}
             >
@@ -262,16 +263,16 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
       ) : (
         <div className="glass-panel overflow-hidden">
           <Table>
-            <TableHeader>
-              <TableRow>
-                {!accountId && <TableHead className="text-xs">Account</TableHead>}
-                <TableHead className="text-xs">Type</TableHead>
-                <TableHead className="text-xs">Status</TableHead>
-                <TableHead className="text-xs">Date Range</TableHead>
-                <TableHead className="text-xs text-right">Fetched</TableHead>
-                <TableHead className="text-xs text-right">Upserted</TableHead>
-                <TableHead className="text-xs text-right">Duration</TableHead>
-                <TableHead className="text-xs">Started</TableHead>
+             <TableHeader>
+              <TableRow className="bg-cream-dark">
+                {!accountId && <TableHead className="font-label text-[10px] uppercase tracking-[0.04em] text-slate font-semibold">Account</TableHead>}
+                <TableHead className="font-label text-[10px] uppercase tracking-[0.04em] text-slate font-semibold">Type</TableHead>
+                <TableHead className="font-label text-[10px] uppercase tracking-[0.04em] text-slate font-semibold">Status</TableHead>
+                <TableHead className="font-label text-[10px] uppercase tracking-[0.04em] text-slate font-semibold">Date Range</TableHead>
+                <TableHead className="font-label text-[10px] uppercase tracking-[0.04em] text-slate font-semibold text-right">Fetched</TableHead>
+                <TableHead className="font-label text-[10px] uppercase tracking-[0.04em] text-slate font-semibold text-right">Upserted</TableHead>
+                <TableHead className="font-label text-[10px] uppercase tracking-[0.04em] text-slate font-semibold text-right">Duration</TableHead>
+                <TableHead className="font-label text-[10px] uppercase tracking-[0.04em] text-slate font-semibold">Started</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -279,26 +280,36 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
                 const sc = statusConfig[log.status] || statusConfig.running;
                 const StatusIcon = sc.icon;
                 return (
-                  <TableRow key={log.id} className="cursor-pointer hover:bg-accent/50" onClick={() => setSelectedLog(log)}>
-                    {!accountId && <TableCell className="text-xs font-medium">{getAccountName(log.account_id)}</TableCell>}
-                    <TableCell><Badge variant="outline" className="text-[10px]">{log.sync_type}</Badge></TableCell>
-                    <TableCell>
-                      <div className={`flex items-center gap-1.5 text-xs ${sc.className}`}>
+                  <TableRow key={log.id} className="cursor-pointer hover:bg-accent/50 border-b border-border-light" style={{ verticalAlign: "middle" }} onClick={() => setSelectedLog(log)}>
+                    {!accountId && <TableCell className="font-body text-[13px] font-medium text-charcoal py-3">{getAccountName(log.account_id)}</TableCell>}
+                    <TableCell className="py-3"><Badge className="font-label text-[10px] font-medium bg-cream-dark text-slate rounded-[4px] tracking-wide border-0">{log.sync_type}</Badge></TableCell>
+                    <TableCell className="py-3">
+                      <div className={`flex items-center gap-1.5 font-label text-[10px] font-semibold ${sc.className}`}>
                         <StatusIcon className="h-3 w-3" />
                         {sc.label}
                       </div>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground font-mono">
-                      {log.date_range_start && log.date_range_end ? `${log.date_range_start} → ${log.date_range_end}` : "—"}
+                    <TableCell className="py-3">
+                      {log.date_range_start && log.date_range_end ? (
+                        <span className="font-data text-[12px] font-medium text-slate">
+                          {log.date_range_start} <span className="text-sage">→</span> {log.date_range_end}
+                        </span>
+                      ) : <span className="text-sage">—</span>}
                     </TableCell>
-                    <TableCell className="text-xs text-right font-mono">{log.creatives_fetched ?? "—"}</TableCell>
-                    <TableCell className="text-xs text-right font-mono">{log.creatives_upserted ?? "—"}</TableCell>
-                    <TableCell className="text-xs text-right font-mono">
-                      {log.status === "running"
-                        ? <span className="text-primary"><RunningDuration startedAt={log.started_at} /></span>
-                        : fmtDuration(log.duration_ms)}
+                    <TableCell className="text-right py-3">
+                      <span className="font-data text-[13px] font-medium text-charcoal tabular-nums">{log.creatives_fetched ?? <span className="text-sage">—</span>}</span>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{new Date(log.started_at).toLocaleString()}</TableCell>
+                    <TableCell className="text-right py-3">
+                      <span className="font-data text-[13px] font-medium text-charcoal tabular-nums">{log.creatives_upserted ?? <span className="text-sage">—</span>}</span>
+                    </TableCell>
+                    <TableCell className="text-right py-3">
+                      <span className="font-data text-[13px] font-medium text-charcoal">
+                        {log.status === "running"
+                          ? <span className="text-primary"><RunningDuration startedAt={log.started_at} /></span>
+                          : fmtDuration(log.duration_ms) === "—" ? <span className="text-sage">—</span> : fmtDuration(log.duration_ms)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-3"><span className="font-data text-[12px] text-slate">{new Date(log.started_at).toLocaleString()}</span></TableCell>
                   </TableRow>
                 );
               })}
