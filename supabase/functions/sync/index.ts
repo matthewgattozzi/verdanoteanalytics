@@ -341,21 +341,17 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
         const result = await metaFetch(nextUrl, ctx);
         if (result.error) break;
         if (result.data) {
-          // Bulk update metrics — use RPC-style batch: group into chunks and update
-          // We use upsert with onConflict to avoid N individual updates.
-          // Only include metric fields + the conflict key (ad_id) + required fields.
-          const BATCH_SIZE = 200;
-          const metricRows = result.data.map((row: any) => {
-            const metrics = parseInsightsRow(row);
-            return { ad_id: row.ad_id, account_id: accountId, ...metrics };
-          });
+          // Bulk update via DB function — single RPC call per batch instead of N individual updates
+          const BATCH_SIZE = 500;
+          const metricRows = result.data.map((row: any) => ({
+            ad_id: row.ad_id,
+            ...parseInsightsRow(row),
+          }));
 
           for (let i = 0; i < metricRows.length; i += BATCH_SIZE) {
             const batch = metricRows.slice(i, i + BATCH_SIZE);
-            // Use update per-row but fire all concurrently in large batches (200 at once)
-            await Promise.all(batch.map(({ ad_id, account_id: _aid, ...metrics }) =>
-              supabase.from("creatives").update(metrics).eq("ad_id", ad_id)
-            ));
+            const { error } = await supabase.rpc("bulk_update_creative_metrics", { payload: JSON.stringify(batch) });
+            if (error) console.error("Phase 2 bulk RPC error:", error.message);
             if (isTimedOut()) break;
           }
           insightsCount += result.data.length;
