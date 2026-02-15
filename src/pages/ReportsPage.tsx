@@ -124,34 +124,36 @@ const ReportsPage = () => {
 
   return (
     <AppLayout>
-      <PageHeader
-        title="Reports"
-        description="Generate and view snapshot reports of your creative performance."
-        actions={
-          !isClient ? (
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => setShowSchedule(true)}>
-                <CalendarClock className="h-3.5 w-3.5 mr-1.5" />
-                Schedules
-              </Button>
-              <Button size="sm" onClick={() => setShowGenerate(true)}>
-                <Plus className="h-3.5 w-3.5 mr-1.5" />
-                Generate Report
-              </Button>
-            </div>
-          ) : undefined
-        }
-      />
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="font-heading text-[32px] text-forest">Reports</h1>
+          <p className="font-body text-[13px] text-slate font-light mt-1">
+            Generate and view snapshot reports of your creative performance.
+          </p>
+        </div>
+        {!isClient && (
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setShowSchedule(true)}>
+              <CalendarClock className="h-3.5 w-3.5 mr-1.5" />
+              Schedules
+            </Button>
+            <Button size="sm" className="bg-verdant text-white hover:bg-verdant/90" onClick={() => setShowGenerate(true)}>
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Generate Report
+            </Button>
+          </div>
+        )}
+      </div>
 
       {isLoading ? (
         <TableSkeleton rows={5} cols={8} />
       ) : !reports?.length ? (
         <div className="glass-panel flex flex-col items-center justify-center py-20 text-center">
           <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4">
-            <FileText className="h-6 w-6 text-muted-foreground" />
+            <FileText className="h-6 w-6 text-sage" />
           </div>
-          <h3 className="text-lg font-medium mb-1">No reports yet</h3>
-          <p className="text-sm text-muted-foreground max-w-md">
+          <h3 className="font-heading text-[20px] text-forest mb-1">No reports yet</h3>
+          <p className="font-body text-[14px] text-slate max-w-[400px]">
             Generate a snapshot report to capture your current creative performance metrics.
           </p>
         </div>
