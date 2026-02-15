@@ -123,6 +123,47 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
   }
 }
 
+/** Fetch ad preview URL from Meta Graph API for iframe embedding. */
+async function getFreshPreviewUrl(adId: string): Promise<string | null> {
+  try {
+    // First try the ad preview endpoint
+    const res = await fetch(
+      `https://graph.facebook.com/v21.0/${adId}/previews?ad_format=DESKTOP_FEED_STANDARD&access_token=${META_ACCESS_TOKEN}`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const preview = data?.data?.[0];
+      if (preview?.body) {
+        // Extract the iframe src from the HTML body
+        const match = preview.body.match(/src="([^"]+)"/);
+        if (match?.[1]) {
+          const decoded = match[1].replace(/&amp;/g, "&");
+          return decoded;
+        }
+      }
+    }
+    // Fallback: use the effective_object_story_id to build a Facebook post URL
+    const adRes = await fetch(
+      `https://graph.facebook.com/v21.0/${adId}?fields=creative{effective_object_story_id}&access_token=${META_ACCESS_TOKEN}`
+    );
+    if (adRes.ok) {
+      const adData = await adRes.json();
+      const storyId = adData?.creative?.effective_object_story_id;
+      if (storyId) {
+        // Format: pageId_postId -> facebook.com/pageId/posts/postId
+        const parts = storyId.split("_");
+        if (parts.length === 2) {
+          return `https://www.facebook.com/${parts[0]}/posts/${parts[1]}`;
+        }
+      }
+    }
+    return null;
+  } catch (e) {
+    console.log(`Preview URL error for ${adId}:`, e);
+    return null;
+  }
+}
+
 /** Fetch a fresh video source URL from Meta Graph API. */
 async function getFreshVideoUrl(adId: string): Promise<string | null> {
   try {
@@ -277,9 +318,18 @@ serve(async (req) => {
     if (accountFilter) uncachedVideosQuery = uncachedVideosQuery.eq("account_id", accountFilter);
     const { data: uncachedVideos } = await uncachedVideosQuery.limit(50);
 
+    // Find ads missing preview_url (for iframe embeds)
+    let missingPreviewQuery = supabase
+      .from("creatives")
+      .select("ad_id")
+      .is("preview_url", null);
+    if (accountFilter) missingPreviewQuery = missingPreviewQuery.eq("account_id", accountFilter);
+    const { data: missingPreviews } = await missingPreviewQuery.limit(MAX_TOTAL);
+
     const thumbs = allThumbWork;
     const noVideos = missingVideos || [];
     const videos = uncachedVideos || [];
+    const previews = missingPreviews || [];
 
     const thumbsTotal = thumbs.length;
     const videosTotal = noVideos.length + videos.length;
@@ -404,6 +454,29 @@ serve(async (req) => {
 
     const totalVideosCached = videosFetched + videoCached;
     const totalVideosFailed = videosMarkedNA + videoFailed;
+
+    // Phase 4: Backfill preview_url for iframe embeds
+    let previewsFetched = 0;
+    if (previews.length > 0) {
+      console.log(`Phase 4: Fetching preview_url for ${previews.length} ads...`);
+      for (let i = 0; i < previews.length; i += BATCH_SIZE) {
+        const batch = previews.slice(i, i + BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map(async (c: any) => {
+            const previewUrl = await getFreshPreviewUrl(c.ad_id);
+            if (previewUrl) {
+              await supabase.from("creatives").update({ preview_url: previewUrl }).eq("ad_id", c.ad_id);
+              return true;
+            }
+            return false;
+          })
+        );
+        previewsFetched += results.filter((r: any) => r.status === "fulfilled" && r.value).length;
+        if (i + BATCH_SIZE < previews.length) await new Promise(r => setTimeout(r, 300));
+      }
+      console.log(`  Preview URLs fetched: ${previewsFetched}/${previews.length}`);
+    }
+
     const startTime = logRow ? new Date(logRow.started_at || Date.now()).getTime() : Date.now();
     const durationMs = Date.now() - startTime;
 
@@ -421,11 +494,12 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Done — Thumbs: ${thumbCached} cached, ${thumbFailed} failed | Videos fetched: ${videosFetched}, marked N/A: ${videosMarkedNA}, cached: ${videoCached}, failed: ${videoFailed}`);
+    console.log(`Done — Thumbs: ${thumbCached} cached, ${thumbFailed} failed | Videos fetched: ${videosFetched}, marked N/A: ${videosMarkedNA}, cached: ${videoCached}, failed: ${videoFailed} | Previews: ${previewsFetched}`);
 
     return new Response(JSON.stringify({
       thumbnails: { cached: thumbCached, failed: thumbFailed, total: thumbs.length },
       videos: { fetched: videosFetched, markedNA: videosMarkedNA, cached: videoCached, failed: videoFailed, total: videos.length + noVideos.length },
+      previews: { fetched: previewsFetched, total: previews.length },
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
