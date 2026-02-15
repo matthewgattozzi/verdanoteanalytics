@@ -12,7 +12,7 @@ const THUMB_BUCKET = "ad-thumbnails";
 const VIDEO_BUCKET = "ad-videos";
 const BATCH_SIZE = 20;
 const VIDEO_BATCH_SIZE = 1;
-const MAX_TOTAL = 200;
+const MAX_TOTAL = 1000;
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB cap to avoid OOM
 
 /** Fetch a fresh high-res image URL from Meta Graph API. */
@@ -315,7 +315,7 @@ serve(async (req) => {
       .is("video_url", null)
       .gt("video_views", 0);
     if (accountFilter) missingVideosQuery = missingVideosQuery.eq("account_id", accountFilter);
-    const { data: missingVideos } = await missingVideosQuery.limit(100);
+    const { data: missingVideos } = await missingVideosQuery.limit(500);
 
     let uncachedVideosQuery = supabase
       .from("creatives")
@@ -324,7 +324,7 @@ serve(async (req) => {
       .not("video_url", "like", `%/storage/v1/object/public/%`)
       .neq("video_url", "no-video");
     if (accountFilter) uncachedVideosQuery = uncachedVideosQuery.eq("account_id", accountFilter);
-    const { data: uncachedVideos } = await uncachedVideosQuery.limit(50);
+    const { data: uncachedVideos } = await uncachedVideosQuery.limit(100);
 
     // Find ads missing preview_url (for iframe embeds)
     let missingPreviewQuery = supabase
