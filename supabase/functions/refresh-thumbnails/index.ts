@@ -10,11 +10,11 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const META_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN")!;
 const THUMB_BUCKET = "ad-thumbnails";
 const VIDEO_BUCKET = "ad-videos";
-const BATCH_SIZE = 20;
+const BATCH_SIZE = 5; // Keep small to avoid CPU time limit on edge functions
 const VIDEO_BATCH_SIZE = 1;
 const MAX_TOTAL = 5000;
 const MAX_VIDEO_SIZE = 150 * 1024 * 1024; // 150MB cap
-const TIME_BUDGET_MS = 8 * 60 * 1000; // 8 minutes max per invocation
+const TIME_BUDGET_MS = 120_000; // 2 minutes wall-clock — stay well within ~150s CPU limit
 const FETCH_TIMEOUT_MS = 30_000; // 30s timeout per HTTP request
 
 // Sentinel values to mark failed fetches so they're skipped on future runs
@@ -418,46 +418,36 @@ serve(async (req) => {
       }
 
       const batch = thumbs.slice(i, i + BATCH_SIZE);
-      const results = await Promise.allSettled(
-        batch.map(async (c: any) => {
-          // Bail early if budget exceeded mid-batch
-          if (isOverBudget()) return false;
+      // Process sequentially to minimize CPU spikes from concurrent JSON parsing
+      const results: boolean[] = [];
+      for (const c of batch) {
+        if (isOverBudget()) { results.push(false); continue; }
 
-          const freshUrl = await getFreshImageUrl(c.ad_id, c.account_id);
-          if (!freshUrl) {
-            await supabase.from("creatives").update({ thumbnail_url: NO_THUMB_SENTINEL }).eq("ad_id", c.ad_id);
-            return false;
-          }
-          if (!c.thumbnail_url) {
-            await supabase.from("creatives").update({ thumbnail_url: freshUrl }).eq("ad_id", c.ad_id);
-            return true;
-          }
-
-          // Check again before the expensive download step
-          if (isOverBudget()) return false;
-
-          const storageUrl = await downloadAndCache(supabase, THUMB_BUCKET, c.account_id, c.ad_id, freshUrl, "image");
-          if (storageUrl) {
-            await supabase.from("creatives").update({ thumbnail_url: storageUrl }).eq("ad_id", c.ad_id);
-            return true;
-          }
+        const freshUrl = await getFreshImageUrl(c.ad_id, c.account_id);
+        if (!freshUrl) {
           await supabase.from("creatives").update({ thumbnail_url: NO_THUMB_SENTINEL }).eq("ad_id", c.ad_id);
-          return false;
-        })
-      );
-      thumbCached += results.filter((r: any) => r.status === "fulfilled" && r.value).length;
-      thumbFailed += results.filter((r: any) => r.status === "rejected" || (r.status === "fulfilled" && !r.value)).length;
+          results.push(false);
+          continue;
+        }
+        if (!c.thumbnail_url) {
+          await supabase.from("creatives").update({ thumbnail_url: freshUrl }).eq("ad_id", c.ad_id);
+          results.push(true);
+          continue;
+        }
 
-      if (logId) {
-        await updateLog(supabase, logId, { thumbs_cached: thumbCached, thumbs_failed: thumbFailed });
-      }
+        if (isOverBudget()) { results.push(false); continue; }
 
-      if (isOverBudget()) {
-        console.log(`Time budget reached after thumbnail batch. Processed ${thumbCached + thumbFailed}/${thumbs.length}`);
-        budgetExceeded = true;
-        break;
+        const storageUrl = await downloadAndCache(supabase, THUMB_BUCKET, c.account_id, c.ad_id, freshUrl, "image");
+        if (storageUrl) {
+          await supabase.from("creatives").update({ thumbnail_url: storageUrl }).eq("ad_id", c.ad_id);
+          results.push(true);
+        } else {
+          await supabase.from("creatives").update({ thumbnail_url: NO_THUMB_SENTINEL }).eq("ad_id", c.ad_id);
+          results.push(false);
+        }
       }
-      if (i + BATCH_SIZE < thumbs.length) await new Promise(r => setTimeout(r, 300));
+      thumbCached += results.filter(Boolean).length;
+      thumbFailed += results.filter(r => !r).length;
     }
 
     // Phase 3: Process videos (only if we have budget remaining)
@@ -468,25 +458,22 @@ serve(async (req) => {
       for (let i = 0; i < noVideos.length; i += BATCH_SIZE) {
         if (isOverBudget()) { budgetExceeded = true; break; }
         const batch = noVideos.slice(i, i + BATCH_SIZE);
-        const results = await Promise.allSettled(
-          batch.map(async (c: any) => {
-            if (isOverBudget()) return "skipped";
-            const freshUrl = await getFreshVideoUrl(c.ad_id);
-            if (!freshUrl) {
-              await supabase.from("creatives").update({ video_url: NO_VIDEO_SENTINEL }).eq("ad_id", c.ad_id);
-              return "marked";
-            }
+        for (const c of batch) {
+          if (isOverBudget()) continue;
+          const freshUrl = await getFreshVideoUrl(c.ad_id);
+          if (!freshUrl) {
+            await supabase.from("creatives").update({ video_url: NO_VIDEO_SENTINEL }).eq("ad_id", c.ad_id);
+            videosMarkedNA++;
+          } else {
             const storageUrl = await downloadAndCache(supabase, VIDEO_BUCKET, c.account_id, c.ad_id, freshUrl, "video");
             if (storageUrl) {
               await supabase.from("creatives").update({ video_url: storageUrl }).eq("ad_id", c.ad_id);
-              return "cached";
+            } else {
+              await supabase.from("creatives").update({ video_url: freshUrl }).eq("ad_id", c.ad_id);
             }
-            await supabase.from("creatives").update({ video_url: freshUrl }).eq("ad_id", c.ad_id);
-            return "cached";
-          })
-        );
-        videosFetched += results.filter((r: any) => r.status === "fulfilled" && r.value === "cached").length;
-        videosMarkedNA += results.filter((r: any) => r.status === "fulfilled" && r.value === "marked").length;
+            videosFetched++;
+          }
+        }
 
         if (logId) {
           await updateLog(supabase, logId, { videos_cached: videosFetched, videos_failed: videosMarkedNA });
@@ -497,7 +484,6 @@ serve(async (req) => {
           budgetExceeded = true;
           break;
         }
-        if (i + BATCH_SIZE < noVideos.length) await new Promise(r => setTimeout(r, 500));
       }
     }
 
@@ -545,26 +531,14 @@ serve(async (req) => {
     let previewsFetched = 0;
     if (!budgetExceeded && previews.length > 0) {
       console.log(`Phase 4: Fetching preview_url for ${previews.length} ads...`);
-      for (let i = 0; i < previews.length; i += BATCH_SIZE) {
-        const batch = previews.slice(i, i + BATCH_SIZE);
-        const results = await Promise.allSettled(
-          batch.map(async (c: any) => {
-            const previewUrl = await getFreshPreviewUrl(c.ad_id);
-            if (previewUrl) {
-              await supabase.from("creatives").update({ preview_url: previewUrl }).eq("ad_id", c.ad_id);
-              return true;
-            }
-            return false;
-          })
-        );
-        previewsFetched += results.filter((r: any) => r.status === "fulfilled" && r.value).length;
-
-        if (isOverBudget()) {
-          console.log(`Time budget reached during preview phase.`);
-          budgetExceeded = true;
-          break;
+      for (let i = 0; i < previews.length; i++) {
+        if (isOverBudget()) { budgetExceeded = true; break; }
+        const c = previews[i];
+        const previewUrl = await getFreshPreviewUrl(c.ad_id);
+        if (previewUrl) {
+          await supabase.from("creatives").update({ preview_url: previewUrl }).eq("ad_id", c.ad_id);
+          previewsFetched++;
         }
-        if (i + BATCH_SIZE < previews.length) await new Promise(r => setTimeout(r, 300));
       }
       console.log(`  Preview URLs fetched: ${previewsFetched}/${previews.length}`);
     }
