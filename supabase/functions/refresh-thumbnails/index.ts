@@ -54,6 +54,7 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
     const spec = creative.object_story_spec;
     const videoId = spec?.video_data?.video_id || spec?.template_data?.video_data?.video_id;
     if (videoId) {
+      // Request high-res video thumbnails
       const vidRes = await fetch(
         `https://graph.facebook.com/v21.0/${videoId}?fields=thumbnails{uri,width,height}&access_token=${META_ACCESS_TOKEN}`
       );
@@ -61,21 +62,23 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
         const vidData = await vidRes.json();
         const thumbs = vidData?.thumbnails?.data;
         if (thumbs && thumbs.length > 0) {
+          // Sort by width descending, pick the largest
           const sorted = thumbs.sort((a: any, b: any) => (b.width || 0) - (a.width || 0));
           const best = sorted[0];
-          if (best?.uri) {
+          if (best?.uri && (best.width || 0) >= 200) {
             console.log(`Video thumbnail for ${adId}: ${best.width}x${best.height}`);
             return best.uri;
           }
         }
       }
+      // Fallback: request largest available picture (1080px)
       const picRes = await fetch(
-        `https://graph.facebook.com/v21.0/${videoId}/picture?redirect=false&type=large&access_token=${META_ACCESS_TOKEN}`
+        `https://graph.facebook.com/v21.0/${videoId}/picture?redirect=false&width=1080&height=1080&access_token=${META_ACCESS_TOKEN}`
       );
       if (picRes.ok) {
         const picData = await picRes.json();
         if (picData?.data?.url) {
-          console.log(`Video picture fallback for ${adId}`);
+          console.log(`Video picture fallback (1080px) for ${adId}`);
           return picData.data.url;
         }
       }
