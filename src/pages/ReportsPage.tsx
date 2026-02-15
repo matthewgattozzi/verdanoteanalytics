@@ -30,6 +30,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { FileText, Plus, Trash2, Loader2, Eye, Download, CalendarClock, Send, CalendarIcon, Link2 } from "lucide-react";
+import { TableSkeleton } from "@/components/skeletons/TableSkeleton";
 import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
@@ -143,7 +144,7 @@ const ReportsPage = () => {
       />
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+        <TableSkeleton rows={5} cols={8} />
       ) : !reports?.length ? (
         <div className="glass-panel flex flex-col items-center justify-center py-20 text-center animate-fade-in">
           <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4">
