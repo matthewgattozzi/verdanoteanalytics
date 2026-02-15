@@ -13,8 +13,9 @@ import { ColumnPicker } from "@/components/ColumnPicker";
 import { SaveViewButton } from "@/components/SaveViewButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RefreshCw, LayoutGrid, List, Loader2, Download, Search, X } from "lucide-react";
-import { useMemo } from "react";
+import { RefreshCw, LayoutGrid, List, Loader2, Download, Search, X, Columns } from "lucide-react";
+import { useMemo, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { MetricCardSkeletonRow } from "@/components/skeletons/MetricCardSkeleton";
 import { TableSkeleton } from "@/components/skeletons/TableSkeleton";
 import { useCreatives, CREATIVES_PAGE_SIZE, useCreativeFilters } from "@/hooks/useCreatives";
@@ -28,6 +29,7 @@ import { MediaRefreshBanner } from "@/components/MediaRefreshBanner";
 
 const CreativesPage = () => {
   const { isClient } = useAuth();
+  const navigate = useNavigate();
   const state = useCreativesPageState();
   const {
     viewMode, setViewMode, visibleCols, toggleCol, columnOrder, handleReorder,
@@ -36,6 +38,33 @@ const CreativesPage = () => {
     sort, handleSort, page, setPage, searchInput, setSearchInput, search,
     selectedAccountId, allFilters,
   } = state;
+
+  // Compare mode
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
+
+  const toggleCompareId = useCallback((adId: string) => {
+    setCompareIds(prev => {
+      const next = new Set(prev);
+      if (next.has(adId)) {
+        next.delete(adId);
+      } else if (next.size < 3) {
+        next.add(adId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleCompare = useCallback(() => {
+    if (compareIds.size >= 2) {
+      navigate(`/creatives/compare?ids=${[...compareIds].join(",")}`);
+    }
+  }, [compareIds, navigate]);
+
+  const cancelCompare = useCallback(() => {
+    setCompareMode(false);
+    setCompareIds(new Set());
+  }, []);
 
   const { data: creativesResult, isLoading } = useCreatives(allFilters, page);
   const creatives = creativesResult?.data || [];
@@ -98,6 +127,15 @@ const CreativesPage = () => {
               <Button variant={viewMode === "card" ? "secondary" : "ghost"} size="sm" className="rounded-r-none px-2.5" onClick={() => setViewMode("card")}><LayoutGrid className="h-3.5 w-3.5" /></Button>
               <Button variant={viewMode === "table" ? "secondary" : "ghost"} size="sm" className="rounded-l-none px-2.5" onClick={() => setViewMode("table")}><List className="h-3.5 w-3.5" /></Button>
             </div>
+            <Button
+              size="sm"
+              variant={compareMode ? "default" : "outline"}
+              onClick={() => compareMode ? cancelCompare() : setCompareMode(true)}
+              className={compareMode ? "bg-verdant hover:bg-verdant/90 text-white" : ""}
+            >
+              <Columns className="h-3.5 w-3.5 mr-1.5" />
+              Compare
+            </Button>
             <ColumnPicker columns={TABLE_COLUMNS} visibleColumns={visibleCols} onToggle={toggleCol} columnOrder={columnOrder} onReorder={handleReorder} />
             {!isClient && (
               <Button size="sm" onClick={() => syncMut.mutate({ account_id: "all" })} disabled={syncMut.isPending || isSyncing}>
@@ -122,6 +160,24 @@ const CreativesPage = () => {
         }
       />
 
+      {/* Compare mode banner */}
+      {compareMode && (
+        <div className="bg-sage-light py-2 px-4 rounded-[6px] mb-4 flex items-center justify-between">
+          <p className="font-body text-[13px] text-forest">Select 2–3 creatives to compare</p>
+          <div className="flex items-center gap-3">
+            <span className="font-data text-[14px] font-semibold text-charcoal tabular-nums">{compareIds.size} selected</span>
+            <Button
+              size="sm"
+              className="bg-verdant hover:bg-verdant/90 text-white font-body text-[13px] font-medium"
+              disabled={compareIds.size < 2}
+              onClick={handleCompare}
+            >
+              Compare →
+            </Button>
+            <button onClick={cancelCompare} className="font-body text-[13px] text-slate hover:text-charcoal">Cancel</button>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <MetricCardSkeletonRow />
@@ -163,10 +219,18 @@ const CreativesPage = () => {
       ) : viewMode === "table" ? (
         <CreativesTable
           creatives={sortedCreatives} visibleCols={visibleCols} columnOrder={columnOrder}
-          sort={sort} onSort={handleSort} onReorder={handleReorder} onSelect={(c: any) => setSelectedCreativeId(c.ad_id)}
+          sort={sort} onSort={handleSort} onReorder={handleReorder}
+          onSelect={(c: any) => compareMode ? toggleCompareId(c.ad_id) : setSelectedCreativeId(c.ad_id)}
+          compareMode={compareMode}
+          compareIds={compareIds}
         />
       ) : (
-        <CreativesCardGrid creatives={sortedCreatives} onSelect={(c: any) => setSelectedCreativeId(c.ad_id)} />
+        <CreativesCardGrid
+          creatives={sortedCreatives}
+          onSelect={(c: any) => compareMode ? toggleCompareId(c.ad_id) : setSelectedCreativeId(c.ad_id)}
+          compareMode={compareMode}
+          compareIds={compareIds}
+        />
       )}
 
       <CreativesPagination page={page} totalPages={totalPages} totalItems={totalCreatives} pageSize={CREATIVES_PAGE_SIZE} onPageChange={setPage} />

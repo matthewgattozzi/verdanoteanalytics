@@ -5,8 +5,10 @@ import {
 import { SortableTableHead, type SortConfig } from "@/components/SortableTableHead";
 import { TagSourceBadge } from "@/components/TagSourceBadge";
 import { InlineTagSelect } from "@/components/InlineTagSelect";
+import { Checkbox } from "@/components/ui/checkbox";
 import { LayoutGrid } from "lucide-react";
 import { HEAD_LABELS, NUMERIC_COLS, fmt, CELL_CONFIG } from "./constants";
+import { cn } from "@/lib/utils";
 
 interface CreativesTableProps {
   creatives: any[];
@@ -16,6 +18,8 @@ interface CreativesTableProps {
   onSort: (key: string) => void;
   onReorder: (newOrder: string[]) => void;
   onSelect: (creative: any) => void;
+  compareMode?: boolean;
+  compareIds?: Set<string>;
 }
 
 const TAG_SELECT_FIELDS: Record<string, "ad_type" | "person" | "style" | "hook"> = {
@@ -68,6 +72,7 @@ function renderCell(c: any, key: string) {
 
 export function CreativesTable({
   creatives, visibleCols, columnOrder, sort, onSort, onReorder, onSelect,
+  compareMode = false, compareIds = new Set(),
 }: CreativesTableProps) {
   const [dragSourceKey, setDragSourceKey] = useState<string | null>(null);
   const [dragTargetKey, setDragTargetKey] = useState<string | null>(null);
@@ -112,15 +117,38 @@ export function CreativesTable({
       <Table>
         <TableHeader>
           <TableRow className="bg-cream-dark">
+            {compareMode && <TableHead className="w-10" />}
             {columnOrder.filter(k => visibleCols.has(k)).map(renderHead)}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {creatives.map((c: any) => (
-            <TableRow key={c.ad_id} className="cursor-pointer hover:bg-accent/50 border-b border-border-light" onClick={() => onSelect(c)}>
-              {columnOrder.filter(k => visibleCols.has(k)).map(key => renderCell(c, key))}
-            </TableRow>
-          ))}
+          {creatives.map((c: any) => {
+            const isSelected = compareIds.has(c.ad_id);
+            const isDisabled = compareMode && !isSelected && compareIds.size >= 3;
+            return (
+              <TableRow
+                key={c.ad_id}
+                className={cn(
+                  "cursor-pointer hover:bg-accent/50 border-b border-border-light",
+                  compareMode && isSelected && "bg-sage-light/50 border-l-[3px] border-l-verdant",
+                  isDisabled && "opacity-50 cursor-not-allowed"
+                )}
+                onClick={() => !isDisabled && onSelect(c)}
+              >
+                {compareMode && (
+                  <TableCell className="w-10 pr-0" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={isSelected}
+                      disabled={isDisabled}
+                      onCheckedChange={() => !isDisabled && onSelect(c)}
+                      className="data-[state=checked]:bg-verdant data-[state=checked]:border-verdant"
+                    />
+                  </TableCell>
+                )}
+                {columnOrder.filter(k => visibleCols.has(k)).map(key => renderCell(c, key))}
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

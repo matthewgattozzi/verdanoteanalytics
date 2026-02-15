@@ -7,6 +7,7 @@ import { AccountProvider } from "@/contexts/AccountContext";
 import OverviewPage from "./pages/OverviewPage";
 import CreativesPage from "./pages/CreativesPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
+import ComparePage from "./pages/ComparePage";
 import TaggingPage from "./pages/TaggingPage";
 import ReportsPage from "./pages/ReportsPage";
 import ReportDetailPage from "./pages/ReportDetailPage";
@@ -41,6 +42,7 @@ function ProtectedRoutes() {
       <Routes>
         <Route path="/" element={<OverviewPage />} />
         <Route path="/creatives" element={<CreativesPage />} />
+        <Route path="/creatives/compare" element={<ComparePage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/tagging" element={<TaggingPage />} />
         <Route path="/reports" element={<ReportsPage />} />
