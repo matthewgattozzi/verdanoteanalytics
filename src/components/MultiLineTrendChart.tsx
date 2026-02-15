@@ -41,7 +41,7 @@ export function MultiLineTrendChart({ dates, lines, height = 260 }: MultiLineTre
             {lines.map((line) => (
               <div key={line.key} className="flex items-center gap-1.5">
                 <span className="w-3 h-[3px] rounded-full" style={{ backgroundColor: line.color }} />
-                <span className="text-xs font-medium text-muted-foreground">{line.label}</span>
+                <span className="font-body text-[12px] text-slate">{line.label}</span>
               </div>
             ))}
           </div>
@@ -152,7 +152,7 @@ function ChartSVG({ dates, lines, height }: { dates: string[]; lines: TrendLine[
         {chart.yTicks.map((tick, i) => (
           <g key={i}>
             <line x1={50} y1={tick.y} x2={chart.width - 50} y2={tick.y} stroke="hsl(var(--border))" strokeWidth={0.5} />
-            <text x={46} y={tick.y + 3} textAnchor="end" fill="hsl(var(--muted-foreground))" fontSize={8} fontFamily="monospace">
+            <text x={46} y={tick.y + 3} textAnchor="end" fill="hsl(var(--muted-foreground))" fontSize={11} fontFamily="'Crimson Pro', serif">
               {chart.fmtPrimary(tick.val)}
             </text>
           </g>
@@ -184,7 +184,7 @@ function ChartSVG({ dates, lines, height }: { dates: string[]; lines: TrendLine[
 
         {/* X-axis labels */}
         {chart.xLabels.map((p, i) => (
-          <text key={i} x={p.x} y={height - 4} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={7} fontFamily="monospace">
+          <text key={i} x={p.x} y={height - 4} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={10} fontFamily="'Space Grotesk', sans-serif">
             {format(new Date(p.date + "T12:00:00"), "MMM d")}
           </text>
         ))}
@@ -209,7 +209,7 @@ function ChartSVG({ dates, lines, height }: { dates: string[]; lines: TrendLine[
                 <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: ld.color }} />
                 <span className="text-muted-foreground">{ld.label}</span>
               </span>
-              <span className="font-mono font-medium text-foreground ml-3">{fmtValue(ld, ld.points[hoveredIndex]?.value ?? 0)}</span>
+              <span className="font-data text-[13px] font-semibold text-foreground ml-3">{fmtValue(ld, ld.points[hoveredIndex]?.value ?? 0)}</span>
             </div>
           ))}
         </div>

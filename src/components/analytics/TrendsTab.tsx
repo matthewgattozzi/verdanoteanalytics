@@ -69,18 +69,18 @@ function SummaryCard({ label, value, change, invertColor }: { label: string; val
   const isGood = change !== null ? (invertColor ? change < 0 : change > 0) : false;
 
   return (
-    <div className="glass-panel p-4">
-      <p className="text-xs text-muted-foreground mb-1">{label}</p>
-      <div className="flex items-end justify-between">
-        <span className="text-xl font-bold">{value}</span>
+    <div className="py-3 px-4">
+      <p className="font-label text-[10px] uppercase tracking-[0.05em] text-sage font-medium mb-1.5">{label}</p>
+      <div className="flex items-end gap-2">
+        <span className="font-data text-[28px] font-semibold text-charcoal tracking-tight leading-none">{value}</span>
         {change !== null && (
-          <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${isNeutral ? "text-muted-foreground" : isGood ? "text-emerald-500" : "text-red-500"}`}>
+          <span className={`inline-flex items-center gap-0.5 font-data text-[13px] font-medium mb-0.5 ${isNeutral ? "text-muted-foreground" : isGood ? "text-verdant" : "text-red-700"}`}>
             {isNeutral ? <Minus className="h-3 w-3" /> : isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
             {isPositive ? "+" : ""}{change.toFixed(1)}%
           </span>
         )}
       </div>
-      <p className="text-[10px] text-muted-foreground mt-1">vs previous period</p>
+      <p className="font-body text-[11px] text-sage mt-1">vs previous period</p>
     </div>
   );
 }
@@ -169,24 +169,24 @@ export const TrendsTab = forwardRef<HTMLDivElement, TrendsTabProps>(function Tre
   return (
     <div ref={ref}>
       <div className="flex items-center justify-between mb-1">
-        <div className="flex border border-border rounded-md">
+        <div className="flex border border-border rounded-button overflow-hidden">
           {(["daily", "weekly", "monthly"] as Granularity[]).map(g => (
             <Button
               key={g}
-              variant={granularity === g ? "secondary" : "ghost"}
+              variant="ghost"
               size="sm"
-              className="h-8 text-xs px-3 first:rounded-r-none last:rounded-l-none [&:not(:first-child):not(:last-child)]:rounded-none"
+              className={`h-8 font-body text-[13px] px-3 rounded-none ${granularity === g ? "bg-verdant text-white hover:bg-verdant-light hover:text-white" : "text-slate"}`}
               onClick={() => setGranularity(g)}
             >
               {g.charAt(0).toUpperCase() + g.slice(1)}
             </Button>
           ))}
         </div>
-        <span className="text-xs text-muted-foreground">{dataRangeLabel}</span>
+        <span className="font-label text-[11px] text-sage tracking-wide">{dataRangeLabel}</span>
       </div>
 
       {summary && (
-        <div className="grid grid-cols-3 gap-3 mb-2">
+        <div className="flex items-stretch divide-x divide-border-light mb-2">
           <SummaryCard label="Total Spend" value={`$${summary.totalSpend.toLocaleString("en-US", { maximumFractionDigits: 0 })}`} change={summary.spendChange} invertColor={false} />
           <SummaryCard label="Avg CPA" value={`$${summary.avgCpa.toFixed(2)}`} change={summary.cpaChange} invertColor />
           <SummaryCard label="Avg CPM" value={`$${summary.avgCpm.toFixed(2)}`} change={summary.cpmChange} invertColor />
@@ -206,7 +206,7 @@ export const TrendsTab = forwardRef<HTMLDivElement, TrendsTabProps>(function Tre
               className="h-3.5 w-3.5"
               style={{ borderColor: m.color, ...(selectedMetrics.has(m.key) ? { backgroundColor: m.color } : {}) }}
             />
-            <span className="text-xs font-medium text-muted-foreground">{m.label}</span>
+            <span className="font-body text-[12px] text-slate">{m.label}</span>
           </label>
         ))}
       </div>
