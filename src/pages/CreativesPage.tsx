@@ -126,7 +126,7 @@ const CreativesPage = () => {
       {isLoading ? (
         <MetricCardSkeletonRow />
       ) : (
-        <div className="grid grid-cols-4 gap-3 mb-4">
+        <div className="flex items-stretch divide-x divide-border-light mb-4">
           <MetricCard label="Ad Spend" value={avgMetrics.totalSpend} />
           <MetricCard label="Total Creatives" value={totalCreatives} />
           <MetricCard label="Avg CPA" value={avgMetrics.cpa} />
@@ -136,7 +136,7 @@ const CreativesPage = () => {
 
       <div className="relative mb-3 max-w-sm">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        <Input placeholder="Search by ad name, code, or campaign…" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="h-8 text-xs pl-8 pr-8" />
+        <Input placeholder="Search by ad name, code, or campaign…" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="h-8 font-body text-[13px] pl-8 pr-8 placeholder:text-sage" />
         {searchInput && (
           <button onClick={() => setSearchInput("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
             <X className="h-3.5 w-3.5" />

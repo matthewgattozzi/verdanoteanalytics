@@ -35,7 +35,7 @@ export function SortableTableHead({
 
   return (
     <TableHead
-      className={`text-xs cursor-pointer select-none hover:text-foreground transition-colors ${isDragTarget ? "bg-accent/60 border-l-2 border-primary" : ""} ${isDragging ? "opacity-40" : ""} ${className}`}
+      className={`font-label text-[11px] uppercase tracking-[0.04em] text-slate font-semibold cursor-pointer select-none hover:text-foreground transition-colors ${isDragTarget ? "bg-accent/60 border-l-2 border-primary" : ""} ${isDragging ? "opacity-40" : ""} ${className}`}
       onClick={() => onSort(sortKey)}
       draggable={draggable}
       onDragStart={(e) => {

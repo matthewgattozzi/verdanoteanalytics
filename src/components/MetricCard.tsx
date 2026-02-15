@@ -12,18 +12,18 @@ interface MetricCardProps {
 
 export function MetricCard({ label, value, icon, trend, className }: MetricCardProps) {
   return (
-    <div className={cn("glass-panel p-4 space-y-2 hover:-translate-y-0.5 transition-transform duration-150", className)}>
+    <div className={cn("py-3 px-4 space-y-1.5", className)}>
       <div className="flex items-center justify-between">
-        <span className="metric-label">{label}</span>
+        <span className="font-label text-[10px] uppercase tracking-[0.05em] text-sage font-medium">{label}</span>
         {icon && <span className="text-muted-foreground">{icon}</span>}
       </div>
       <div className="flex items-end gap-2">
-        <span className="metric-value">{value}</span>
+        <span className="font-data text-[28px] font-semibold text-charcoal tracking-tight leading-none">{value}</span>
         {trend && (
           <span
             className={cn(
-              "text-xs font-medium mb-1",
-              trend.positive ? "text-success" : "text-destructive"
+              "font-data text-[13px] font-medium mb-0.5",
+              trend.positive ? "text-verdant" : "text-red-700"
             )}
           >
             {trend.positive ? "↑" : "↓"} {Math.abs(trend.value)}%
