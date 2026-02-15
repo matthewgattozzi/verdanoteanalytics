@@ -37,9 +37,9 @@ export function CreativeNotes({ creative }: CreativeNotesProps) {
 
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium text-foreground">Notes</label>
+      <label className="font-heading text-[18px] text-forest">Notes</label>
       <textarea
-        className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+        className="w-full min-h-[80px] rounded-md border border-verdant bg-background px-3 py-2 font-body text-[14px] text-charcoal ring-offset-background placeholder:text-sage focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
         placeholder="Add notes about this creative…"
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
