@@ -59,7 +59,7 @@ export function SyncStatusBanner() {
     : Math.min(90, phaseProgress);
 
   return (
-    <div className="bg-primary/5 border border-primary/20 rounded-lg mb-4 overflow-hidden animate-fade-in">
+    <div className="bg-primary/5 border border-primary/20 rounded-lg mb-4 overflow-hidden">
       {/* Progress bar */}
       <div className="h-1 bg-primary/10 w-full overflow-hidden">
         <div

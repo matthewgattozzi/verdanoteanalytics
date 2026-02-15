@@ -33,7 +33,7 @@ function CardThumbnail({ src, alt }: { src: string; alt: string }) {
 
 export function CreativesCardGrid({ creatives, onSelect }: CreativesCardGridProps) {
   return (
-    <div className="grid grid-cols-3 gap-3 animate-fade-in">
+    <div className="grid grid-cols-3 gap-3">
       {creatives.map((c: any) => (
         <div key={c.ad_id} className="glass-panel p-3 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => onSelect(c)}>
           <div className="bg-muted rounded h-28 mb-2 flex items-center justify-center overflow-hidden relative">

@@ -146,7 +146,7 @@ const ReportsPage = () => {
       {isLoading ? (
         <TableSkeleton rows={5} cols={8} />
       ) : !reports?.length ? (
-        <div className="glass-panel flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+        <div className="glass-panel flex flex-col items-center justify-center py-20 text-center">
           <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4">
             <FileText className="h-6 w-6 text-muted-foreground" />
           </div>
@@ -156,7 +156,7 @@ const ReportsPage = () => {
           </p>
         </div>
       ) : (
-        <div className="glass-panel overflow-hidden animate-fade-in">
+        <div className="glass-panel overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>

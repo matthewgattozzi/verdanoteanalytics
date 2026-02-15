@@ -59,7 +59,7 @@ export function OnboardingBanner() {
   if (allDone) return null;
 
   return (
-    <div className="glass-panel p-5 mb-6 animate-fade-in relative">
+    <div className="glass-panel p-5 mb-6 relative">
       <button
         onClick={() => setDismissed(true)}
         className="absolute top-3 right-3 text-muted-foreground hover:text-foreground"

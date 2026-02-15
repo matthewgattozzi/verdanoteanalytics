@@ -102,7 +102,7 @@ const ReportDetailPage = () => {
 
   return (
     <AppLayout>
-      <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
+      <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">

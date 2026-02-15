@@ -108,7 +108,7 @@ export function CreativesTable({
   };
 
   return (
-    <div className="glass-panel overflow-hidden animate-fade-in">
+    <div className="glass-panel overflow-hidden">
       <Table>
         <TableHeader>
           <TableRow>
