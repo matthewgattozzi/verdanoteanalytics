@@ -77,20 +77,20 @@ export function DateRangeFilter({ dateFrom, dateTo, onChange }: DateRangeFilterP
             {displayLabel}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 z-50 bg-popover border border-border shadow-lg" align="start" sideOffset={4}>
+        <PopoverContent className="w-auto p-0 z-50 bg-white border border-border-light rounded-card shadow-modal" align="start" sideOffset={4}>
           <div className="flex">
             {/* Presets sidebar */}
-            <div className="border-r border-border py-1.5 px-1.5 min-w-[110px] space-y-0.5">
-              <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider px-1.5 pb-0.5">Presets</p>
+            <div className="border-r border-border-light py-2 px-2 min-w-[140px] space-y-0.5">
+              <p className="font-label text-[9px] font-semibold uppercase tracking-[0.1em] text-sage px-4 pb-1">Presets</p>
               {PRESETS.map((p) => (
                 <button
                   key={p.label}
                   onClick={() => handlePreset(p)}
                   className={cn(
-                    "w-full text-left text-[11px] px-1.5 py-1 rounded transition-colors",
+                    "w-full text-left font-body text-[13px] px-4 py-2 rounded transition-colors",
                     activePreset?.label === p.label
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-accent text-foreground"
+                      ? "font-medium text-forest bg-sage-light"
+                      : "font-normal text-charcoal hover:bg-sage-light hover:text-forest"
                   )}
                 >
                   {p.label}
@@ -99,23 +99,23 @@ export function DateRangeFilter({ dateFrom, dateTo, onChange }: DateRangeFilterP
             </div>
 
             {/* Calendar */}
-            <div className="p-1.5">
-              <div className="flex items-center gap-1.5 px-1 pb-1.5 border-b border-border mb-1">
+            <div className="p-2">
+              <div className="flex items-center gap-1.5 px-1 pb-2 border-b border-border-light mb-1.5">
                 <button
                   onClick={() => setPickingFrom(true)}
                   className={cn(
-                    "text-[11px] px-1.5 py-0.5 rounded transition-colors",
-                    pickingFrom ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                    "font-label text-[11px] font-medium tracking-wide px-2 py-1 rounded-[4px] transition-colors",
+                    pickingFrom ? "bg-verdant text-white" : "text-slate bg-transparent hover:text-forest"
                   )}
                 >
                   {dateFrom ? format(new Date(dateFrom), "MMM d, yyyy") : "Start date"}
                 </button>
-                <span className="text-[11px] text-muted-foreground">–</span>
+                <span className="text-[11px] text-sage">–</span>
                 <button
                   onClick={() => setPickingFrom(false)}
                   className={cn(
-                    "text-[11px] px-1.5 py-0.5 rounded transition-colors",
-                    !pickingFrom ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                    "font-label text-[11px] font-medium tracking-wide px-2 py-1 rounded-[4px] transition-colors",
+                    !pickingFrom ? "bg-verdant text-white" : "text-slate bg-transparent hover:text-forest"
                   )}
                 >
                   {dateTo ? format(new Date(dateTo), "MMM d, yyyy") : "End date"}
@@ -127,7 +127,7 @@ export function DateRangeFilter({ dateFrom, dateTo, onChange }: DateRangeFilterP
                 onSelect={handleCalendarSelect}
                 disabled={(date) => date > new Date()}
                 initialFocus
-                className="p-0 pointer-events-auto [&_table]:text-xs [&_td]:p-0 [&_th]:p-0 [&_td>button]:h-7 [&_td>button]:w-7 [&_th]:w-7 [&_th]:text-[10px]"
+                className="p-0 pointer-events-auto [&_table]:text-xs [&_td]:p-0 [&_th]:p-0 [&_td>button]:h-7 [&_td>button]:w-7 [&_th]:w-7 [&_th]:text-[10px] [&_.rdp-caption_label]:font-heading [&_.rdp-caption_label]:text-[16px] [&_.rdp-caption_label]:text-forest [&_.rdp-nav_button]:text-sage [&_.rdp-nav_button:hover]:text-forest [&_.rdp-head_cell]:font-label [&_.rdp-head_cell]:text-[10px] [&_.rdp-head_cell]:font-medium [&_.rdp-head_cell]:uppercase [&_.rdp-head_cell]:text-sage [&_.rdp-head_cell]:tracking-wide [&_.rdp-day]:font-data [&_.rdp-day]:text-[14px] [&_.rdp-day]:font-medium [&_.rdp-day]:text-charcoal [&_.rdp-day_today]:bg-verdant [&_.rdp-day_today]:text-white [&_.rdp-day_today]:rounded-full [&_.rdp-day_selected]:bg-verdant [&_.rdp-day_selected]:text-white [&_.rdp-day_selected]:rounded-full [&_.rdp-day:hover:not(.rdp-day_selected):not(.rdp-day_disabled)]:bg-sage-light [&_.rdp-day:hover]:rounded-full [&_.rdp-day_outside]:text-sage [&_.rdp-day_range_middle]:bg-sage-light"
               />
             </div>
           </div>
