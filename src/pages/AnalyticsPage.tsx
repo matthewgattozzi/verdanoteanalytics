@@ -13,6 +13,7 @@ import { WinRateTab } from "@/components/analytics/WinRateTab";
 import { ScaleTab } from "@/components/analytics/ScaleTab";
 import { KillTab } from "@/components/analytics/KillTab";
 import { IterationsTab } from "@/components/analytics/IterationsTab";
+import { TagInsightsTab } from "@/components/analytics/TagInsightsTab";
 import { useAnalyticsPageState } from "@/hooks/useAnalyticsPageState";
 
 const AnalyticsPage = () => {
@@ -59,15 +60,18 @@ const AnalyticsPage = () => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-transparent border-b border-border-light rounded-none p-0 h-auto gap-0">
-          {["trends", "winrate", "scale", "kill", "iterations"].map((tab) => (
-            <TabsTrigger
-              key={tab}
-              value={tab}
-              className="font-body text-[14px] font-medium text-slate data-[state=active]:text-forest data-[state=active]:font-semibold data-[state=active]:border-b-2 data-[state=active]:border-verdant data-[state=active]:shadow-none rounded-none px-4 py-2.5 bg-transparent"
-            >
-              {tab === "winrate" ? "Win Rate" : tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </TabsTrigger>
-          ))}
+          {["trends", "winrate", "scale", "kill", "iterations", "taginsights"].map((tab) => {
+            const labels: Record<string, string> = { winrate: "Win Rate", taginsights: "Tag Insights" };
+            return (
+              <TabsTrigger
+                key={tab}
+                value={tab}
+                className="font-body text-[14px] font-medium text-slate data-[state=active]:text-forest data-[state=active]:font-semibold data-[state=active]:border-b-2 data-[state=active]:border-verdant data-[state=active]:shadow-none rounded-none px-4 py-2.5 bg-transparent"
+              >
+                {labels[tab] || tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </TabsTrigger>
+            );
+          })}
         </TabsList>
 
         <TabsContent value="trends" className="space-y-4">
@@ -84,6 +88,15 @@ const AnalyticsPage = () => {
         </TabsContent>
         <TabsContent value="iterations" className="space-y-4">
           <IterationsTab creatives={creatives} spendThreshold={spendThreshold} onCreativeClick={setSelectedCreative} />
+        </TabsContent>
+        <TabsContent value="taginsights" className="space-y-4">
+          <TagInsightsTab
+            creatives={creatives}
+            spendThreshold={spendThreshold}
+            winnerKpi={selectedAccount?.winner_kpi}
+            winnerKpiDirection={selectedAccount?.winner_kpi_direction}
+            winnerKpiThreshold={parseFloat(selectedAccount?.winner_kpi_threshold || "0") || roasThreshold}
+          />
         </TabsContent>
       </Tabs>
 
