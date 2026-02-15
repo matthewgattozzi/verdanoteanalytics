@@ -13,7 +13,7 @@ interface KillScaleListProps {
 
 const VARIANT_META: Record<Variant, {
   label: string; subtitle: string; emptyTitle: string; emptyDesc: string;
-  icon: typeof TrendingUp; valueColor: string;
+  icon: typeof TrendingUp; valueColor: string; valueBg: string;
 }> = {
   scale: {
     label: "Scale Candidates",
@@ -22,6 +22,7 @@ const VARIANT_META: Record<Variant, {
     emptyDesc: "Sync creatives with enough spend data to find top performers.",
     icon: TrendingUp,
     valueColor: "text-verdant",
+    valueBg: "",
   },
   kill: {
     label: "Kill Candidates",
@@ -30,6 +31,7 @@ const VARIANT_META: Record<Variant, {
     emptyDesc: "All creatives with sufficient spend are performing above the kill threshold.",
     icon: TrendingDown,
     valueColor: "text-red-700",
+    valueBg: "bg-red-50 rounded px-1.5 py-0.5",
   },
 };
 
@@ -87,7 +89,7 @@ export function KillScaleList({ creatives, config, variant, onCreativeClick }: K
                       <span className="font-body text-[11px] text-sage block mt-0.5">{c.reason}</span>
                     </div>
                     <div className="flex items-center gap-5 flex-shrink-0">
-                      <span className={`font-data text-[18px] font-semibold ${meta.valueColor}`}>
+                      <span className={`font-data text-[18px] font-semibold ${meta.valueColor} ${meta.valueBg}`}>
                         {formatKpiValue(kpiValue, config.winnerKpi)}
                       </span>
                       <span className="font-data text-[13px] font-medium text-slate">
