@@ -335,6 +335,10 @@ serve(async (req) => {
       if (error || !r) {
         return new Response(JSON.stringify({ error: "Report not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+      // Mark report as public since it's being shared via Slack
+      if (!r.is_public) {
+        await supabase.from("reports").update({ is_public: true }).eq("id", reportId);
+      }
       await sendReportToSlack(r);
       return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

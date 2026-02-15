@@ -12,6 +12,7 @@ import { Pencil } from "lucide-react";
 import { useState, useCallback, useMemo } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
 
 function fmt$(n: number) {
   if (n >= 1000) return `$${(n / 1000).toFixed(1)}k`;
@@ -190,7 +191,9 @@ const ClientOverviewPage = () => {
               </div>
             ) : story?.content ? (
               <div>
-                <p className="font-body text-[15px] text-charcoal leading-[1.7]" dangerouslySetInnerHTML={{ __html: story.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>') }} />
+                <div className="font-body text-[15px] text-charcoal leading-[1.7] prose prose-sm max-w-none">
+                  <ReactMarkdown>{story.content}</ReactMarkdown>
+                </div>
                 {!isClientView && story?.updated_at && (
                   <p className="font-body text-[11px] text-sage mt-3">
                     Last updated {formatDistanceToNow(new Date(story.updated_at), { addSuffix: true })}
