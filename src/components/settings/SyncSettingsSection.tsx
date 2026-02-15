@@ -55,32 +55,32 @@ export function SyncSettingsSection({
   return (
     <section className="glass-panel p-6 space-y-4">
       <div>
-        <h2 className="text-base font-semibold">Sync Settings</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">Configure data range and thresholds for this account.</p>
+        <h2 className="font-heading text-[20px] text-forest">Sync Settings</h2>
+        <p className="font-body text-[13px] text-slate mt-0.5">Configure data range and thresholds for this account.</p>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label className="text-sm">Date Range (days)</Label>
-          <Input type="number" value={dateRange} onChange={(e) => setDateRange(e.target.value)} min="1" max="365" className="bg-background" />
-          <p className="text-[11px] text-muted-foreground">How many days of data to pull on each sync.</p>
+          <Label className="font-body text-[14px] font-medium text-charcoal">Date Range (days)</Label>
+          <Input type="number" value={dateRange} onChange={(e) => setDateRange(e.target.value)} min="1" max="365" className="bg-background font-data text-[15px] font-medium text-charcoal" />
+          <p className="font-body text-[12px] text-sage">How many days of data to pull on each sync.</p>
         </div>
         <div className="space-y-2">
-          <Label className="text-sm">Iteration Spend Threshold ($)</Label>
-          <Input type="number" value={spendThreshold} onChange={(e) => setSpendThreshold(e.target.value)} min="0" className="bg-background" />
-          <p className="text-[11px] text-muted-foreground">Minimum spend to include in analysis.</p>
+          <Label className="font-body text-[14px] font-medium text-charcoal">Iteration Spend Threshold ($)</Label>
+          <Input type="number" value={spendThreshold} onChange={(e) => setSpendThreshold(e.target.value)} min="0" className="bg-background font-data text-[15px] font-medium text-charcoal" />
+          <p className="font-body text-[12px] text-sage">Minimum spend to include in analysis.</p>
         </div>
       </div>
 
       <div className="border-t border-border pt-4 space-y-3">
         <div>
-          <h3 className="text-sm font-semibold">Winner Definition</h3>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Choose which metric and threshold defines a "winner" creative.</p>
+          <h3 className="font-heading text-[20px] text-forest">Winner Definition</h3>
+          <p className="font-body text-[13px] text-slate mt-0.5">Choose which metric and threshold defines a "winner" creative.</p>
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-2">
-            <Label className="text-sm">KPI Metric</Label>
+            <Label className="font-body text-[14px] font-medium text-charcoal">KPI Metric</Label>
             <Select value={winnerKpi} onValueChange={setWinnerKpi}>
-              <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="bg-background font-body text-[14px] text-charcoal"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {KPI_OPTIONS.map(o => (
                   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
@@ -89,9 +89,9 @@ export function SyncSettingsSection({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label className="text-sm">Direction</Label>
+            <Label className="font-body text-[14px] font-medium text-charcoal">Direction</Label>
             <Select value={winnerKpiDirection} onValueChange={setWinnerKpiDirection}>
-              <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="bg-background font-body text-[14px] text-charcoal"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {DIRECTION_OPTIONS.map(o => (
                   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
@@ -100,34 +100,34 @@ export function SyncSettingsSection({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label className="text-sm">Winner Threshold</Label>
-            <Input type="number" value={winnerKpiThreshold} onChange={(e) => setWinnerKpiThreshold(e.target.value)} step="0.1" min="0" className="bg-background" />
+            <Label className="font-body text-[14px] font-medium text-charcoal">Winner Threshold</Label>
+            <Input type="number" value={winnerKpiThreshold} onChange={(e) => setWinnerKpiThreshold(e.target.value)} step="0.1" min="0" className="bg-background font-data text-[15px] font-medium text-charcoal" />
           </div>
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          A creative is a winner when <span className="font-medium">{kpiLabel}</span> is {isGte ? "≥" : "≤"} <span className="font-medium">{winnerKpiThreshold || "0"}</span> and spend exceeds ${spendThreshold || "0"}.
+        <p className="font-body text-[12px] text-sage">
+          A creative is a winner when <span className="font-medium text-charcoal">{kpiLabel}</span> is {isGte ? "≥" : "≤"} <span className="font-data font-medium text-charcoal">{winnerKpiThreshold || "0"}</span> and spend exceeds <span className="font-data font-medium text-charcoal">${spendThreshold || "0"}</span>.
         </p>
       </div>
 
       <div className="border-t border-border pt-4 space-y-3">
         <div>
-          <h3 className="text-sm font-semibold">Kill / Scale Zones</h3>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <h3 className="font-heading text-[20px] text-forest">Kill / Scale Zones</h3>
+          <p className="font-body text-[13px] text-slate mt-0.5">
             Define {kpiLabel} thresholds for Scale, Watch, and Kill zones. {isGte ? "Scale ≥ top value, Kill < bottom value, Watch = in between." : "Scale ≤ bottom value, Kill > top value, Watch = in between."}
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <Label className="text-sm text-scale">Scale Threshold</Label>
-            <Input type="number" value={scaleThreshold} onChange={(e) => setScaleThreshold(e.target.value)} step="0.1" min="0" className="bg-background" />
-            <p className="text-[11px] text-muted-foreground">
+            <Label className="font-body text-[14px] font-medium text-scale">Scale Threshold</Label>
+            <Input type="number" value={scaleThreshold} onChange={(e) => setScaleThreshold(e.target.value)} step="0.1" min="0" className="bg-background font-data text-[15px] font-medium text-charcoal" />
+            <p className="font-body text-[12px] text-sage">
               {isGte ? `${kpiLabel} ≥ this → Scale` : `${kpiLabel} ≤ this → Scale`}
             </p>
           </div>
           <div className="space-y-2">
-            <Label className="text-sm text-kill">Kill Threshold</Label>
-            <Input type="number" value={killThreshold} onChange={(e) => setKillThreshold(e.target.value)} step="0.1" min="0" className="bg-background" />
-            <p className="text-[11px] text-muted-foreground">
+            <Label className="font-body text-[14px] font-medium text-kill">Kill Threshold</Label>
+            <Input type="number" value={killThreshold} onChange={(e) => setKillThreshold(e.target.value)} step="0.1" min="0" className="bg-background font-data text-[15px] font-medium text-charcoal" />
+            <p className="font-body text-[12px] text-sage">
               {isGte ? `${kpiLabel} < this → Kill` : `${kpiLabel} > this → Kill`}
             </p>
           </div>

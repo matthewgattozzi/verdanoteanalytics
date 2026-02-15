@@ -53,7 +53,12 @@ const SettingsPage = () => {
 
   return (
     <AppLayout>
-      <PageHeader title={`${s.account.name} — Settings`} description="Configure sync preferences for this account." />
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="font-heading text-[32px] text-forest">{s.account.name} — Settings</h1>
+          <p className="font-body text-[13px] text-slate font-light mt-1">Configure sync preferences for this account.</p>
+        </div>
+      </div>
       <SyncStatusBanner />
       <MediaRefreshBanner />
 
