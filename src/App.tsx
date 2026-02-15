@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AccountProvider } from "@/contexts/AccountContext";
+import OverviewPage from "./pages/OverviewPage";
 import CreativesPage from "./pages/CreativesPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import TaggingPage from "./pages/TaggingPage";
@@ -38,7 +39,8 @@ function ProtectedRoutes() {
   return (
     <AccountProvider>
       <Routes>
-        <Route path="/" element={<CreativesPage />} />
+        <Route path="/" element={<OverviewPage />} />
+        <Route path="/creatives" element={<CreativesPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/tagging" element={<TaggingPage />} />
         <Route path="/reports" element={<ReportsPage />} />

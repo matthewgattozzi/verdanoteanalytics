@@ -109,7 +109,7 @@ const CreativesPage = () => {
             )}
             {!isClient && (
               <SaveViewButton getConfig={() => ({
-                page: "/",
+                page: "/creatives",
                 ...(selectedAccountId && selectedAccountId !== "all" ? { account_id: selectedAccountId } : {}),
                 ...(groupBy !== "__none__" ? { group_by: groupBy } : {}),
                 ...(search ? { search } : {}),
