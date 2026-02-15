@@ -45,16 +45,16 @@ const LoginPage = () => {
       <div
         className="absolute pointer-events-none"
         style={{
-          width: '600px',
-          height: '600px',
+          width: '140vw',
+          height: '140vh',
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          background: 'radial-gradient(circle, hsl(152 40% 75% / 0.45) 0%, hsl(152 30% 80% / 0.2) 40%, transparent 70%)',
-          filter: 'blur(40px)',
+          background: 'radial-gradient(ellipse 50% 50% at 50% 50%, hsl(152 35% 72% / 0.5) 0%, hsl(152 25% 78% / 0.3) 30%, hsl(147 20% 85% / 0.15) 55%, transparent 80%)',
+          filter: 'blur(60px)',
         }}
       />
-      <div className="w-full max-w-sm space-y-8">
+      <div className="w-full max-w-sm space-y-8 relative z-10">
         {/* Logo & branding */}
         <div className="flex flex-col items-center gap-4">
           <div
