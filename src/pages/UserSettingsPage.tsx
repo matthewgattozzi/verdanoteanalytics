@@ -16,10 +16,12 @@ import { ConfirmDeleteDialog } from "@/components/user-settings/ConfirmDeleteDia
 import { useUserSettingsPageState } from "@/hooks/useUserSettingsPageState";
 import { useIsSyncing } from "@/hooks/useIsSyncing";
 import { SyncHistorySection } from "@/components/settings/SyncHistorySection";
+import { useAuth } from "@/contexts/AuthContext";
 
 const UserSettingsPage = () => {
   const s = useUserSettingsPageState();
   const isSyncing = useIsSyncing();
+  const { isClient } = useAuth();
 
   if (s.loadingProfile) {
     return (
@@ -36,11 +38,13 @@ const UserSettingsPage = () => {
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="font-heading text-[32px] text-forest">User Settings</h1>
-          <p className="font-body text-[13px] text-slate font-light mt-1">Manage your profile, security, and admin preferences.</p>
+          <p className="font-body text-[13px] text-slate font-light mt-1">
+            {isClient ? "Manage your profile and security." : "Manage your profile, security, and admin preferences."}
+          </p>
         </div>
       </div>
-      <SyncStatusBanner />
-      <MediaRefreshBanner />
+      {!isClient && <SyncStatusBanner />}
+      {!isClient && <MediaRefreshBanner />}
 
       <div className="max-w-2xl">
         <Tabs defaultValue="profile" className="space-y-6">

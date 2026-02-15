@@ -4,28 +4,35 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AccountProvider } from "@/contexts/AccountContext";
+import { ClientPreviewContext, useClientPreviewMode } from "@/hooks/useClientPreviewMode";
+import { ClientPreviewBanner } from "@/components/ClientPreviewBanner";
 import OverviewPage from "./pages/OverviewPage";
+import ClientOverviewPage from "./pages/ClientOverviewPage";
 import CreativesPage from "./pages/CreativesPage";
+import ClientCreativesPage from "./pages/ClientCreativesPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import ComparePage from "./pages/ComparePage";
 import TaggingPage from "./pages/TaggingPage";
 import ReportsPage from "./pages/ReportsPage";
+import ClientReportsPage from "./pages/ClientReportsPage";
 import ReportDetailPage from "./pages/ReportDetailPage";
 import PublicReportPage from "./pages/PublicReportPage";
 import SettingsPage from "./pages/SettingsPage";
 import UserSettingsPage from "./pages/UserSettingsPage";
-
 import SavedViewsPage from "./pages/SavedViewsPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import UpdatePasswordPage from "./pages/UpdatePasswordPage";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
+import { useClientPreview } from "@/hooks/useClientPreviewMode";
 
 const queryClient = new QueryClient();
 
 function ProtectedRoutes() {
   const { user, isLoading, isClient } = useAuth();
+  const { isClientPreview } = useClientPreview();
+  const effectiveClient = isClient || isClientPreview;
 
   if (isLoading) {
     return (
@@ -39,40 +46,47 @@ function ProtectedRoutes() {
 
   return (
     <AccountProvider>
+      <ClientPreviewBanner />
       <Routes>
-        <Route path="/" element={<OverviewPage />} />
-        <Route path="/creatives" element={<CreativesPage />} />
-        <Route path="/creatives/compare" element={<ComparePage />} />
-        <Route path="/analytics" element={<AnalyticsPage />} />
-        <Route path="/tagging" element={<TaggingPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/" element={effectiveClient ? <ClientOverviewPage /> : <OverviewPage />} />
+        <Route path="/creatives" element={effectiveClient ? <ClientCreativesPage /> : <CreativesPage />} />
+        <Route path="/creatives/compare" element={effectiveClient ? <Navigate to="/" replace /> : <ComparePage />} />
+        <Route path="/analytics" element={effectiveClient ? <Navigate to="/" replace /> : <AnalyticsPage />} />
+        <Route path="/tagging" element={effectiveClient ? <Navigate to="/" replace /> : <TaggingPage />} />
+        <Route path="/reports" element={effectiveClient ? <ClientReportsPage /> : <ReportsPage />} />
         <Route path="/reports/:id" element={<ReportDetailPage />} />
-        <Route path="/settings" element={isClient ? <Navigate to="/" replace /> : <SettingsPage />} />
+        <Route path="/settings" element={effectiveClient ? <Navigate to="/" replace /> : <SettingsPage />} />
         <Route path="/user-settings" element={<UserSettingsPage />} />
-        <Route path="/saved-views" element={<SavedViewsPage />} />
+        <Route path="/saved-views" element={effectiveClient ? <Navigate to="/" replace /> : <SavedViewsPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AccountProvider>
   );
 }
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-            <Route path="/update-password" element={<UpdatePasswordPage />} />
-            <Route path="/public/reports/:id" element={<PublicReportPage />} />
-            <Route path="/*" element={<ProtectedRoutes />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const clientPreview = useClientPreviewMode();
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <ClientPreviewContext.Provider value={clientPreview}>
+          <TooltipProvider>
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
+                <Route path="/update-password" element={<UpdatePasswordPage />} />
+                <Route path="/public/reports/:id" element={<PublicReportPage />} />
+                <Route path="/*" element={<ProtectedRoutes />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </ClientPreviewContext.Provider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
