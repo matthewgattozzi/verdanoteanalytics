@@ -9,7 +9,7 @@ const sourceConfig: Record<string, { label: string; className: string }> = {
   parsed: { label: "Parsed", className: "bg-tag-parsed/15 text-tag-parsed border-tag-parsed/30" },
   csv_match: { label: "CSV Match", className: "bg-tag-csv/15 text-tag-csv border-tag-csv/30" },
   manual: { label: "Manual", className: "bg-tag-manual/15 text-tag-manual border-tag-manual/30" },
-  untagged: { label: "Untagged", className: "bg-amber-50 text-slate border-amber-200/60" },
+  untagged: { label: "Untagged", className: "bg-cream-dark text-slate border-cream-dark" },
 };
 
 export function TagSourceBadge({ source, className }: TagSourceBadgeProps) {
