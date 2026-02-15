@@ -16,20 +16,20 @@ export function ChangePasswordSection({ newPassword, setNewPassword, confirmPass
   return (
     <section className="glass-panel p-6 space-y-4">
       <div className="flex items-center gap-2">
-        <Lock className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-base font-semibold">Change Password</h2>
+        <Lock className="h-4 w-4 text-sage" />
+        <h2 className="font-heading text-[20px] text-forest">Change Password</h2>
       </div>
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label className="text-sm">New Password</Label>
-          <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Enter new password" className="bg-background" />
+          <Label className="font-body text-[14px] font-medium text-charcoal">New Password</Label>
+          <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Enter new password" className="bg-background font-body text-[14px] text-charcoal border-border-light rounded-[4px] placeholder:text-sage" />
         </div>
         <div className="space-y-2">
-          <Label className="text-sm">Confirm New Password</Label>
-          <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm new password" className="bg-background" />
+          <Label className="font-body text-[14px] font-medium text-charcoal">Confirm New Password</Label>
+          <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm new password" className="bg-background font-body text-[14px] text-charcoal border-border-light rounded-[4px] placeholder:text-sage" />
         </div>
       </div>
-      <Button size="sm" onClick={onChangePassword} disabled={savingPassword || !newPassword || !confirmPassword}>
+      <Button size="sm" onClick={onChangePassword} disabled={savingPassword || !newPassword || !confirmPassword} className="bg-verdant text-white hover:bg-verdant/90 font-body text-[13px] font-semibold">
         {savingPassword ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Lock className="h-4 w-4 mr-1.5" />}
         Update Password
       </Button>

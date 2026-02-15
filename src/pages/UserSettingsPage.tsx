@@ -33,18 +33,23 @@ const UserSettingsPage = () => {
 
   return (
     <AppLayout>
-      <PageHeader title="User Settings" description="Manage your profile, security, and admin preferences." />
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="font-heading text-[32px] text-forest">User Settings</h1>
+          <p className="font-body text-[13px] text-slate font-light mt-1">Manage your profile, security, and admin preferences.</p>
+        </div>
+      </div>
       <SyncStatusBanner />
       <MediaRefreshBanner />
 
       <div className="max-w-2xl">
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="profile" className="gap-1.5">
+          <TabsList className="bg-transparent border-b border-border-light rounded-none p-0 h-auto gap-0">
+            <TabsTrigger value="profile" className="font-body text-[14px] font-medium text-slate data-[state=active]:text-forest data-[state=active]:font-semibold data-[state=active]:border-b-2 data-[state=active]:border-verdant data-[state=active]:shadow-none rounded-none px-4 py-2.5 bg-transparent gap-1.5">
               <User className="h-3.5 w-3.5" />Profile
             </TabsTrigger>
             {s.isBuilder && (
-              <TabsTrigger value="admin" className="gap-1.5">
+              <TabsTrigger value="admin" className="font-body text-[14px] font-medium text-slate data-[state=active]:text-forest data-[state=active]:font-semibold data-[state=active]:border-b-2 data-[state=active]:border-verdant data-[state=active]:shadow-none rounded-none px-4 py-2.5 bg-transparent gap-1.5">
                 <Shield className="h-3.5 w-3.5" />Admin
               </TabsTrigger>
             )}
