@@ -26,7 +26,7 @@ function CardThumbnail({ src, alt }: { src: string; alt: string }) {
       <img
         src={src}
         alt={alt}
-        className={`h-full w-full object-cover ${loaded ? "opacity-100" : "opacity-0"}`}
+        className={`h-full w-full object-contain ${loaded ? "opacity-100" : "opacity-0"}`}
         loading="lazy"
         onLoad={() => setLoaded(true)}
         onError={() => setError(true)}
@@ -71,7 +71,7 @@ export function CreativesCardGrid({ creatives, onSelect, compareMode = false, co
             )}
 
             {/* Thumbnail */}
-            <div className="bg-muted rounded-t-card h-28 flex items-center justify-center overflow-hidden relative">
+            <div className="bg-muted rounded-t-card aspect-[4/3] flex items-center justify-center overflow-hidden relative">
               {c.thumbnail_url ? (
                 <CardThumbnail src={c.thumbnail_url} alt={c.ad_name || ""} />
               ) : (
