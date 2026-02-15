@@ -44,7 +44,7 @@ function roasColor(roas: number | null | undefined): string {
 
 export function CreativesCardGrid({ creatives, onSelect, compareMode = false, compareIds = new Set() }: CreativesCardGridProps) {
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {creatives.map((c: any) => {
         const isSelected = compareIds.has(c.ad_id);
         const isDisabled = compareMode && !isSelected && compareIds.size >= 3;
