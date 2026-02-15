@@ -847,6 +847,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      bulk_update_creative_metrics: { Args: { payload: Json }; Returns: number }
       get_user_account_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_role: {
         Args: { _user_id: string }
