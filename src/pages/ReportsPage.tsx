@@ -219,20 +219,20 @@ const ReportsPage = () => {
 
       {/* Generate Dialog */}
       <Dialog open={showGenerate} onOpenChange={setShowGenerate}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md bg-white rounded-[8px] shadow-modal p-7">
           <DialogHeader>
-            <DialogTitle>Generate Report</DialogTitle>
-            <DialogDescription>Create a new snapshot report of your creative performance.</DialogDescription>
+            <DialogTitle className="font-heading text-[22px] text-forest">Generate Report</DialogTitle>
+            <DialogDescription className="font-body text-[13px] text-slate font-light">Create a new snapshot report of your creative performance.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-xs">Report Name</Label>
-              <Input className="bg-background h-8 text-xs" value={reportName} onChange={(e) => setReportName(e.target.value)} placeholder={`Report ${new Date().toLocaleDateString()}`} />
+              <Label className="font-body text-[14px] font-medium text-charcoal">Report Name</Label>
+              <Input className="bg-background font-body text-[14px] text-charcoal border-border-light rounded-[4px] focus:border-verdant" value={reportName} onChange={(e) => setReportName(e.target.value)} placeholder={`Report ${new Date().toLocaleDateString()}`} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Account (optional)</Label>
+              <Label className="font-body text-[14px] font-medium text-charcoal">Account (optional)</Label>
               <Select value={accountId} onValueChange={setAccountId}>
-                <SelectTrigger className="bg-background h-8 text-xs"><SelectValue placeholder="All accounts" /></SelectTrigger>
+                <SelectTrigger className="bg-background font-body text-[14px] text-charcoal border-border-light rounded-[4px]"><SelectValue placeholder="All accounts" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All accounts</SelectItem>
                   {(accounts || []).map((a: any) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
@@ -240,12 +240,12 @@ const ReportsPage = () => {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Date Range</Label>
+              <Label className="font-body text-[14px] font-medium text-charcoal">Date Range</Label>
               <div className="flex items-center gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("h-8 text-xs flex-1 justify-start", !dateStart && "text-muted-foreground")}>
-                      <CalendarIcon className="h-3 w-3 mr-1.5" />
+                    <Button variant="outline" className={cn("h-9 flex-1 justify-start border-border-light rounded-[4px]", !dateStart ? "font-body text-[14px] text-muted-foreground" : "font-data text-[14px] font-medium text-charcoal")}>
+                      <CalendarIcon className="h-3.5 w-3.5 mr-1.5 text-sage" />
                       {dateStart ? format(dateStart, "MMM d, yyyy") : "Start"}
                     </Button>
                   </PopoverTrigger>
@@ -253,11 +253,11 @@ const ReportsPage = () => {
                     <Calendar mode="single" selected={dateStart} onSelect={(d) => d && setDateStart(d)} disabled={(d) => d > new Date()} className={cn("p-3 pointer-events-auto")} />
                   </PopoverContent>
                 </Popover>
-                <span className="text-xs text-muted-foreground">to</span>
+                <span className="font-body text-[13px] text-sage">to</span>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("h-8 text-xs flex-1 justify-start", !dateEnd && "text-muted-foreground")}>
-                      <CalendarIcon className="h-3 w-3 mr-1.5" />
+                    <Button variant="outline" className={cn("h-9 flex-1 justify-start border-border-light rounded-[4px]", !dateEnd ? "font-body text-[14px] text-muted-foreground" : "font-data text-[14px] font-medium text-charcoal")}>
+                      <CalendarIcon className="h-3.5 w-3.5 mr-1.5 text-sage" />
                       {dateEnd ? format(dateEnd, "MMM d, yyyy") : "End"}
                     </Button>
                   </PopoverTrigger>
@@ -269,8 +269,8 @@ const ReportsPage = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button size="sm" onClick={handleGenerate} disabled={generateMut.isPending}>
-              {generateMut.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
+            <Button size="sm" onClick={handleGenerate} disabled={generateMut.isPending} className="bg-verdant text-white hover:bg-verdant/90 font-body text-[13px] font-semibold rounded-[6px]">
+              {generateMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Plus className="h-3.5 w-3.5 mr-1.5" />}
               Generate
             </Button>
           </DialogFooter>
