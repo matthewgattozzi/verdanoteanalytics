@@ -204,6 +204,16 @@ async function aggregateDailyMetrics(supabase: any, accountId: string, dateStart
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // Validate cron authorization
+  const authHeader = req.headers.get("authorization");
+  const expectedKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!authHeader || authHeader !== `Bearer ${expectedKey}`) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   try {
@@ -286,6 +296,7 @@ serve(async (req) => {
         date_range_end: endDate,
         date_range_days: dateRangeDays,
         ...(() => { const { counts, suggestions } = computeDiagnostics(list); return { ...counts, iteration_suggestions: JSON.stringify(suggestions) }; })(),
+        is_public: !!schedule.deliver_to_slack,
       };
 
       let savedReport: any = null;

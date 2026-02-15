@@ -567,12 +567,17 @@ serve(async (req) => {
   const url = new URL(req.url);
   const path = url.pathname.replace(/^\/sync\/?/, "").replace(/\/$/, "");
 
-  // The /sync/continue endpoint is called by pg_cron — no user auth needed
-  // (same pattern as cleanup-stuck-syncs)
+  // The /sync/continue endpoint is called by pg_cron — validate cron auth
   const isCronPath = path === "continue";
 
-  // Auth (skip for cron-only paths)
-  if (!isCronPath) {
+  // Auth: cron paths validate anon key, user paths validate user token
+  if (isCronPath) {
+    const cronAuth = req.headers.get("authorization");
+    const expectedKey = Deno.env.get("SUPABASE_ANON_KEY");
+    if (!cronAuth || cronAuth !== `Bearer ${expectedKey}`) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+  } else {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const authToken = authHeader.replace("Bearer ", "");

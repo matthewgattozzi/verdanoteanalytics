@@ -6,6 +6,7 @@ import { calculateBenchmarks, diagnoseCreatives, DIAGNOSTIC_META, DiagnosedCreat
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Video, Play } from "lucide-react";
 import { useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
 
 function fmt$(n: number) {
   if (n >= 1000) return `$${(n / 1000).toFixed(1)}k`;
@@ -260,7 +261,9 @@ const ComparePage = () => {
           {patterns.length > 0 ? (
             <ul className="space-y-2">
               {patterns.map((line, i) => (
-                <li key={i} className="font-body text-[14px] text-charcoal" dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                <li key={i} className="font-body text-[14px] text-charcoal prose prose-sm max-w-none">
+                  <ReactMarkdown>{line}</ReactMarkdown>
+                </li>
               ))}
             </ul>
           ) : (
