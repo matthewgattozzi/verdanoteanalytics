@@ -11,8 +11,9 @@ const META_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN")!;
 const THUMB_BUCKET = "ad-thumbnails";
 const VIDEO_BUCKET = "ad-videos";
 const BATCH_SIZE = 20;
-const VIDEO_BATCH_SIZE = 3;
+const VIDEO_BATCH_SIZE = 1;
 const MAX_TOTAL = 200;
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB cap to avoid OOM
 
 /** Fetch a fresh high-res image URL from Meta Graph API. */
 async function getFreshImageUrl(adId: string, accountId: string): Promise<string | null> {
@@ -233,7 +234,10 @@ async function downloadAndCache(
       console.log(`Skipping low-quality image for ${adId}: ${blob.byteLength} bytes`);
       return null;
     }
-    if (type === "video" && blob.byteLength > 200 * 1024 * 1024) return null;
+    if (type === "video" && blob.byteLength > MAX_VIDEO_SIZE) {
+      console.log(`Skipping oversized video for ${adId}: ${(blob.byteLength / 1024 / 1024).toFixed(1)}MB`);
+      return null;
+    }
     const contentType = resp.headers.get("content-type") || (type === "video" ? "video/mp4" : "image/jpeg");
     const ext = type === "video"
       ? (contentType.includes("webm") ? "webm" : "mp4")
