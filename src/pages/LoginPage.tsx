@@ -36,11 +36,24 @@ const LoginPage = () => {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-4"
+      className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
       style={{
-        background: 'radial-gradient(ellipse 120% 80% at 30% 20%, hsl(147 22% 90% / 0.7) 0%, transparent 50%), radial-gradient(ellipse 100% 60% at 70% 80%, hsl(152 18% 88% / 0.5) 0%, transparent 50%), hsl(40 33% 96%)',
+        background: 'hsl(40 33% 96%)',
       }}
     >
+      {/* Soft gradient glow behind modal */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          width: '600px',
+          height: '600px',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'radial-gradient(circle, hsl(152 40% 75% / 0.45) 0%, hsl(152 30% 80% / 0.2) 40%, transparent 70%)',
+          filter: 'blur(40px)',
+        }}
+      />
       <div className="w-full max-w-sm space-y-8">
         {/* Logo & branding */}
         <div className="flex flex-col items-center gap-4">
