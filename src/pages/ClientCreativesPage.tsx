@@ -139,7 +139,7 @@ const ClientCreativesPage = () => {
             <p className="font-body text-[14px] text-slate">Check back soon for updated creative performance data.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredCreatives.map((c: any) => {
               const roas = Number(c.roas) || 0;
               const spend = Number(c.spend) || 0;
