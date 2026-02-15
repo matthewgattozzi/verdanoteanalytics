@@ -18,6 +18,42 @@ interface CreativeDetailModalProps {
   onClose: () => void;
 }
 
+function MetaPreviewEmbed({ url, fallbackUrl }: { url: string; fallbackUrl?: string | null }) {
+  const [iframeError, setIframeError] = useState(false);
+
+  if (iframeError && fallbackUrl) {
+    return (
+      <div className="w-full h-[400px] flex flex-col items-center justify-center gap-3 bg-muted rounded-lg">
+        <AlertCircle className="h-6 w-6 text-muted-foreground" />
+        <p className="font-body text-xs text-muted-foreground">Preview couldn't load inline.</p>
+        <a href={fallbackUrl} target="_blank" rel="noopener noreferrer">
+          <Button size="sm" className="gap-1.5"><ExternalLink className="h-3.5 w-3.5" />Open Preview</Button>
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-muted rounded-lg overflow-hidden relative">
+      <iframe
+        src={url}
+        className="w-full h-[400px] border-0 rounded-lg"
+        allow="autoplay; encrypted-media"
+        allowFullScreen
+        onError={() => setIframeError(true)}
+        sandbox="allow-scripts allow-same-origin allow-popups"
+      />
+      {fallbackUrl && (
+        <a href={fallbackUrl} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2">
+          <Button size="sm" variant="secondary" className="gap-1.5 text-xs">
+            <ExternalLink className="h-3 w-3" />Open in New Tab
+          </Button>
+        </a>
+      )}
+    </div>
+  );
+}
+
 function MediaPreview({ creative }: { creative: any }) {
   const [showVideo, setShowVideo] = useState(false);
   const [videoError, setVideoError] = useState(false);
@@ -27,20 +63,22 @@ function MediaPreview({ creative }: { creative: any }) {
   const isVideoAdWithoutSource = creative.video_url === "no-video" && (creative.video_views > 0);
   const facebookAdUrl = creative.preview_url || (creative.ad_id ? `https://www.facebook.com/ads/library/?id=${creative.ad_id}` : null);
 
-  // Video playback with error fallback to iframe/link
+  // Video playback with error fallback to iframe embed
   if (hasVideo && showVideo) {
-    if (videoError && creative.preview_url) {
-      // Fallback: iframe embed of the ad preview
+    if (videoError) {
+      if (creative.preview_url) {
+        return <MetaPreviewEmbed url={creative.preview_url} fallbackUrl={facebookAdUrl} />;
+      }
       return (
         <div className="bg-muted rounded-lg overflow-hidden relative">
           <div className="w-full h-[400px] flex flex-col items-center justify-center gap-3 text-muted-foreground">
             <AlertCircle className="h-8 w-8" />
             <p className="text-xs">Video couldn't be played directly.</p>
-            <a href={creative.preview_url} target="_blank" rel="noopener noreferrer">
-              <Button size="sm" className="gap-1.5">
-                <Video className="h-4 w-4" />Watch on Facebook
-              </Button>
-            </a>
+            {facebookAdUrl && (
+              <a href={facebookAdUrl} target="_blank" rel="noopener noreferrer">
+                <Button size="sm" className="gap-1.5"><Video className="h-4 w-4" />Watch on Facebook</Button>
+              </a>
+            )}
             <button onClick={() => { setShowVideo(false); setVideoError(false); }} className="text-xs text-muted-foreground underline mt-1">
               Back to thumbnail
             </button>
@@ -70,11 +108,19 @@ function MediaPreview({ creative }: { creative: any }) {
     );
   }
 
+  // For "no-video" ads that have a preview URL, embed the Meta preview directly
+  if (isVideoAdWithoutSource && creative.preview_url) {
+    return (
+      <div className="relative group">
+        <MetaPreviewEmbed url={creative.preview_url} fallbackUrl={facebookAdUrl} />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-muted rounded-lg flex items-center justify-center overflow-hidden relative group">
       {creative.thumbnail_url && !imgError ? (
         <div className="relative w-full">
-          {/* Skeleton loader */}
           {!imgLoaded && (
             <div className="w-full h-[300px] bg-cream-dark rounded" />
           )}
@@ -95,15 +141,6 @@ function MediaPreview({ creative }: { creative: any }) {
                 <Play className="h-6 w-6 text-foreground ml-0.5" />
               </div>
             </button>
-          )}
-          {isVideoAdWithoutSource && facebookAdUrl && imgLoaded && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100">
-              <a href={facebookAdUrl} target="_blank" rel="noopener noreferrer">
-                <Button size="sm" className="gap-1.5 shadow-lg">
-                  <Video className="h-4 w-4" />Watch on Facebook
-                </Button>
-              </a>
-            </div>
           )}
           {creative.preview_url && imgLoaded && (
             <a href={creative.preview_url} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2">
