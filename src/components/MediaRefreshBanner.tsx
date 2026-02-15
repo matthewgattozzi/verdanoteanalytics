@@ -60,7 +60,7 @@ export function MediaRefreshBanner() {
   progressPercent = Math.min(95, progressPercent);
 
   return (
-    <div className="bg-accent/50 border border-accent rounded-lg mb-4 overflow-hidden animate-fade-in">
+    <div className="bg-accent/50 border border-accent rounded-lg mb-4 overflow-hidden">
       {/* Progress bar */}
       <div className="h-1 bg-accent w-full overflow-hidden">
         <div

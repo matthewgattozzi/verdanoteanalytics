@@ -70,7 +70,7 @@ const PublicReportPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto px-6 py-10 space-y-8 animate-fade-in">
+      <div className="max-w-4xl mx-auto px-6 py-10 space-y-8">
         {/* Branding */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">

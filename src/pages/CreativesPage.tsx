@@ -153,7 +153,7 @@ const CreativesPage = () => {
       {isLoading ? (
         <TableSkeleton rows={10} cols={8} />
       ) : creatives.length === 0 ? (
-        <div className="glass-panel flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+        <div className="glass-panel flex flex-col items-center justify-center py-20 text-center">
           <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4"><LayoutGrid className="h-6 w-6 text-muted-foreground" /></div>
           <h3 className="text-lg font-medium mb-1">No creatives yet</h3>
           <p className="text-sm text-muted-foreground max-w-md">Add a Meta ad account in the Accounts tab and sync to pull in your creatives.</p>
