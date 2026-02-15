@@ -308,16 +308,20 @@ const SavedViewsPage = () => {
 
   return (
     <AppLayout>
-      <PageHeader
-        title="Saved Views"
-        description="Save and quickly switch between different analysis configurations."
-      />
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="font-heading text-[32px] text-forest">Saved Views</h1>
+          <p className="font-body text-[13px] text-slate font-light mt-1">
+            Save and quickly switch between different analysis configurations.
+          </p>
+        </div>
+      </div>
 
       <div className="flex items-center justify-between mb-6">
-        <p className="text-sm text-muted-foreground">{views.length} saved view{views.length !== 1 ? "s" : ""}</p>
+        <p className="font-data text-[14px] font-medium text-sage">{views.length} saved view{views.length !== 1 ? "s" : ""}</p>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="gap-1.5">
+            <Button size="sm" className="gap-1.5 bg-verdant text-white hover:bg-verdant/90">
               <Plus className="h-3.5 w-3.5" />
               New View
             </Button>
@@ -429,12 +433,12 @@ const SavedViewsPage = () => {
         </div>
       ) : views.length === 0 ? (
         <div className="glass-panel flex flex-col items-center justify-center py-16 text-center">
-          <Bookmark className="h-10 w-10 text-muted-foreground mb-3" />
-          <h3 className="text-lg font-medium mb-1">No saved views yet</h3>
-          <p className="text-sm text-muted-foreground max-w-md">Create views to quickly jump between different analysis configurations across Creatives and Analytics.</p>
+          <Bookmark className="h-10 w-10 text-sage mb-3" />
+          <h3 className="font-heading text-[20px] text-forest mb-1">No saved views yet</h3>
+          <p className="font-body text-[14px] text-slate max-w-[400px]">Create views to quickly jump between different analysis configurations across Creatives and Analytics.</p>
         </div>
       ) : (
-        <div className="grid gap-1">
+        <div className="divide-y divide-border-light">
           {views.map((view, idx) => (
             <div
               key={view.id}
@@ -443,42 +447,40 @@ const SavedViewsPage = () => {
               onDragOver={(e) => handleDragOver(e, idx)}
               onDrop={() => handleDrop(idx)}
               onDragEnd={handleDragEnd}
-              className={`glass-panel p-4 flex items-center justify-between group transition-all ${
+              className={`py-4 px-1 flex items-center justify-between group transition-all ${
                 dragIdx === idx ? "opacity-50" : ""
               } ${overIdx === idx && dragIdx !== idx ? "border-t-2 border-primary" : ""}`}
             >
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <GripVertical className="h-4 w-4 text-muted-foreground/50 cursor-grab flex-shrink-0 hover:text-muted-foreground" />
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Bookmark className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                    <span className="text-sm font-medium truncate cursor-pointer hover:underline" onDoubleClick={() => startEditing(view)}>{view.name}</span>
-                    <Badge variant="outline" className="text-[10px] flex-shrink-0">{getPageLabel(view.config.page)}</Badge>
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="font-body text-[15px] font-semibold text-charcoal truncate cursor-pointer hover:underline" onDoubleClick={() => startEditing(view)}>{view.name}</span>
+                    <span className="font-label text-[10px] font-medium tracking-wide bg-sage-light text-forest rounded-[4px] px-2 py-0.5 flex-shrink-0">{getPageLabel(view.config.page)}</span>
                     {view.config.account_id && (
-                      <Badge variant="outline" className="text-[10px] flex-shrink-0">
+                      <span className="font-label text-[10px] font-medium tracking-wide bg-sage-light text-forest rounded-[4px] px-2 py-0.5 flex-shrink-0">
                         {view.config.apply_account ? "→ " : ""}{getAccountName(view.config.account_id)}
-                      </Badge>
+                      </span>
                     )}
                     {view.config.analytics_tab && (
-                      <Badge variant="outline" className="text-[10px] flex-shrink-0 capitalize">{view.config.analytics_tab}</Badge>
+                      <span className="font-label text-[10px] font-medium tracking-wide bg-sage-light text-forest rounded-[4px] px-2 py-0.5 flex-shrink-0 capitalize">{view.config.analytics_tab}</span>
                     )}
                     {view.config.slice_by && (
-                      <Badge variant="outline" className="text-[10px] flex-shrink-0">Slice: {view.config.slice_by}</Badge>
+                      <span className="font-label text-[10px] font-medium tracking-wide bg-sage-light text-forest rounded-[4px] px-2 py-0.5 flex-shrink-0">Slice: {view.config.slice_by}</span>
                     )}
                     {view.config.group_by && (
-                      <Badge variant="outline" className="text-[10px] flex-shrink-0">Group: {view.config.group_by}</Badge>
+                      <span className="font-label text-[10px] font-medium tracking-wide bg-sage-light text-forest rounded-[4px] px-2 py-0.5 flex-shrink-0">Group: {view.config.group_by}</span>
                     )}
                   </div>
                   {view.description && (
-                    <p className="text-xs text-muted-foreground ml-5.5 truncate">{view.description}</p>
+                    <p className="font-body text-[12px] text-sage ml-5.5 truncate">{view.description}</p>
                   )}
                 </div>
               </div>
               <div className="flex items-center gap-1.5 ml-4">
-                <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => applyView(view)}>
-                  <ExternalLink className="h-3 w-3" />
+                <button className="font-body text-[13px] font-medium text-verdant hover:underline px-2 py-1" onClick={() => applyView(view)}>
                   Open
-                </Button>
+                </button>
                 <Button
                   variant="ghost"
                   size="sm"
