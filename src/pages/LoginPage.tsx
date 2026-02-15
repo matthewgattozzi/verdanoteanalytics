@@ -33,7 +33,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden bg-background">
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden bg-cream">
       {/* Soft gradient glow behind modal */}
       <div
         className="absolute pointer-events-none"
@@ -47,23 +47,23 @@ const LoginPage = () => {
           filter: 'blur(60px)',
         }}
       />
-      <div className="w-full max-w-sm space-y-8 relative z-10">
+      <div className="w-full max-w-[420px] space-y-8 relative z-10">
         {/* Logo & branding */}
         <div className="flex flex-col items-center gap-4">
           <div className="h-16 w-16 rounded-lg flex items-center justify-center overflow-hidden bg-card shadow-card border border-border-light">
             <img src="/favicon.png" alt="Verdanote" className="h-14 w-14" />
           </div>
           <div className="text-center">
-            <h1 className="text-2xl tracking-tight">Verdanote</h1>
-            <p className="text-sm text-muted-foreground mt-1.5">Creative analytics, simplified</p>
+            <h1 className="font-heading text-[28px] text-forest">Verdanote</h1>
+            <p className="font-body text-[14px] text-sage font-light tracking-wide mt-1.5">Creative analytics, simplified</p>
           </div>
         </div>
 
         {/* Login card */}
-        <div className="rounded-lg p-8 space-y-5 bg-card shadow-modal border border-border-light">
+        <div className="rounded-[12px] p-9 space-y-5 bg-white shadow-card border border-border-light">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="font-label text-label uppercase tracking-wider text-muted-foreground">
+              <Label htmlFor="email" className="font-label text-[10px] font-semibold uppercase tracking-[0.08em] text-slate">
                 Email
               </Label>
               <Input
@@ -72,11 +72,12 @@ const LoginPage = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
+                className="font-body text-[14px] text-charcoal placeholder:text-sage border-border-light rounded-[4px] focus:border-verdant focus:shadow-[0_0_0_3px_rgba(27,122,78,0.2)]"
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="font-label text-label uppercase tracking-wider text-muted-foreground">
+              <Label htmlFor="password" className="font-label text-[10px] font-semibold uppercase tracking-[0.08em] text-slate">
                 Password
               </Label>
               <Input
@@ -85,6 +86,7 @@ const LoginPage = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
+                className="font-body text-[14px] text-charcoal placeholder:text-sage border-border-light rounded-[4px] focus:border-verdant focus:shadow-[0_0_0_3px_rgba(27,122,78,0.2)]"
                 required
               />
             </div>
@@ -92,7 +94,7 @@ const LoginPage = () => {
             <div className="flex items-center justify-end">
               <a
                 href="/reset-password"
-                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                className="font-body text-[13px] text-verdant font-medium hover:text-verdant-light hover:underline transition-colors"
               >
                 Forgot password?
               </a>
@@ -104,7 +106,7 @@ const LoginPage = () => {
               </div>
             )}
 
-            <Button type="submit" className="w-full h-11 text-sm font-semibold" disabled={loading}>
+            <Button type="submit" className="w-full py-3 h-auto bg-verdant text-white hover:bg-verdant-light font-body text-[15px] font-semibold rounded-[6px]" disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Leaf className="h-4 w-4 mr-1.5" />}
               Sign In
             </Button>
@@ -112,7 +114,7 @@ const LoginPage = () => {
         </div>
 
         {/* Footer */}
-        <p className="text-[11px] text-center text-muted-foreground/60">
+        <p className="font-body text-[12px] text-sage font-light text-center">
           Accounts are provisioned by your admin.
         </p>
       </div>
