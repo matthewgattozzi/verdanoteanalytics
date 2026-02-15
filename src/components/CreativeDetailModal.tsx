@@ -114,9 +114,9 @@ function MediaPreview({ creative }: { creative: any }) {
           )}
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-2 text-muted-foreground py-12">
-          <ImageIcon className="h-8 w-8" />
-          <span className="text-xs">No preview available</span>
+        <div className="flex flex-col items-center gap-2 py-12">
+          <ImageIcon className="h-8 w-8 text-sage" />
+          <span className="font-body text-[13px] text-sage">No preview available</span>
           {isVideoAdWithoutSource && facebookAdUrl && (
             <a href={facebookAdUrl} target="_blank" rel="noopener noreferrer">
               <Button size="sm" className="gap-1.5 text-xs mt-1">
@@ -142,12 +142,16 @@ export const CreativeDetailModal = forwardRef<HTMLDivElement, CreativeDetailModa
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white rounded-[8px] shadow-modal">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <span className="font-mono text-sm text-muted-foreground">{creative.unique_code}</span>
+            <span className="font-label text-[12px] font-semibold text-charcoal tracking-wide">{creative.unique_code}</span>
             <TagSourceBadge source={creative.tag_source} />
-            <Badge variant="outline" className="text-xs">{creative.ad_status}</Badge>
+            {creative.ad_status && (
+              <span className="font-label text-[10px] font-semibold tracking-wide bg-sage-light text-verdant rounded-[4px] px-2 py-0.5">
+                {creative.ad_status}
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -157,10 +161,10 @@ export const CreativeDetailModal = forwardRef<HTMLDivElement, CreativeDetailModa
         <CreativeMetrics creative={creative} />
 
         {/* Context */}
-        <div className="text-xs text-muted-foreground space-y-1">
-          <p><span className="font-medium text-foreground">Ad Name:</span> {creative.ad_name}</p>
-          <p><span className="font-medium text-foreground">Campaign:</span> {creative.campaign_name || "—"}</p>
-          <p><span className="font-medium text-foreground">Ad Set:</span> {creative.adset_name || "—"}</p>
+        <div className="space-y-1.5">
+          <p className="font-body text-[13px]"><span className="font-semibold text-charcoal">Ad Name:</span> <span className="font-normal text-slate break-all">{creative.ad_name}</span></p>
+          <p className="font-body text-[13px]"><span className="font-semibold text-charcoal">Campaign:</span> <span className="font-normal text-slate break-all">{creative.campaign_name || "—"}</span></p>
+          <p className="font-body text-[13px]"><span className="font-semibold text-charcoal">Ad Set:</span> <span className="font-normal text-slate break-all">{creative.adset_name || "—"}</span></p>
         </div>
 
         <Separator />

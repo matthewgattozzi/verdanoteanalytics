@@ -57,15 +57,15 @@ export function CreativeMetrics({ creative }: CreativeMetricsProps) {
   ];
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {sections.map((section) => (
         <div key={section.title}>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1.5">{section.title}</p>
-          <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${section.cols}, minmax(0, 1fr))` }}>
+          <p className="font-label text-[10px] font-semibold uppercase tracking-[0.08em] text-slate mb-2 pb-1.5 border-b border-border-light">{section.title}</p>
+          <div className={`grid gap-px bg-border-light`} style={{ gridTemplateColumns: `repeat(${section.cols}, minmax(0, 1fr))` }}>
             {section.metrics.map((m) => (
-              <div key={m.label} className="glass-panel p-2.5 text-center">
-                <div className="metric-label text-[10px]">{m.label}</div>
-                <div className="text-sm font-semibold mt-0.5">{m.value}</div>
+              <div key={m.label} className="bg-white py-3 px-2.5 text-center">
+                <div className="font-label text-[9px] uppercase tracking-[0.06em] text-sage">{m.label}</div>
+                <div className="font-data text-[16px] font-semibold text-charcoal mt-0.5">{m.value}</div>
               </div>
             ))}
           </div>
