@@ -1,16 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-serve(async (req) => {
-  // Validate cron authorization
-  const authHeader = req.headers.get("authorization");
-  const expectedKey = Deno.env.get("SUPABASE_ANON_KEY");
-  if (!authHeader || authHeader !== `Bearer ${expectedKey}`) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+serve(async (_req) => {
+  // Auth: Supabase gateway validates the JWT/apikey before reaching this function.
+  // Cron calls use the project anon key which passes gateway validation.
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
