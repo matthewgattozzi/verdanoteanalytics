@@ -472,6 +472,41 @@ export type Database = {
           },
         ]
       }
+      performance_stories: {
+        Row: {
+          account_id: string
+          content: string
+          created_at: string
+          id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          account_id: string
+          content?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          account_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_stories_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "ad_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

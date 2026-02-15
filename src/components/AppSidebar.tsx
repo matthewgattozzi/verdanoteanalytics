@@ -9,6 +9,7 @@ import {
   UserCog,
   Bookmark,
   Tags,
+  Eye,
 } from "lucide-react";
 import {
   Select,
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useAccountContext } from "@/contexts/AccountContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClientPreview } from "@/hooks/useClientPreviewMode";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -31,13 +33,26 @@ const baseNavItems = [
   { title: "Saved Views", url: "/saved-views", icon: Bookmark },
 ];
 
+const clientNavItems = [
+  { title: "Overview", url: "/", icon: LayoutGrid },
+  { title: "Creatives", url: "/creatives", icon: Zap },
+  { title: "Reports", url: "/reports", icon: FileText },
+];
+
 export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { accounts, selectedAccountId, setSelectedAccountId, isLoading } = useAccountContext();
-  const { role, isClient, user, signOut } = useAuth();
+  const { role, isClient, isBuilder, isEmployee, user, signOut } = useAuth();
+  const { isClientPreview, toggleClientPreview } = useClientPreview();
 
-  const showSwitcher = !isClient || accounts.length > 1;
-  const showSettings = !isClient;
-  const navItems = baseNavItems;
+  const effectiveClient = isClient || isClientPreview;
+
+  const showSwitcher = !effectiveClient || accounts.length > 1;
+  const showSettings = !effectiveClient;
+  const navItems = effectiveClient ? clientNavItems : baseNavItems;
+
+  const roleBadgeClass = role === "client"
+    ? "font-label text-[9px] uppercase tracking-[0.1em] font-semibold bg-gold-light text-[#92730F] capitalize h-4 px-1.5 border-0"
+    : "font-label text-[9px] uppercase tracking-[0.1em] text-sage capitalize h-4 px-1.5 border-border/50";
 
   return (
     <aside className="flex h-screen w-56 flex-col bg-background border-r border-input">
@@ -53,7 +68,9 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
       <div className="px-3 pt-4 pb-2 space-y-2">
         <div className="flex items-center justify-between px-2">
           <p className="font-label text-[9px] uppercase tracking-[0.1em] text-sage">Account</p>
-          <Badge variant="outline" className="font-label text-[9px] uppercase tracking-[0.1em] text-sage capitalize h-4 px-1.5 border-border/50">{role}</Badge>
+          {!effectiveClient && (
+            <Badge variant="outline" className={roleBadgeClass}>{role}</Badge>
+          )}
         </div>
         {showSwitcher && accounts.length > 0 && (
           <Select value={selectedAccountId || ""} onValueChange={setSelectedAccountId}>
@@ -61,7 +78,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
               <SelectValue placeholder="Select account" />
             </SelectTrigger>
             <SelectContent className="bg-white border border-border-light rounded-[8px] shadow-modal">
-              {!isClient && <SelectItem value="all" className="font-body text-[13px] font-normal text-charcoal py-2 px-4 focus:bg-cream-dark data-[state=checked]:bg-sage-light data-[state=checked]:text-forest data-[state=checked]:font-medium [&>span:first-child]:text-verdant">All Accounts</SelectItem>}
+              {!effectiveClient && <SelectItem value="all" className="font-body text-[13px] font-normal text-charcoal py-2 px-4 focus:bg-cream-dark data-[state=checked]:bg-sage-light data-[state=checked]:text-forest data-[state=checked]:font-medium [&>span:first-child]:text-verdant">All Accounts</SelectItem>}
               {[...accounts].sort((a: any, b: any) => a.name.localeCompare(b.name)).map((acc: any) => (
                 <SelectItem key={acc.id} value={acc.id} className="font-body text-[13px] font-normal text-charcoal py-2 px-4 focus:bg-cream-dark data-[state=checked]:bg-sage-light data-[state=checked]:text-forest data-[state=checked]:font-medium [&>span:first-child]:text-verdant">
                   {acc.name}
@@ -70,7 +87,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
             </SelectContent>
           </Select>
         )}
-        {isClient && accounts.length === 1 && (
+        {effectiveClient && accounts.length === 1 && (
           <p className="font-body text-[13px] font-medium text-charcoal px-2 truncate">{accounts[0].name}</p>
         )}
       </div>
@@ -105,17 +122,31 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* Footer */}
       <div className="mx-5 border-t border-input" />
-      <div className="px-3 pt-3 pb-1">
-        <NavLink
-          to="/user-settings"
-          className="flex items-center gap-3 rounded-md px-3 py-2 font-body text-[13px] text-slate transition-[background-color,color,border-color] duration-150 ease hover:text-forest hover:bg-accent"
-          activeClassName="!font-semibold !text-forest bg-sage-light border-l-[3px] border-verdant"
-          onClick={onNavigate}
-        >
-          <UserCog className="h-4 w-4 flex-shrink-0" />
-          User Settings
-        </NavLink>
-      </div>
+      {!effectiveClient && (
+        <div className="px-3 pt-3 pb-1">
+          <NavLink
+            to="/user-settings"
+            className="flex items-center gap-3 rounded-md px-3 py-2 font-body text-[13px] text-slate transition-[background-color,color,border-color] duration-150 ease hover:text-forest hover:bg-accent"
+            activeClassName="!font-semibold !text-forest bg-sage-light border-l-[3px] border-verdant"
+            onClick={onNavigate}
+          >
+            <UserCog className="h-4 w-4 flex-shrink-0" />
+            User Settings
+          </NavLink>
+        </div>
+      )}
+      {/* Client Preview toggle for builders */}
+      {(isBuilder || isEmployee) && !isClient && (
+        <div className="px-3 pb-1">
+          <button
+            onClick={toggleClientPreview}
+            className={`flex items-center gap-3 rounded-md px-3 py-2 font-body text-[13px] w-full text-left transition-hover ${isClientPreview ? "text-[#92730F] bg-gold-light/50 font-medium" : "text-slate hover:text-forest hover:bg-accent"}`}
+          >
+            <Eye className="h-4 w-4 flex-shrink-0" />
+            {isClientPreview ? "Exit Client View" : "Preview as Client"}
+          </button>
+        </div>
+      )}
       <div className="px-5 pb-4 pt-1 flex items-center justify-between">
         <div className="min-w-0">
           <p className="font-body text-[11px] text-sage truncate">{user?.email}</p>

@@ -4,6 +4,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Users, UserPlus, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface UserManagementSectionProps {
   users: any[] | undefined;
@@ -53,7 +54,10 @@ export function UserManagementSection({ users, accounts, onCreateUser, onDeleteU
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge className="font-label text-[10px] font-semibold bg-sage-light text-forest rounded-[4px] tracking-wide px-2 py-0.5 border-0 capitalize">{u.role || "none"}</Badge>
+                    <Badge className={cn(
+                      "font-label text-[10px] font-semibold rounded-[4px] tracking-wide px-2 py-0.5 border-0 capitalize",
+                      u.role === "client" ? "bg-gold-light text-[#92730F]" : "bg-sage-light text-forest"
+                    )}>{u.role || "none"}</Badge>
                   </TableCell>
                   <TableCell>
                     {u.account_ids?.length > 0 ? (
