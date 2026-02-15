@@ -18,11 +18,11 @@ function CardThumbnail({ src, alt }: { src: string; alt: string }) {
 
   return (
     <>
-      {!loaded && <div className="absolute inset-0 animate-pulse bg-muted-foreground/10 rounded" />}
+      {!loaded && <div className="absolute inset-0 bg-cream-dark rounded" />}
       <img
         src={src}
         alt={alt}
-        className={`h-full w-full object-cover transition-opacity duration-200 ${loaded ? "opacity-100" : "opacity-0"}`}
+        className={`h-full w-full object-cover ${loaded ? "opacity-100" : "opacity-0"}`}
         loading="lazy"
         onLoad={() => setLoaded(true)}
         onError={() => setError(true)}
@@ -35,7 +35,7 @@ export function CreativesCardGrid({ creatives, onSelect }: CreativesCardGridProp
   return (
     <div className="grid grid-cols-3 gap-3">
       {creatives.map((c: any) => (
-        <div key={c.ad_id} className="glass-panel p-3 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => onSelect(c)}>
+        <div key={c.ad_id} className="glass-panel p-3 cursor-pointer transition-[background-color,color,border-color] duration-100 ease-linear hover:border-primary/30" onClick={() => onSelect(c)}>
           <div className="bg-muted rounded h-28 mb-2 flex items-center justify-center overflow-hidden relative">
             {c.thumbnail_url ? (
               <CardThumbnail src={c.thumbnail_url} alt={c.ad_name || ""} />

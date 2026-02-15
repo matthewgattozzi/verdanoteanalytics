@@ -81,7 +81,7 @@ function SyncProgressBanner({ logs, onCancel, cancelPending }: { logs: any[]; on
       {progress != null && (
         <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
           <div
-            className="h-full rounded-full bg-primary transition-all duration-1000 ease-linear"
+            className="h-full rounded-full bg-primary transition-progress"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -231,7 +231,7 @@ export function SyncHistorySection({ accountId }: { accountId?: string }) {
               <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                 {progressPct != null ? (
                   <div
-                    className="h-full rounded-full bg-primary transition-all duration-1000 ease-linear"
+                    className="h-full rounded-full bg-primary transition-progress"
                     style={{ width: `${progressPct}%` }}
                   />
                 ) : (

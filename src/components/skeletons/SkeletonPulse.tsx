@@ -5,12 +5,10 @@ export function SkeletonPulse({ className, style }: { className?: string; style?
   return (
     <div
       className={cn(
-        "rounded-md bg-muted relative overflow-hidden",
+        "rounded-md bg-cream-dark",
         className
       )}
       style={style}
-    >
-      <div className="absolute inset-0 shimmer-slide" />
-    </div>
+    />
   );
 }

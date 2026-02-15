@@ -266,7 +266,7 @@ export function AIContextSection({
             <div className="w-full mt-2">
               <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
+                  className="h-full rounded-full bg-primary transition-progress"
                   style={{ width: `${(applyProgress.current / applyProgress.total) * 100}%` }}
                 />
               </div>

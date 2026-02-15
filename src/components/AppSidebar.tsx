@@ -81,7 +81,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
             key={item.url}
             to={item.url}
             end={item.url === "/"}
-            className="flex items-center gap-3 rounded-md px-3 py-2.5 font-body text-[14px] font-medium text-slate transition-all duration-150 hover:text-forest hover:bg-accent"
+            className="flex items-center gap-3 rounded-md px-3 py-2.5 font-body text-[14px] font-medium text-slate transition-[background-color,color,border-color] duration-150 ease hover:text-forest hover:bg-accent"
             activeClassName="!font-semibold !text-forest bg-sage-light border-l-[3px] border-verdant"
             onClick={onNavigate}
           >
@@ -92,7 +92,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
         {showSettings && (
           <NavLink
             to="/settings"
-            className="flex items-center gap-3 rounded-md px-3 py-2.5 font-body text-[14px] font-medium text-slate transition-all duration-150 hover:text-forest hover:bg-accent"
+            className="flex items-center gap-3 rounded-md px-3 py-2.5 font-body text-[14px] font-medium text-slate transition-[background-color,color,border-color] duration-150 ease hover:text-forest hover:bg-accent"
             activeClassName="!font-semibold !text-forest bg-sage-light border-l-[3px] border-verdant"
             onClick={onNavigate}
           >
@@ -107,7 +107,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
       <div className="px-3 pt-3 pb-1">
         <NavLink
           to="/user-settings"
-          className="flex items-center gap-3 rounded-md px-3 py-2 font-body text-[13px] text-slate transition-all duration-150 hover:text-forest hover:bg-accent"
+          className="flex items-center gap-3 rounded-md px-3 py-2 font-body text-[13px] text-slate transition-[background-color,color,border-color] duration-150 ease hover:text-forest hover:bg-accent"
           activeClassName="!font-semibold !text-forest bg-sage-light border-l-[3px] border-verdant"
           onClick={onNavigate}
         >

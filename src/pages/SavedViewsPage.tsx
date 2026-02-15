@@ -447,7 +447,7 @@ const SavedViewsPage = () => {
               onDragOver={(e) => handleDragOver(e, idx)}
               onDrop={() => handleDrop(idx)}
               onDragEnd={handleDragEnd}
-              className={`py-4 px-1 flex items-center justify-between group transition-all ${
+              className={`py-4 px-1 flex items-center justify-between group ${
                 dragIdx === idx ? "opacity-50" : ""
               } ${overIdx === idx && dragIdx !== idx ? "border-t-2 border-primary" : ""}`}
             >

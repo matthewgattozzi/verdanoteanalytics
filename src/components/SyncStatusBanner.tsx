@@ -63,11 +63,9 @@ export function SyncStatusBanner() {
       {/* Progress bar */}
       <div className="h-1 bg-primary/10 w-full overflow-hidden">
         <div
-          className="h-full bg-primary transition-all duration-1000 ease-out relative"
+          className="h-full bg-primary transition-progress"
           style={{ width: `${progressPercent}%` }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
-        </div>
+        />
       </div>
 
       <div className="px-4 py-3 flex items-center gap-3">
