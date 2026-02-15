@@ -33,8 +33,8 @@ function CreativeCell({ c }: { c: any }) {
         )}
       </div>
       <div className="min-w-0">
-        <div className="text-xs font-medium truncate">{c.ad_name}</div>
-        <div className="text-[10px] font-mono text-muted-foreground">{c.unique_code}</div>
+        <div className="font-body text-[13px] font-medium text-charcoal truncate">{c.ad_name}</div>
+        <div className="font-body text-[11px] text-sage">{c.unique_code}</div>
       </div>
     </div>
   );
@@ -55,7 +55,7 @@ function renderCell(c: any, key: string) {
     const value = c[cfg.field];
     if (cfg.format) {
       return (
-        <TableCell key={key} className="text-right font-display tabular-nums">
+        <TableCell key={key} className="text-right font-data text-[13px] font-medium text-charcoal tabular-nums">
           {fmt(value, cfg.format.prefix, cfg.format.suffix, cfg.format.decimals)}
         </TableCell>
       );
@@ -89,7 +89,7 @@ export function CreativesTable({
 
   const renderHead = (key: string) => {
     if (!visibleCols.has(key)) return null;
-    if (key === "tags") return <TableHead key={key} className="text-xs">Tags</TableHead>;
+    if (key === "tags") return <TableHead key={key} className="font-label text-[11px] uppercase tracking-[0.04em] text-slate font-semibold">Tags</TableHead>;
     return (
       <SortableTableHead
         key={key}
@@ -111,13 +111,13 @@ export function CreativesTable({
     <div className="glass-panel overflow-hidden">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="bg-cream-dark">
             {columnOrder.filter(k => visibleCols.has(k)).map(renderHead)}
           </TableRow>
         </TableHeader>
         <TableBody>
           {creatives.map((c: any) => (
-            <TableRow key={c.ad_id} className="cursor-pointer hover:bg-accent/50" onClick={() => onSelect(c)}>
+            <TableRow key={c.ad_id} className="cursor-pointer hover:bg-accent/50 border-b border-border-light" onClick={() => onSelect(c)}>
               {columnOrder.filter(k => visibleCols.has(k)).map(key => renderCell(c, key))}
             </TableRow>
           ))}

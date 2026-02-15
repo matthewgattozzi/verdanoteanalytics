@@ -34,7 +34,7 @@ export function CreativesFilters({
           <>
             {(["ad_type", "person", "style", "hook"] as const).map((field) => (
               <Select key={field} value={filters[field] || "__all__"} onValueChange={(v) => updateFilter(field, v)}>
-                <SelectTrigger className="w-32 h-8 text-xs bg-background">
+                <SelectTrigger className="w-32 h-8 font-body text-[12px] text-slate bg-background">
                   <SelectValue placeholder={field.replace("ad_", "").replace("_", " ")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -46,7 +46,7 @@ export function CreativesFilters({
               </Select>
             ))}
             <Select value={filters.tag_source || "__all__"} onValueChange={(v) => updateFilter("tag_source", v)}>
-              <SelectTrigger className="w-32 h-8 text-xs bg-background"><SelectValue placeholder="Tag source" /></SelectTrigger>
+              <SelectTrigger className="w-32 h-8 font-body text-[12px] text-slate bg-background"><SelectValue placeholder="Tag source" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All sources</SelectItem>
                 <SelectItem value="parsed">Parsed</SelectItem>
@@ -59,7 +59,7 @@ export function CreativesFilters({
         )}
         {viewMode === "table" && (
           <Select value={groupBy} onValueChange={setGroupBy}>
-            <SelectTrigger className="w-36 h-8 text-xs bg-background">
+            <SelectTrigger className="w-36 h-8 font-body text-[12px] text-slate bg-background">
               <div className="flex items-center gap-1.5">
                 <Layers className="h-3 w-3" />
                 <SelectValue placeholder="Group by" />
