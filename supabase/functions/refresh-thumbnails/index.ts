@@ -17,6 +17,10 @@ const MAX_VIDEO_SIZE = 150 * 1024 * 1024; // 150MB cap
 const TIME_BUDGET_MS = 8 * 60 * 1000; // 8 minutes max per invocation
 const FETCH_TIMEOUT_MS = 30_000; // 30s timeout per HTTP request
 
+// Sentinel values to mark failed fetches so they're skipped on future runs
+const NO_THUMB_SENTINEL = "no-thumbnail";
+const NO_VIDEO_SENTINEL = "no-video";
+
 /** Fetch with a timeout — aborts if the request takes longer than timeoutMs */
 async function fetchWithTimeout(url: string, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
@@ -55,7 +59,6 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
         const images = imgData?.data;
         if (images && images.length > 0) {
           const img = images[0];
-          // Prefer full-res url, skip url_128 (too low quality)
           const fullUrl = img.url;
           const w = img.original_width || img.width || 0;
           console.log(`image_hash for ${adId}: ${w}px wide, url length: ${fullUrl?.length}`);
@@ -69,7 +72,6 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
     const spec = creative.object_story_spec;
     const videoId = spec?.video_data?.video_id || spec?.template_data?.video_data?.video_id;
     if (videoId) {
-      // Request high-res video thumbnails
       const vidRes = await fetchWithTimeout(
         `https://graph.facebook.com/v21.0/${videoId}?fields=thumbnails{uri,width,height}&access_token=${META_ACCESS_TOKEN}`
       );
@@ -77,7 +79,6 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
         const vidData = await vidRes.json();
         const thumbs = vidData?.thumbnails?.data;
         if (thumbs && thumbs.length > 0) {
-          // Sort by width descending, pick the largest
           const sorted = thumbs.sort((a: any, b: any) => (b.width || 0) - (a.width || 0));
           const best = sorted[0];
           if (best?.uri && (best.width || 0) >= 200) {
@@ -86,7 +87,6 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
           }
         }
       }
-      // Fallback: request largest available picture (1080px)
       const picRes = await fetchWithTimeout(
         `https://graph.facebook.com/v21.0/${videoId}/picture?redirect=false&width=1080&height=1080&access_token=${META_ACCESS_TOKEN}`
       );
@@ -145,7 +145,6 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
 /** Fetch ad preview URL from Meta Graph API for iframe embedding. */
 async function getFreshPreviewUrl(adId: string): Promise<string | null> {
   try {
-    // First try the ad preview endpoint
     const res = await fetchWithTimeout(
       `https://graph.facebook.com/v21.0/${adId}/previews?ad_format=DESKTOP_FEED_STANDARD&access_token=${META_ACCESS_TOKEN}`
     );
@@ -153,7 +152,6 @@ async function getFreshPreviewUrl(adId: string): Promise<string | null> {
       const data = await res.json();
       const preview = data?.data?.[0];
       if (preview?.body) {
-        // Extract the iframe src from the HTML body
         const match = preview.body.match(/src="([^"]+)"/);
         if (match?.[1]) {
           const decoded = match[1].replace(/&amp;/g, "&");
@@ -161,7 +159,6 @@ async function getFreshPreviewUrl(adId: string): Promise<string | null> {
         }
       }
     }
-    // Fallback: use the effective_object_story_id to build a Facebook post URL
     const adRes = await fetchWithTimeout(
       `https://graph.facebook.com/v21.0/${adId}?fields=creative{effective_object_story_id}&access_token=${META_ACCESS_TOKEN}`
     );
@@ -169,7 +166,6 @@ async function getFreshPreviewUrl(adId: string): Promise<string | null> {
       const adData = await adRes.json();
       const storyId = adData?.creative?.effective_object_story_id;
       if (storyId) {
-        // Format: pageId_postId -> facebook.com/pageId/posts/postId
         const parts = storyId.split("_");
         if (parts.length === 2) {
           return `https://www.facebook.com/${parts[0]}/posts/${parts[1]}`;
@@ -321,7 +317,9 @@ serve(async (req) => {
       .single();
     const logId = logRow?.id;
 
-    // Phase 1: Discover work
+    // Phase 1: Discover work — only items that haven't been cached or marked as failed
+    // Thumbnails: find creatives where thumbnail_url is NULL (never fetched)
+    // OR not yet cached to storage AND not marked as "no-thumbnail" sentinel
     let missingThumbsQuery = supabase
       .from("creatives")
       .select("ad_id, account_id, thumbnail_url")
@@ -329,18 +327,20 @@ serve(async (req) => {
     if (accountFilter) missingThumbsQuery = missingThumbsQuery.eq("account_id", accountFilter);
     const { data: missingThumbs } = await missingThumbsQuery.limit(MAX_TOTAL);
 
-    let thumbQuery = supabase
+    let uncachedThumbsQuery = supabase
       .from("creatives")
       .select("ad_id, account_id, thumbnail_url")
-      .not("thumbnail_url", "is", null);
-    if (accountFilter) thumbQuery = thumbQuery.eq("account_id", accountFilter);
+      .not("thumbnail_url", "is", null)
+      .neq("thumbnail_url", NO_THUMB_SENTINEL); // Skip previously failed items
+    if (accountFilter) uncachedThumbsQuery = uncachedThumbsQuery.eq("account_id", accountFilter);
     if (!forceRefresh) {
-      thumbQuery = thumbQuery.not("thumbnail_url", "like", `%/storage/v1/object/public/%`);
+      uncachedThumbsQuery = uncachedThumbsQuery.not("thumbnail_url", "like", `%/storage/v1/object/public/%`);
     }
-    const { data: uncachedThumbs } = await thumbQuery.limit(MAX_TOTAL);
+    const { data: uncachedThumbs } = await uncachedThumbsQuery.limit(MAX_TOTAL);
 
     const allThumbWork = [...(missingThumbs || []), ...(uncachedThumbs || [])].slice(0, MAX_TOTAL);
 
+    // Videos: skip items already marked as "no-video"
     let missingVideosQuery = supabase
       .from("creatives")
       .select("ad_id, account_id")
@@ -354,7 +354,7 @@ serve(async (req) => {
       .select("ad_id, account_id, video_url")
       .not("video_url", "is", null)
       .not("video_url", "like", `%/storage/v1/object/public/%`)
-      .neq("video_url", "no-video");
+      .neq("video_url", NO_VIDEO_SENTINEL);
     if (accountFilter) uncachedVideosQuery = uncachedVideosQuery.eq("account_id", accountFilter);
     const { data: uncachedVideos } = await uncachedVideosQuery.limit(2000);
 
@@ -402,6 +402,7 @@ serve(async (req) => {
     // Phase 2: Process thumbnails
     if (logId) await updateLog(supabase, logId, { current_phase: 2 });
     const invocationStart = Date.now();
+    let budgetExceeded = false;
 
     let thumbCached = 0, thumbFailed = 0;
     for (let i = 0; i < thumbs.length; i += BATCH_SIZE) {
@@ -409,8 +410,13 @@ serve(async (req) => {
       const results = await Promise.allSettled(
         batch.map(async (c: any) => {
           const freshUrl = await getFreshImageUrl(c.ad_id, c.account_id);
-          if (!freshUrl) { return false; }
+          if (!freshUrl) {
+            // Mark as failed so we don't retry this item on the next run
+            await supabase.from("creatives").update({ thumbnail_url: NO_THUMB_SENTINEL }).eq("ad_id", c.ad_id);
+            return false;
+          }
           if (!c.thumbnail_url) {
+            // Had no URL at all — set the fresh Meta URL (will be cached on next run)
             await supabase.from("creatives").update({ thumbnail_url: freshUrl }).eq("ad_id", c.ad_id);
             return true;
           }
@@ -419,6 +425,8 @@ serve(async (req) => {
             await supabase.from("creatives").update({ thumbnail_url: storageUrl }).eq("ad_id", c.ad_id);
             return true;
           }
+          // Download/upload failed — mark as sentinel to skip next time
+          await supabase.from("creatives").update({ thumbnail_url: NO_THUMB_SENTINEL }).eq("ad_id", c.ad_id);
           return false;
         })
       );
@@ -432,85 +440,92 @@ serve(async (req) => {
 
       if (isOverBudget(invocationStart)) {
         console.log(`Time budget reached during thumbnail phase. Processed ${thumbCached + thumbFailed}/${thumbs.length}`);
+        budgetExceeded = true;
         break;
       }
       if (i + BATCH_SIZE < thumbs.length) await new Promise(r => setTimeout(r, 300));
     }
 
-    // Phase 3: Process videos
+    // Phase 3: Process videos (only if we have budget remaining)
     if (logId) await updateLog(supabase, logId, { current_phase: 3 });
 
     let videosFetched = 0, videosMarkedNA = 0;
-    for (let i = 0; i < noVideos.length; i += BATCH_SIZE) {
-      const batch = noVideos.slice(i, i + BATCH_SIZE);
-      const results = await Promise.allSettled(
-        batch.map(async (c: any) => {
-          const freshUrl = await getFreshVideoUrl(c.ad_id);
-          if (!freshUrl) {
-            await supabase.from("creatives").update({ video_url: "no-video" }).eq("ad_id", c.ad_id);
-            return "marked";
-          }
-          const storageUrl = await downloadAndCache(supabase, VIDEO_BUCKET, c.account_id, c.ad_id, freshUrl, "video");
-          if (storageUrl) {
-            await supabase.from("creatives").update({ video_url: storageUrl }).eq("ad_id", c.ad_id);
+    if (!budgetExceeded) {
+      for (let i = 0; i < noVideos.length; i += BATCH_SIZE) {
+        const batch = noVideos.slice(i, i + BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map(async (c: any) => {
+            const freshUrl = await getFreshVideoUrl(c.ad_id);
+            if (!freshUrl) {
+              await supabase.from("creatives").update({ video_url: NO_VIDEO_SENTINEL }).eq("ad_id", c.ad_id);
+              return "marked";
+            }
+            const storageUrl = await downloadAndCache(supabase, VIDEO_BUCKET, c.account_id, c.ad_id, freshUrl, "video");
+            if (storageUrl) {
+              await supabase.from("creatives").update({ video_url: storageUrl }).eq("ad_id", c.ad_id);
+              return "cached";
+            }
+            await supabase.from("creatives").update({ video_url: freshUrl }).eq("ad_id", c.ad_id);
             return "cached";
-          }
-          await supabase.from("creatives").update({ video_url: freshUrl }).eq("ad_id", c.ad_id);
-          return "cached";
-        })
-      );
-      videosFetched += results.filter((r: any) => r.status === "fulfilled" && r.value === "cached").length;
-      videosMarkedNA += results.filter((r: any) => r.status === "fulfilled" && r.value === "marked").length;
+          })
+        );
+        videosFetched += results.filter((r: any) => r.status === "fulfilled" && r.value === "cached").length;
+        videosMarkedNA += results.filter((r: any) => r.status === "fulfilled" && r.value === "marked").length;
 
-      if (logId) {
-        await updateLog(supabase, logId, { videos_cached: videosFetched, videos_failed: videosMarkedNA });
-      }
+        if (logId) {
+          await updateLog(supabase, logId, { videos_cached: videosFetched, videos_failed: videosMarkedNA });
+        }
 
-      if (isOverBudget(invocationStart)) {
-        console.log(`Time budget reached during video discovery. Processed ${videosFetched + videosMarkedNA}/${noVideos.length}`);
-        break;
+        if (isOverBudget(invocationStart)) {
+          console.log(`Time budget reached during video discovery. Processed ${videosFetched + videosMarkedNA}/${noVideos.length}`);
+          budgetExceeded = true;
+          break;
+        }
+        if (i + BATCH_SIZE < noVideos.length) await new Promise(r => setTimeout(r, 500));
       }
-      if (i + BATCH_SIZE < noVideos.length) await new Promise(r => setTimeout(r, 500));
     }
 
     let videoCached = 0, videoFailed = 0;
-    for (let i = 0; i < videos.length; i += VIDEO_BATCH_SIZE) {
-      const batch = videos.slice(i, i + VIDEO_BATCH_SIZE);
-      const results = await Promise.allSettled(
-        batch.map(async (c: any) => {
-          const freshUrl = await getFreshVideoUrl(c.ad_id);
-          if (!freshUrl) { return false; }
-          const storageUrl = await downloadAndCache(supabase, VIDEO_BUCKET, c.account_id, c.ad_id, freshUrl, "video");
-          if (storageUrl) {
-            await supabase.from("creatives").update({ video_url: storageUrl }).eq("ad_id", c.ad_id);
-            return true;
-          }
-          return false;
-        })
-      );
-      videoCached += results.filter((r: any) => r.status === "fulfilled" && r.value).length;
-      videoFailed += results.filter((r: any) => r.status === "rejected" || (r.status === "fulfilled" && !r.value)).length;
+    if (!budgetExceeded) {
+      for (let i = 0; i < videos.length; i += VIDEO_BATCH_SIZE) {
+        const batch = videos.slice(i, i + VIDEO_BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map(async (c: any) => {
+            const freshUrl = await getFreshVideoUrl(c.ad_id);
+            if (!freshUrl) { return false; }
+            const storageUrl = await downloadAndCache(supabase, VIDEO_BUCKET, c.account_id, c.ad_id, freshUrl, "video");
+            if (storageUrl) {
+              await supabase.from("creatives").update({ video_url: storageUrl }).eq("ad_id", c.ad_id);
+              return true;
+            }
+            return false;
+          })
+        );
+        videoCached += results.filter((r: any) => r.status === "fulfilled" && r.value).length;
+        videoFailed += results.filter((r: any) => r.status === "rejected" || (r.status === "fulfilled" && !r.value)).length;
 
-      if (logId) {
-        await updateLog(supabase, logId, {
-          videos_cached: videosFetched + videoCached,
-          videos_failed: videosMarkedNA + videoFailed,
-        });
-      }
+        if (logId) {
+          await updateLog(supabase, logId, {
+            videos_cached: videosFetched + videoCached,
+            videos_failed: videosMarkedNA + videoFailed,
+          });
+        }
 
-      if (isOverBudget(invocationStart)) {
-        console.log(`Time budget reached during video caching. Processed ${videoCached + videoFailed}/${videos.length}`);
-        break;
+        if (isOverBudget(invocationStart)) {
+          console.log(`Time budget reached during video caching. Processed ${videoCached + videoFailed}/${videos.length}`);
+          budgetExceeded = true;
+          break;
+        }
+        if (i + VIDEO_BATCH_SIZE < videos.length) await new Promise(r => setTimeout(r, 500));
       }
-      if (i + VIDEO_BATCH_SIZE < videos.length) await new Promise(r => setTimeout(r, 500));
     }
 
     const totalVideosCached = videosFetched + videoCached;
     const totalVideosFailed = videosMarkedNA + videoFailed;
 
-    // Phase 4: Backfill preview_url for iframe embeds
+    // Phase 4: Backfill preview_url for iframe embeds (only if budget remains)
     let previewsFetched = 0;
-    if (previews.length > 0) {
+    if (!budgetExceeded && previews.length > 0) {
       console.log(`Phase 4: Fetching preview_url for ${previews.length} ads...`);
       for (let i = 0; i < previews.length; i += BATCH_SIZE) {
         const batch = previews.slice(i, i + BATCH_SIZE);
@@ -525,15 +540,20 @@ serve(async (req) => {
           })
         );
         previewsFetched += results.filter((r: any) => r.status === "fulfilled" && r.value).length;
+
+        if (isOverBudget(invocationStart)) {
+          console.log(`Time budget reached during preview phase.`);
+          budgetExceeded = true;
+          break;
+        }
         if (i + BATCH_SIZE < previews.length) await new Promise(r => setTimeout(r, 300));
       }
       console.log(`  Preview URLs fetched: ${previewsFetched}/${previews.length}`);
     }
 
-    const startTime = logRow ? new Date(logRow.started_at || Date.now()).getTime() : Date.now();
-    const durationMs = Date.now() - startTime;
+    const durationMs = Date.now() - invocationStart;
 
-    // Finalize log
+    // Finalize log — always mark as completed (even partial) so we don't get stuck
     if (logId) {
       await updateLog(supabase, logId, {
         status: "completed",
@@ -552,7 +572,9 @@ serve(async (req) => {
     const videosRemaining = (noVideos.length + videos.length) - (totalVideosCached + totalVideosFailed);
     const previewsRemaining = previews.length - previewsFetched;
     console.log(`Done — Thumbs: ${thumbCached} cached, ${thumbFailed} failed, ${thumbsRemaining} remaining | Videos fetched: ${videosFetched}, marked N/A: ${videosMarkedNA}, cached: ${videoCached}, failed: ${videoFailed}, ${videosRemaining} remaining | Previews: ${previewsFetched}/${previews.length}, ${previewsRemaining} remaining`);
-    if (thumbsRemaining > 0 || videosRemaining > 0 || previewsRemaining > 0) {
+    if (budgetExceeded) {
+      console.log(`⏳ Time budget reached. Next cron run will continue with remaining: ~${thumbsRemaining} thumbs, ~${videosRemaining} videos, ~${previewsRemaining} previews`);
+    } else if (thumbsRemaining > 0 || videosRemaining > 0 || previewsRemaining > 0) {
       console.log(`⏳ Next cron run will continue processing: ~${thumbsRemaining} thumbs, ~${videosRemaining} videos, ~${previewsRemaining} previews`);
     } else {
       console.log(`✅ All media fully cached for this batch.`);
@@ -562,6 +584,7 @@ serve(async (req) => {
       thumbnails: { cached: thumbCached, failed: thumbFailed, total: thumbs.length },
       videos: { fetched: videosFetched, markedNA: videosMarkedNA, cached: videoCached, failed: videoFailed, total: videos.length + noVideos.length },
       previews: { fetched: previewsFetched, total: previews.length },
+      budgetExceeded,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
