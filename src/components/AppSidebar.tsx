@@ -56,13 +56,13 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
         {showSwitcher && accounts.length > 0 && (
           <Select value={selectedAccountId || ""} onValueChange={setSelectedAccountId}>
-            <SelectTrigger className="w-full h-9 font-body text-[13px] font-medium text-charcoal border border-input bg-background rounded-md">
+            <SelectTrigger className="w-full h-9 font-body text-[13px] font-medium text-charcoal border border-input bg-background rounded-md [&>svg]:text-sage">
               <SelectValue placeholder="Select account" />
             </SelectTrigger>
-            <SelectContent>
-              {!isClient && <SelectItem value="all" className="font-body text-[13px]">All Accounts</SelectItem>}
+            <SelectContent className="bg-white border border-border-light rounded-[8px] shadow-modal">
+              {!isClient && <SelectItem value="all" className="font-body text-[13px] font-normal text-charcoal py-2 px-4 focus:bg-cream-dark data-[state=checked]:bg-sage-light data-[state=checked]:text-forest data-[state=checked]:font-medium [&>span:first-child]:text-verdant">All Accounts</SelectItem>}
               {[...accounts].sort((a: any, b: any) => a.name.localeCompare(b.name)).map((acc: any) => (
-                <SelectItem key={acc.id} value={acc.id} className="font-body text-[13px]">
+                <SelectItem key={acc.id} value={acc.id} className="font-body text-[13px] font-normal text-charcoal py-2 px-4 focus:bg-cream-dark data-[state=checked]:bg-sage-light data-[state=checked]:text-forest data-[state=checked]:font-medium [&>span:first-child]:text-verdant">
                   {acc.name}
                 </SelectItem>
               ))}
