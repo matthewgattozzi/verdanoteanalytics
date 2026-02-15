@@ -161,30 +161,30 @@ const ReportsPage = () => {
         <div className="glass-panel overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="text-xs">Report</TableHead>
-                <TableHead className="text-xs">Date</TableHead>
-                <TableHead className="text-xs text-right">Creatives</TableHead>
-                <TableHead className="text-xs text-right">Spend</TableHead>
-                <TableHead className="text-xs text-right">ROAS</TableHead>
-                <TableHead className="text-xs text-right">Win Rate</TableHead>
-                <TableHead className="text-xs text-right">CPA</TableHead>
-                <TableHead className="text-xs"></TableHead>
+              <TableRow className="bg-cream-dark">
+                <TableHead className="font-label text-[11px] uppercase tracking-[0.04em] text-slate font-semibold">Report</TableHead>
+                <TableHead className="font-label text-[11px] uppercase tracking-[0.04em] text-slate font-semibold">Date</TableHead>
+                <TableHead className="font-label text-[11px] uppercase tracking-[0.04em] text-slate font-semibold text-right">Creatives</TableHead>
+                <TableHead className="font-label text-[11px] uppercase tracking-[0.04em] text-slate font-semibold text-right">Spend</TableHead>
+                <TableHead className="font-label text-[11px] uppercase tracking-[0.04em] text-slate font-semibold text-right">ROAS</TableHead>
+                <TableHead className="font-label text-[11px] uppercase tracking-[0.04em] text-slate font-semibold text-right">Win Rate</TableHead>
+                <TableHead className="font-label text-[11px] uppercase tracking-[0.04em] text-slate font-semibold text-right">CPA</TableHead>
+                <TableHead className="font-label text-[11px] uppercase tracking-[0.04em] text-slate font-semibold"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {reports.map((r: any) => (
                 <TableRow key={r.id} className="cursor-pointer hover:bg-accent/50" onClick={() => navigate(`/reports/${r.id}`)}>
                   <TableCell>
-                    <div className="text-xs font-medium">{r.report_name}</div>
-                    <div className="text-[10px] text-muted-foreground">{r.date_range_days ? `${r.date_range_days} days` : "—"}</div>
+                    <div className="font-body text-[13px] font-semibold text-charcoal">{r.report_name}</div>
+                    <div className="font-data text-[11px] text-slate">{r.date_range_days ? `${r.date_range_days} days` : "—"}</div>
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-xs text-right font-mono">{r.creative_count}</TableCell>
-                  <TableCell className="text-xs text-right font-mono">{fmt(r.total_spend, "$")}</TableCell>
-                  <TableCell className="text-xs text-right font-mono">{fmt(r.blended_roas, "", "x")}</TableCell>
-                  <TableCell className="text-xs text-right font-mono">{fmt(r.win_rate, "", "%")}</TableCell>
-                  <TableCell className="text-xs text-right font-mono">{fmt(r.average_cpa, "$")}</TableCell>
+                  <TableCell className="font-data text-[13px] text-slate">{new Date(r.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell className="font-data text-[13px] text-right tabular-nums">{r.creative_count}</TableCell>
+                  <TableCell className="font-data text-[13px] text-right tabular-nums">{fmt(r.total_spend, "$")}</TableCell>
+                  <TableCell className="font-data text-[13px] text-right tabular-nums">{fmt(r.blended_roas, "", "x")}</TableCell>
+                  <TableCell className="font-data text-[13px] text-right tabular-nums">{fmt(r.win_rate, "", "%")}</TableCell>
+                  <TableCell className="font-data text-[13px] text-right tabular-nums">{fmt(r.average_cpa, "$")}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       {!isClient && (

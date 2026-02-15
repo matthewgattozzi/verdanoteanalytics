@@ -40,7 +40,7 @@ const ReportDetailPage = () => {
   const [selectedCreative, setSelectedCreative] = useState<any>(null);
 
   const handleAdClick = async (adId: string) => {
-    const { data } = await supabase.from("creatives").select("*").eq("ad_id", adId).single();
+    const { data } = await supabase.from("creatives").select("*").eq("ad_id", adId).maybeSingle();
     if (data) setSelectedCreative(data);
   };
 

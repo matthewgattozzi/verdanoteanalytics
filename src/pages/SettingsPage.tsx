@@ -22,14 +22,14 @@ const SettingsPage = () => {
           <PageHeader title="Account Settings" description="Select a specific ad account from the sidebar to view its settings." />
           <div className="max-w-2xl">
             <div className="glass-panel p-6 space-y-4">
-              <p className="text-sm text-muted-foreground mb-3">Select an account to configure its settings:</p>
+              <p className="font-body text-[13px] text-slate mb-3">Select an account to configure its settings:</p>
               <div className="space-y-2">
                 {s.accounts.map((acc: any) => (
                   <button key={acc.id} onClick={() => s.setSelectedAccountId(acc.id)}
                     className="w-full flex items-center justify-between p-3 rounded-md border border-border hover:bg-accent transition-colors text-left">
                     <div>
-                      <div className="text-sm font-medium">{acc.name}</div>
-                      <div className="text-xs text-muted-foreground">{acc.creative_count} creatives</div>
+                      <div className="font-body text-[14px] font-medium text-charcoal">{acc.name}</div>
+                      <div className="font-data text-[12px] text-sage">{acc.creative_count} creatives</div>
                     </div>
                   </button>
                 ))}
@@ -44,7 +44,7 @@ const SettingsPage = () => {
         <PageHeader title="Account Settings" description="No ad accounts configured yet." />
         <div className="max-w-2xl">
           <div className="glass-panel p-8 flex flex-col items-center justify-center text-center">
-            <p className="text-sm text-muted-foreground">Add ad accounts in User Settings → Admin to get started.</p>
+            <p className="font-body text-[13px] text-slate">Add ad accounts in User Settings → Admin to get started.</p>
           </div>
         </div>
       </AppLayout>
