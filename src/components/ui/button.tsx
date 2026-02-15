@@ -5,20 +5,20 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium ring-offset-background transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 glass-shine",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-button text-sm font-medium ring-offset-background transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground neu-raised hover:neu-raised-hover active:neu-pressed",
+          "bg-primary text-primary-foreground shadow-card hover:shadow-card-hover active:brightness-95",
         destructive:
-          "bg-destructive text-destructive-foreground neu-raised hover:neu-raised-hover active:neu-pressed",
+          "bg-destructive text-destructive-foreground shadow-card hover:shadow-card-hover active:brightness-95",
         outline:
-          "border-0 bg-card text-foreground neu-raised hover:neu-raised-hover active:neu-pressed",
+          "border border-border bg-card text-foreground shadow-card hover:shadow-card-hover active:brightness-95",
         secondary:
-          "bg-secondary text-secondary-foreground neu-raised hover:neu-raised-hover active:neu-pressed",
+          "bg-secondary text-secondary-foreground shadow-card hover:shadow-card-hover active:brightness-95",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground active:neu-pressed-subtle",
+          "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
