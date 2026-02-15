@@ -75,20 +75,20 @@ export function MediaRefreshBanner() {
         <Image className="h-4 w-4 text-primary flex-shrink-0 animate-pulse" />
 
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground">
-            Refreshing media for {accountName} — <span className="text-primary">{phaseLabel}</span>
+          <p className="font-body text-[13px] font-medium text-forest">
+            Refreshing media for {accountName} — <span className="text-verdant">{phaseLabel}</span>
           </p>
-          <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
+          <div className="flex items-center gap-3 mt-0.5">
+            <span className="font-data text-[12px] font-medium text-slate inline-flex items-center gap-1">
               <Clock className="h-3 w-3" />
               {timeStr}
             </span>
-            <span className="font-mono text-[10px]">Phase {Math.min(currentPhase, 3)}/3</span>
+            <span className="font-data text-[12px] font-medium text-slate">Phase {Math.min(currentPhase, 3)}/3</span>
             {thumbsTotal > 0 && (
-              <span>{thumbsCached}/{thumbsTotal} thumbs</span>
+              <span className="font-data text-[12px] font-medium text-slate">{thumbsCached}/{thumbsTotal} thumbs</span>
             )}
             {videosTotal > 0 && (
-              <span>{videosCached}/{videosTotal} videos</span>
+              <span className="font-data text-[12px] font-medium text-slate">{videosCached}/{videosTotal} videos</span>
             )}
           </div>
         </div>

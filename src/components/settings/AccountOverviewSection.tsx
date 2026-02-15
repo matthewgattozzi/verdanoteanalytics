@@ -31,23 +31,24 @@ export function AccountOverviewSection({
     <section className="glass-panel p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-semibold">Account Overview</h2>
-          <p className="text-[11px] font-mono text-muted-foreground">{account.id}</p>
+          <h2 className="font-heading text-[20px] text-forest">Account Overview</h2>
+          <p className="font-data text-[12px] text-sage tracking-wide">{account.id}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="ghost" onClick={onRename} title="Rename">
-            <Pencil className="h-3.5 w-3.5" />
+          <Button size="sm" variant="secondary" onClick={onRename} title="Rename">
+            <Pencil className="h-3.5 w-3.5 mr-1.5" />
+            Edit
           </Button>
-          <Button size="sm" variant="outline" onClick={onSync} disabled={syncPending}>
+          <Button size="sm" variant="secondary" onClick={onSync} disabled={syncPending}>
             {syncPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
             Sync
           </Button>
-          <Button size="sm" variant="outline" onClick={onUploadCsv}>
+          <Button size="sm" variant="secondary" onClick={onUploadCsv}>
             <Upload className="h-3.5 w-3.5 mr-1.5" />
             Upload CSV
           </Button>
           {onRefreshMedia && (
-            <Button size="sm" variant="outline" onClick={onRefreshMedia} disabled={refreshMediaPending}>
+            <Button size="sm" variant="secondary" onClick={onRefreshMedia} disabled={refreshMediaPending}>
               {refreshMediaPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Image className="h-3.5 w-3.5 mr-1.5" />}
               Refresh Media
             </Button>
@@ -59,10 +60,9 @@ export function AccountOverviewSection({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Active</TableHead>
-              <TableHead>Creatives</TableHead>
-              
-              <TableHead>Last Synced</TableHead>
+              <TableHead className="font-label text-[11px] uppercase tracking-wide text-slate">Active</TableHead>
+              <TableHead className="font-label text-[11px] uppercase tracking-wide text-slate">Creatives</TableHead>
+              <TableHead className="font-label text-[11px] uppercase tracking-wide text-slate">Last Synced</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -70,13 +70,13 @@ export function AccountOverviewSection({
               <TableCell>
                 <Switch checked={account.is_active} onCheckedChange={onToggle} />
               </TableCell>
-              <TableCell className="text-sm">{account.creative_count}</TableCell>
-
-
-              <TableCell className="text-xs text-muted-foreground">
+              <TableCell>
+                <span className="font-data text-[16px] font-semibold text-charcoal">{account.creative_count}</span>
+              </TableCell>
+              <TableCell>
                 <div className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {formatDate(account.last_synced_at)}
+                  <Clock className="h-3 w-3 text-sage" />
+                  <span className="font-data text-[13px] text-slate">{formatDate(account.last_synced_at)}</span>
                 </div>
               </TableCell>
             </TableRow>

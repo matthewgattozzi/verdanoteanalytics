@@ -74,24 +74,24 @@ export function SyncStatusBanner() {
         <Loader2 className="h-4 w-4 animate-spin text-primary flex-shrink-0" />
 
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground">
-            Syncing {accountName} — <span className="text-primary">{phaseLabel}</span>
-            {queuedCount > 0 && !isQueued && <span className="text-muted-foreground"> (+{queuedCount} queued)</span>}
+          <p className="font-body text-[13px] font-medium text-forest">
+            Syncing {accountName} — <span className="text-verdant">{phaseLabel}</span>
+            {queuedCount > 0 && !isQueued && <span className="text-sage"> (+{queuedCount} queued)</span>}
           </p>
-          <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
+          <div className="flex items-center gap-3 mt-0.5">
+            <span className="font-data text-[12px] font-medium text-slate inline-flex items-center gap-1">
               <Clock className="h-3 w-3" />
               {timeStr}
             </span>
-            <span className="font-mono text-[10px]">Phase {Math.min(currentPhase, 5)}/5</span>
+            <span className="font-data text-[12px] font-medium text-slate">Phase {Math.min(currentPhase, 5)}/5</span>
             {fetched > 0 && (
-              <span className="inline-flex items-center gap-1">
+              <span className="font-data text-[12px] font-medium text-slate inline-flex items-center gap-1">
                 <Download className="h-3 w-3" />
                 {fetched} fetched
               </span>
             )}
             {upserted > 0 && (
-              <span className="inline-flex items-center gap-1">
+              <span className="font-data text-[12px] font-medium text-slate inline-flex items-center gap-1">
                 <UploadCloud className="h-3 w-3" />
                 {upserted} upserted
               </span>
