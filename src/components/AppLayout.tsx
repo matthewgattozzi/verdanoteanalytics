@@ -51,14 +51,9 @@ export function AppLayout({ children }: AppLayoutProps) {
           </Button>
           <span className="text-sm font-semibold">Verdanote</span>
         </div>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3, delay: 0.05 }}
-          className="p-4 md:p-6 max-w-[1400px] mx-auto"
-        >
+        <div className="p-4 md:p-6 max-w-[1400px] mx-auto">
           {children}
-        </motion.div>
+        </div>
       </main>
     </div>
   );
