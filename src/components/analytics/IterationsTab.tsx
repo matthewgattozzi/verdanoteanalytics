@@ -72,7 +72,7 @@ function BenchmarkBar({ benchmarks }: { benchmarks: Benchmarks }) {
         className="flex items-center justify-between w-full md:pointer-events-none"
       >
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold">Account Benchmarks</h3>
+          <h3 className="font-heading text-[18px] text-forest">Account Benchmarks</h3>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -94,8 +94,8 @@ function BenchmarkBar({ benchmarks }: { benchmarks: Benchmarks }) {
           <div key={m.label} className="flex items-center gap-3">
             <m.icon className="h-4 w-4 text-muted-foreground shrink-0" />
             <div>
-              <p className="text-xs font-medium text-foreground">{m.label}: <span className="font-mono">{m.data.median.toFixed(2)}%</span></p>
-              <p className="text-[10px] text-muted-foreground font-mono">
+              <p className="font-body text-[13px] font-medium text-charcoal">{m.label}: <span className="font-data text-[14px] font-semibold text-charcoal">{m.data.median.toFixed(2)}%</span></p>
+              <p className="font-data text-[11px] text-sage">
                 25th: {m.data.p25.toFixed(2)}% &nbsp;|&nbsp; 75th: {m.data.p75.toFixed(2)}%
               </p>
             </div>
@@ -156,45 +156,45 @@ function TopPerformers({ creatives, benchmarks, minSpend, onCreativeClick }: Top
       {sections.map((section) => (
         <div key={section.title}>
           <div className="flex items-center gap-2 mb-1">
-            <section.icon className="h-4 w-4 text-success" />
-            <h3 className="text-sm font-semibold">{section.title}</h3>
+            <section.icon className="h-4 w-4 text-verdant" />
+            <h3 className="font-heading text-[18px] text-forest">{section.title}</h3>
           </div>
-          <p className="text-xs text-muted-foreground mb-3">{section.subtitle}</p>
+          <p className="font-body text-[12px] text-sage mb-3">{section.subtitle}</p>
 
           {section.items.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">No qualifying ads with this metric.</p>
+            <p className="font-body text-[12px] text-sage italic">No qualifying ads with this metric.</p>
           ) : (
-            <div className="space-y-2">
+            <div className="divide-y divide-border-light">
               {section.items.map((c: any, i: number) => {
                 const val = Number(c[section.metric]) || 0;
                 return (
                   <div
                     key={c.ad_id}
-                    className="glass-panel p-3 border-l-2 border-l-success cursor-pointer hover:bg-muted/40 transition-colors"
+                    className="py-3 px-1 cursor-pointer hover:bg-accent/40 transition-colors"
                     onClick={() => onCreativeClick?.(c)}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2 min-w-0">
-                        <Badge variant="outline" className="text-[10px] shrink-0">#{i + 1}</Badge>
+                        <Badge variant="outline" className="font-label text-[10px] shrink-0">#{i + 1}</Badge>
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className="text-xs font-medium truncate">{c.ad_name}</span>
+                              <span className="font-body text-[14px] font-medium text-charcoal truncate">{c.ad_name}</span>
                             </TooltipTrigger>
                             <TooltipContent className="max-w-sm text-xs">{c.ad_name}</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {c.hook && <Badge variant="outline" className="text-[10px]">{c.hook}</Badge>}
-                        {c.style && <Badge variant="outline" className="text-[10px]">{c.style}</Badge>}
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="font-data text-[18px] font-semibold text-verdant">{val.toFixed(2)}%</span>
+                        <span className="font-data text-[13px] font-medium text-slate">${(Number(c.spend) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span>{section.label}: <span className="font-mono text-success font-medium">{val.toFixed(2)}%</span></span>
-                      <span>Spend: <span className="font-mono text-foreground">${(Number(c.spend) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></span>
-                      <span>ROAS: <span className="font-mono text-foreground">{(Number(c.roas) || 0).toFixed(2)}x</span></span>
-                      {c.person && <span>Person: <span className="text-foreground">{c.person}</span></span>}
+                    <div className="flex flex-wrap gap-x-3 gap-y-1">
+                      <span className="font-body text-[11px] text-sage">ROAS: <span className="font-data text-[12px] font-medium text-charcoal">{(Number(c.roas) || 0).toFixed(2)}x</span></span>
+                      {c.hook && <Badge variant="outline" className="font-label text-[10px]">{c.hook}</Badge>}
+                      {c.style && <Badge variant="outline" className="font-label text-[10px]">{c.style}</Badge>}
+                      {c.person && <span className="font-body text-[11px] text-sage">Person: <span className="font-data text-[12px] font-medium text-charcoal">{c.person}</span></span>}
                     </div>
                   </div>
                 );
@@ -210,31 +210,33 @@ function TopPerformers({ creatives, benchmarks, minSpend, onCreativeClick }: Top
 function IterationCard({ item, onClick }: { item: DiagnosedCreative; onClick?: () => void }) {
   const meta = DIAGNOSTIC_META[item.diagnostic];
 
+  // Map priority labels to design system badge styles
+  const priorityBadgeClass =
+    item.priorityLabel === "High"
+      ? "bg-sage-light text-verdant border-0"
+      : item.priorityLabel === "Medium"
+      ? "bg-gold-light text-amber-700 border-0"
+      : "border-muted-foreground text-muted-foreground";
+
   return (
-    <div className="glass-panel p-4 flex flex-col gap-3 cursor-pointer transition-shadow hover:shadow-md" onClick={onClick}>
+    <div className="glass-panel p-4 flex flex-col gap-3 cursor-pointer transition-shadow hover:shadow-card-hover" onClick={onClick}>
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <p className="text-sm font-medium truncate">{item.ad_name}</p>
+                <p className="font-body text-[15px] font-semibold text-charcoal truncate">{item.ad_name}</p>
               </TooltipTrigger>
               <TooltipContent className="max-w-sm text-xs">{item.ad_name}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Badge className={`text-[10px] ${meta.color}`}>{meta.label}</Badge>
+          <Badge className="font-label text-[10px] font-semibold tracking-wide bg-red-100 text-red-700 border-0">{meta.label}</Badge>
           <Badge
             variant="outline"
-            className={`text-[10px] ${
-              item.priorityLabel === "High"
-                ? "border-destructive text-destructive"
-                : item.priorityLabel === "Medium"
-                ? "border-warning text-warning"
-                : "border-muted-foreground text-muted-foreground"
-            }`}
+            className={`font-label text-[10px] font-semibold tracking-wide ${priorityBadgeClass}`}
           >
             {item.priorityLabel}
           </Badge>
@@ -247,8 +249,8 @@ function IterationCard({ item, onClick }: { item: DiagnosedCreative; onClick?: (
           <div className="bg-muted/40 rounded-md px-3 py-2 flex items-center gap-2">
             <MetricDot level={item.ctrLevel} />
             <div>
-              <p className="metric-label">CTR</p>
-              <p className="text-sm font-mono font-medium">{item.ctr.toFixed(2)}%</p>
+              <p className="font-label text-[9px] uppercase tracking-[0.05em] text-sage">CTR</p>
+              <p className="font-data text-[18px] font-semibold text-charcoal">{item.ctr.toFixed(2)}%</p>
             </div>
           </div>
         ) : (
@@ -260,8 +262,8 @@ function IterationCard({ item, onClick }: { item: DiagnosedCreative; onClick?: (
             <div key={m.label} className="bg-muted/40 rounded-md px-3 py-2 flex items-center gap-2">
               <MetricDot level={m.level} />
               <div>
-                <p className="metric-label">{m.label}</p>
-                <p className="text-sm font-mono font-medium">{m.value.toFixed(2)}%</p>
+                <p className="font-label text-[9px] uppercase tracking-[0.05em] text-sage">{m.label}</p>
+                <p className="font-data text-[18px] font-semibold text-charcoal">{m.value.toFixed(2)}%</p>
               </div>
             </div>
           ))
@@ -269,15 +271,15 @@ function IterationCard({ item, onClick }: { item: DiagnosedCreative; onClick?: (
       </div>
 
       {/* Context row */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <span>Spend: <span className="font-mono text-foreground">${item.spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></span>
-        <span>ROAS: <span className="font-mono text-foreground">{item.roas.toFixed(2)}</span></span>
-        <span>CPA: <span className="font-mono text-foreground">${item.cpa.toFixed(2)}</span></span>
-        <span>Frequency: <span className="font-mono text-foreground">{item.frequency.toFixed(1)}</span></span>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        <span className="font-body text-[11px] text-sage">Spend: <span className="font-data text-[12px] font-medium text-charcoal">${item.spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></span>
+        <span className="font-body text-[11px] text-sage">ROAS: <span className="font-data text-[12px] font-medium text-charcoal">{item.roas.toFixed(2)}</span></span>
+        <span className="font-body text-[11px] text-sage">CPA: <span className="font-data text-[12px] font-medium text-charcoal">${item.cpa.toFixed(2)}</span></span>
+        <span className="font-body text-[11px] text-sage">Frequency: <span className="font-data text-[12px] font-medium text-charcoal">{item.frequency.toFixed(1)}</span></span>
       </div>
 
       {/* Recommendation */}
-      <p className="text-xs text-muted-foreground border-t border-border/50 pt-2">
+      <p className="font-body text-[13px] text-slate italic border-t border-border-light pt-2">
         {item.recommendation}
       </p>
     </div>
@@ -347,19 +349,25 @@ export function IterationsTab({ creatives, spendThreshold, onCreativeClick }: It
 
       {/* Sub-tabs: Duplicate what works vs Fix what's broken */}
       <Tabs defaultValue="fix" className="space-y-4">
-        <TabsList className="bg-muted/50">
-          <TabsTrigger value="duplicate" className="gap-1.5 text-xs">
+        <TabsList className="bg-transparent border-b border-border-light rounded-none p-0 h-auto gap-0">
+          <TabsTrigger
+            value="duplicate"
+            className="font-body text-[13px] font-medium text-slate data-[state=active]:text-forest data-[state=active]:font-semibold data-[state=active]:border-b-2 data-[state=active]:border-verdant data-[state=active]:shadow-none rounded-none px-4 py-2.5 bg-transparent gap-1.5"
+          >
             <Trophy className="h-3.5 w-3.5" />
             Duplicate What Works
           </TabsTrigger>
-          <TabsTrigger value="fix" className="gap-1.5 text-xs">
+          <TabsTrigger
+            value="fix"
+            className="font-body text-[13px] font-medium text-slate data-[state=active]:text-forest data-[state=active]:font-semibold data-[state=active]:border-b-2 data-[state=active]:border-verdant data-[state=active]:shadow-none rounded-none px-4 py-2.5 bg-transparent gap-1.5"
+          >
             <Repeat className="h-3.5 w-3.5" />
             Fix What's Broken
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="duplicate" className="space-y-4">
-          <p className="text-xs text-muted-foreground">
+          <p className="font-body text-[12px] text-sage">
             Top 5 ads by Hook Rate, Hold Rate, and CTR — ads worth duplicating and remixing. Min spend: ${effectiveMinSpend}.
           </p>
           <TopPerformers
@@ -374,14 +382,14 @@ export function IterationsTab({ creatives, spendThreshold, onCreativeClick }: It
           {/* Filter controls */}
           <div className="flex flex-wrap gap-3 items-end">
             <div className="space-y-1">
-              <label className="metric-label">Diagnostic</label>
+              <label className="font-label text-[10px] uppercase tracking-[0.05em] text-slate">Diagnostic</label>
               <Select value={diagnosticFilter} onValueChange={(v) => setDiagnosticFilter(v as any)}>
-                <SelectTrigger className="w-[180px] h-8 text-xs">
+                <SelectTrigger className="w-[180px] h-8 font-body text-[13px] text-charcoal">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {DIAGNOSTIC_FILTERS.map((f) => (
-                    <SelectItem key={f.value} value={f.value} className="text-xs">
+                    <SelectItem key={f.value} value={f.value} className="font-body text-[13px]">
                       {f.label}
                     </SelectItem>
                   ))}
@@ -390,14 +398,14 @@ export function IterationsTab({ creatives, spendThreshold, onCreativeClick }: It
             </div>
 
             <div className="space-y-1">
-              <label className="metric-label">Status</label>
+              <label className="font-label text-[10px] uppercase tracking-[0.05em] text-slate">Status</label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[140px] h-8 text-xs">
+                <SelectTrigger className="w-[140px] h-8 font-body text-[13px] text-charcoal">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {STATUS_FILTERS.map((f) => (
-                    <SelectItem key={f.value} value={f.value} className="text-xs">
+                    <SelectItem key={f.value} value={f.value} className="font-body text-[13px]">
                       {f.label}
                     </SelectItem>
                   ))}
@@ -406,14 +414,14 @@ export function IterationsTab({ creatives, spendThreshold, onCreativeClick }: It
             </div>
 
             <div className="space-y-1">
-              <label className="metric-label">Sort By</label>
+              <label className="font-label text-[10px] uppercase tracking-[0.05em] text-slate">Sort By</label>
               <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortKey)}>
-                <SelectTrigger className="w-[160px] h-8 text-xs">
+                <SelectTrigger className="w-[160px] h-8 font-body text-[13px] text-charcoal">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {SORT_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value} className="text-xs">
+                    <SelectItem key={o.value} value={o.value} className="font-body text-[13px]">
                       {o.label}
                     </SelectItem>
                   ))}
@@ -422,17 +430,17 @@ export function IterationsTab({ creatives, spendThreshold, onCreativeClick }: It
             </div>
 
             <div className="space-y-1">
-              <label className="metric-label">Min Spend ($)</label>
+              <label className="font-label text-[10px] uppercase tracking-[0.05em] text-slate">Min Spend ($)</label>
               <Input
                 type="number"
                 placeholder={String(spendThreshold)}
                 value={minSpendOverride}
                 onChange={(e) => setMinSpendOverride(e.target.value)}
-                className="w-[100px] h-8 text-xs"
+                className="w-[100px] h-8 font-body text-[13px]"
               />
             </div>
 
-            <p className="text-[10px] text-muted-foreground self-end pb-1">
+            <p className="font-body text-[12px] text-sage self-end pb-1">
               {filtered.length} ad{filtered.length !== 1 ? "s" : ""} found
             </p>
           </div>
