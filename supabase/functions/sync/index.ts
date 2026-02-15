@@ -287,14 +287,11 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
             if (error) console.error("Phase 1 upsert error:", error.message);
           }
 
-          // Batch metadata updates for tagged ads (50 at a time)
+          // Bulk metadata update for tagged ads via single RPC call
           if (metadataBatch.length > 0) {
-            for (let i = 0; i < metadataBatch.length; i += 50) {
-              const batch = metadataBatch.slice(i, i + 50);
-              await Promise.all(batch.map(({ ad_id, data }) =>
-                supabase.from("creatives").update(data).eq("ad_id", ad_id)
-              ));
-            }
+            const rpcPayload = metadataBatch.map(({ ad_id, data }) => ({ ad_id, ...data }));
+            const { error } = await supabase.rpc("bulk_update_creative_metadata", { payload: JSON.stringify(rpcPayload) });
+            if (error) console.error("Phase 1 metadata RPC error:", error.message);
           }
 
           fetchedCount += result.data.length;
@@ -377,14 +374,11 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
     if (phase === 3) {
       console.log("Phase 3: Cleanup zero-spend creatives...");
 
-      // Delete creatives with zero spend (no insights matched), except manually/csv-tagged
+      // Single delete call — no need to count first then delete separately
       const { count: zeroSpendCount } = await supabase.from("creatives")
-        .select("*", { count: "exact", head: true })
+        .delete({ count: "exact" })
         .eq("account_id", accountId).lte("spend", 0).not("tag_source", "in", '("manual","csv")');
       if (zeroSpendCount && zeroSpendCount > 0) {
-        await supabase.from("creatives")
-          .delete()
-          .eq("account_id", accountId).lte("spend", 0).not("tag_source", "in", '("manual","csv")');
         console.log(`  Cleaned up ${zeroSpendCount} zero-spend creatives`);
       }
 
@@ -455,26 +449,35 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
           const result = await metaFetch(nextUrl, ctx);
           if (result.error) { nextUrl = null; break; }
           if (result.data && result.data.length > 0) {
-            // Filter to only ads that exist in creatives table (FK constraint)
-            const validAdIds = new Set<string>();
-            const adIdsInBatch = [...new Set(result.data.map((r: any) => r.ad_id))];
-            for (let i = 0; i < adIdsInBatch.length; i += 200) {
-              const chunk = adIdsInBatch.slice(i, i + 200);
-              const { data: existing } = await supabase.from("creatives").select("ad_id").in("ad_id", chunk);
-              if (existing) existing.forEach((e: any) => validAdIds.add(e.ad_id));
+            // Build rows directly — use account-level valid ad cache to avoid per-page lookups
+            if (!state._validAdCache) {
+              // Load all valid ad_ids for this account once (cached in closure)
+              const validAdIds = new Set<string>();
+              let offset = 0;
+              const FETCH_SIZE = 5000;
+              while (true) {
+                const { data: existing } = await supabase.from("creatives")
+                  .select("ad_id").eq("account_id", accountId)
+                  .range(offset, offset + FETCH_SIZE - 1);
+                if (!existing || existing.length === 0) break;
+                existing.forEach((e: any) => validAdIds.add(e.ad_id));
+                if (existing.length < FETCH_SIZE) break;
+                offset += FETCH_SIZE;
+              }
+              state._validAdCache = validAdIds;
             }
 
             const rows = result.data
-              .filter((row: any) => validAdIds.has(row.ad_id))
+              .filter((row: any) => state._validAdCache.has(row.ad_id))
               .map((row: any) => ({
                 ad_id: row.ad_id,
                 account_id: accountId,
                 date: row.date_start,
                 ...parseInsightsRow(row),
               }));
-            for (let i = 0; i < rows.length; i += 500) {
-              const batch = rows.slice(i, i + 500);
-              const { error } = await supabase.from("creative_daily_metrics").upsert(batch, { onConflict: "ad_id,date" });
+            // Upsert in one call (up to 500 rows, matching Meta page size)
+            if (rows.length > 0) {
+              const { error } = await supabase.from("creative_daily_metrics").upsert(rows, { onConflict: "ad_id,date" });
               if (error) console.error("Daily upsert error:", error.message);
             }
             console.log(`    Upserted ${rows.length} daily rows (filtered from ${result.data.length})`);
@@ -509,13 +512,14 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
     if (phase === 5 || phase === 6) {
       console.log("Phase 5: Finalizing...");
 
-      const { count: totalCount } = await supabase.from("creatives")
-        .select("*", { count: "exact", head: true }).eq("account_id", accountId);
-      const { count: untaggedCount } = await supabase.from("creatives")
-        .select("*", { count: "exact", head: true }).eq("account_id", accountId).eq("tag_source", "untagged");
+      // Run both counts in parallel
+      const [totalResult, untaggedResult] = await Promise.all([
+        supabase.from("creatives").select("*", { count: "exact", head: true }).eq("account_id", accountId),
+        supabase.from("creatives").select("*", { count: "exact", head: true }).eq("account_id", accountId).eq("tag_source", "untagged"),
+      ]);
 
       await supabase.from("ad_accounts").update({
-        creative_count: totalCount || 0, untagged_count: untaggedCount || 0,
+        creative_count: totalResult.count || 0, untagged_count: untaggedResult.count || 0,
         last_synced_at: new Date().toISOString(),
       }).eq("id", accountId);
 
