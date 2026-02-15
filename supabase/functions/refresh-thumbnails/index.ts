@@ -33,14 +33,15 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
       creative.object_story_spec?.photo_data?.image_hash;
     if (imageHash) {
       const imgRes = await fetch(
-        `https://graph.facebook.com/v21.0/${accountId}/adimages?hashes=["${imageHash}"]&fields=url,url_128,width,height,original_width,original_height&access_token=${META_ACCESS_TOKEN}`
+        `https://graph.facebook.com/v21.0/${accountId}/adimages?hashes=["${imageHash}"]&fields=url,url_128,width,height,original_width,original_height,permalink_url&access_token=${META_ACCESS_TOKEN}`
       );
       if (imgRes.ok) {
         const imgData = await imgRes.json();
         const images = imgData?.data;
         if (images && images.length > 0) {
           const img = images[0];
-          const fullUrl = img.url || img.url_128;
+          // Prefer full-res url, skip url_128 (too low quality)
+          const fullUrl = img.url;
           const w = img.original_width || img.width || 0;
           console.log(`image_hash for ${adId}: ${w}px wide, url length: ${fullUrl?.length}`);
           if (fullUrl && fullUrl.length > 100) {
@@ -225,8 +226,8 @@ async function downloadAndCache(
       return null;
     }
     const blob = await resp.arrayBuffer();
-    if (type === "image" && blob.byteLength < 500) {
-      console.log(`Skipping broken image for ${adId}: ${blob.byteLength} bytes`);
+    if (type === "image" && blob.byteLength < 5000) {
+      console.log(`Skipping low-quality image for ${adId}: ${blob.byteLength} bytes`);
       return null;
     }
     if (type === "video" && blob.byteLength > 200 * 1024 * 1024) return null;
