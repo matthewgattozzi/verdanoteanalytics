@@ -268,9 +268,12 @@ async function downloadAndCache(
   }
 }
 
+/** Shared mutable start time so inner helpers can check budget */
+let _invocationStart = 0;
+
 /** Helper to check if we've exceeded our time budget */
-function isOverBudget(startTime: number): boolean {
-  return Date.now() - startTime > TIME_BUDGET_MS;
+function isOverBudget(startTime?: number): boolean {
+  return Date.now() - (startTime ?? _invocationStart) > TIME_BUDGET_MS;
 }
 
 /** Helper to update the progress log row */
@@ -402,30 +405,42 @@ serve(async (req) => {
     // Phase 2: Process thumbnails
     if (logId) await updateLog(supabase, logId, { current_phase: 2 });
     const invocationStart = Date.now();
+    _invocationStart = invocationStart;
     let budgetExceeded = false;
 
     let thumbCached = 0, thumbFailed = 0;
     for (let i = 0; i < thumbs.length; i += BATCH_SIZE) {
+      // Check budget BEFORE starting a new batch
+      if (isOverBudget()) {
+        console.log(`Time budget reached before thumbnail batch ${i}. Processed ${thumbCached + thumbFailed}/${thumbs.length}`);
+        budgetExceeded = true;
+        break;
+      }
+
       const batch = thumbs.slice(i, i + BATCH_SIZE);
       const results = await Promise.allSettled(
         batch.map(async (c: any) => {
+          // Bail early if budget exceeded mid-batch
+          if (isOverBudget()) return false;
+
           const freshUrl = await getFreshImageUrl(c.ad_id, c.account_id);
           if (!freshUrl) {
-            // Mark as failed so we don't retry this item on the next run
             await supabase.from("creatives").update({ thumbnail_url: NO_THUMB_SENTINEL }).eq("ad_id", c.ad_id);
             return false;
           }
           if (!c.thumbnail_url) {
-            // Had no URL at all — set the fresh Meta URL (will be cached on next run)
             await supabase.from("creatives").update({ thumbnail_url: freshUrl }).eq("ad_id", c.ad_id);
             return true;
           }
+
+          // Check again before the expensive download step
+          if (isOverBudget()) return false;
+
           const storageUrl = await downloadAndCache(supabase, THUMB_BUCKET, c.account_id, c.ad_id, freshUrl, "image");
           if (storageUrl) {
             await supabase.from("creatives").update({ thumbnail_url: storageUrl }).eq("ad_id", c.ad_id);
             return true;
           }
-          // Download/upload failed — mark as sentinel to skip next time
           await supabase.from("creatives").update({ thumbnail_url: NO_THUMB_SENTINEL }).eq("ad_id", c.ad_id);
           return false;
         })
@@ -433,13 +448,12 @@ serve(async (req) => {
       thumbCached += results.filter((r: any) => r.status === "fulfilled" && r.value).length;
       thumbFailed += results.filter((r: any) => r.status === "rejected" || (r.status === "fulfilled" && !r.value)).length;
 
-      // Update progress after each batch
       if (logId) {
         await updateLog(supabase, logId, { thumbs_cached: thumbCached, thumbs_failed: thumbFailed });
       }
 
-      if (isOverBudget(invocationStart)) {
-        console.log(`Time budget reached during thumbnail phase. Processed ${thumbCached + thumbFailed}/${thumbs.length}`);
+      if (isOverBudget()) {
+        console.log(`Time budget reached after thumbnail batch. Processed ${thumbCached + thumbFailed}/${thumbs.length}`);
         budgetExceeded = true;
         break;
       }
@@ -452,9 +466,11 @@ serve(async (req) => {
     let videosFetched = 0, videosMarkedNA = 0;
     if (!budgetExceeded) {
       for (let i = 0; i < noVideos.length; i += BATCH_SIZE) {
+        if (isOverBudget()) { budgetExceeded = true; break; }
         const batch = noVideos.slice(i, i + BATCH_SIZE);
         const results = await Promise.allSettled(
           batch.map(async (c: any) => {
+            if (isOverBudget()) return "skipped";
             const freshUrl = await getFreshVideoUrl(c.ad_id);
             if (!freshUrl) {
               await supabase.from("creatives").update({ video_url: NO_VIDEO_SENTINEL }).eq("ad_id", c.ad_id);
@@ -476,7 +492,7 @@ serve(async (req) => {
           await updateLog(supabase, logId, { videos_cached: videosFetched, videos_failed: videosMarkedNA });
         }
 
-        if (isOverBudget(invocationStart)) {
+        if (isOverBudget()) {
           console.log(`Time budget reached during video discovery. Processed ${videosFetched + videosMarkedNA}/${noVideos.length}`);
           budgetExceeded = true;
           break;
@@ -488,9 +504,11 @@ serve(async (req) => {
     let videoCached = 0, videoFailed = 0;
     if (!budgetExceeded) {
       for (let i = 0; i < videos.length; i += VIDEO_BATCH_SIZE) {
+        if (isOverBudget()) { budgetExceeded = true; break; }
         const batch = videos.slice(i, i + VIDEO_BATCH_SIZE);
         const results = await Promise.allSettled(
           batch.map(async (c: any) => {
+            if (isOverBudget()) return false;
             const freshUrl = await getFreshVideoUrl(c.ad_id);
             if (!freshUrl) { return false; }
             const storageUrl = await downloadAndCache(supabase, VIDEO_BUCKET, c.account_id, c.ad_id, freshUrl, "video");
@@ -511,7 +529,7 @@ serve(async (req) => {
           });
         }
 
-        if (isOverBudget(invocationStart)) {
+        if (isOverBudget()) {
           console.log(`Time budget reached during video caching. Processed ${videoCached + videoFailed}/${videos.length}`);
           budgetExceeded = true;
           break;
@@ -541,7 +559,7 @@ serve(async (req) => {
         );
         previewsFetched += results.filter((r: any) => r.status === "fulfilled" && r.value).length;
 
-        if (isOverBudget(invocationStart)) {
+        if (isOverBudget()) {
           console.log(`Time budget reached during preview phase.`);
           budgetExceeded = true;
           break;
