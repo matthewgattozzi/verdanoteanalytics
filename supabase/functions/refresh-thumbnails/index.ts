@@ -534,7 +534,16 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Done — Thumbs: ${thumbCached} cached, ${thumbFailed} failed | Videos fetched: ${videosFetched}, marked N/A: ${videosMarkedNA}, cached: ${videoCached}, failed: ${videoFailed} | Previews: ${previewsFetched}`);
+    // Remaining work summary
+    const thumbsRemaining = thumbs.length - (thumbCached + thumbFailed);
+    const videosRemaining = (noVideos.length + videos.length) - (totalVideosCached + totalVideosFailed);
+    const previewsRemaining = previews.length - previewsFetched;
+    console.log(`Done — Thumbs: ${thumbCached} cached, ${thumbFailed} failed, ${thumbsRemaining} remaining | Videos fetched: ${videosFetched}, marked N/A: ${videosMarkedNA}, cached: ${videoCached}, failed: ${videoFailed}, ${videosRemaining} remaining | Previews: ${previewsFetched}/${previews.length}, ${previewsRemaining} remaining`);
+    if (thumbsRemaining > 0 || videosRemaining > 0 || previewsRemaining > 0) {
+      console.log(`⏳ Next cron run will continue processing: ~${thumbsRemaining} thumbs, ~${videosRemaining} videos, ~${previewsRemaining} previews`);
+    } else {
+      console.log(`✅ All media fully cached for this batch.`);
+    }
 
     return new Response(JSON.stringify({
       thumbnails: { cached: thumbCached, failed: thumbFailed, total: thumbs.length },
