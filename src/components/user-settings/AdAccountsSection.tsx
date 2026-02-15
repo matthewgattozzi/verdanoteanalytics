@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -21,23 +20,23 @@ export function AdAccountsSection({ accounts, syncPending, onSyncAll, onRefreshA
     <section className="glass-panel p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-semibold">Ad Accounts</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Add or remove Meta ad accounts.</p>
+          <h2 className="font-heading text-[20px] text-forest">Ad Accounts</h2>
+          <p className="font-body text-[13px] text-slate mt-0.5">Add or remove Meta ad accounts.</p>
         </div>
         <div className="flex gap-2">
           {accounts?.length > 0 && (
             <>
-              <Button size="sm" variant="outline" onClick={onSyncAll} disabled={syncPending}>
+              <Button size="sm" variant="secondary" onClick={onSyncAll} disabled={syncPending}>
                 {syncPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
                 Sync All
               </Button>
-              <Button size="sm" variant="outline" onClick={onRefreshAllMedia} disabled={refreshAllMediaPending}>
+              <Button size="sm" variant="secondary" onClick={onRefreshAllMedia} disabled={refreshAllMediaPending}>
                 {refreshAllMediaPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Image className="h-3.5 w-3.5 mr-1.5" />}
                 Refresh All Media
               </Button>
             </>
           )}
-          <Button size="sm" onClick={onOpenAddModal}>
+          <Button size="sm" className="bg-verdant text-white hover:bg-verdant/90" onClick={onOpenAddModal}>
             <Plus className="h-3.5 w-3.5 mr-1.5" />Add
           </Button>
         </div>
@@ -46,33 +45,35 @@ export function AdAccountsSection({ accounts, syncPending, onSyncAll, onRefreshA
       {!accounts?.length ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
-            <Building2 className="h-5 w-5 text-muted-foreground" />
+            <Building2 className="h-5 w-5 text-sage" />
           </div>
-          <p className="text-sm text-muted-foreground">Click 'Add' to connect an ad account from your Meta Business.</p>
+          <p className="font-body text-[13px] text-slate">Click 'Add' to connect an ad account from your Meta Business.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-md border border-border">
+        <div className="overflow-hidden rounded-md border border-border-light">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Account</TableHead>
-                <TableHead>Creatives</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+              <TableRow className="bg-cream-dark">
+                <TableHead className="font-label text-[11px] uppercase tracking-[0.04em] text-slate font-semibold">Account</TableHead>
+                <TableHead className="font-label text-[11px] uppercase tracking-[0.04em] text-slate font-semibold">Creatives</TableHead>
+                <TableHead className="font-label text-[11px] uppercase tracking-[0.04em] text-slate font-semibold text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <TableBody className="divide-y divide-border-light">
               {accounts.map((acc: any) => (
-                <TableRow key={acc.id}>
-                  <TableCell>
-                    <div className="text-sm font-medium">{acc.name}</div>
-                    <div className="text-[11px] font-mono text-muted-foreground">{acc.id}</div>
+                <TableRow key={acc.id} className="border-0">
+                  <TableCell className="py-3.5">
+                    <div className="font-body text-[14px] font-medium text-charcoal">{acc.name}</div>
+                    <div className="font-data text-[11px] text-sage tracking-wide">{acc.id}</div>
                   </TableCell>
-                  <TableCell className="text-sm">{acc.creative_count}</TableCell>
-                  <TableCell className="text-right">
-                    <Button size="sm" variant="ghost" onClick={() => onRename({ id: acc.id, name: acc.name })} title="Rename">
+                  <TableCell className="py-3.5">
+                    <span className="font-data text-[16px] font-semibold text-charcoal">{acc.creative_count}</span>
+                  </TableCell>
+                  <TableCell className="text-right py-3.5">
+                    <Button size="sm" variant="ghost" className="text-sage hover:text-forest" onClick={() => onRename({ id: acc.id, name: acc.name })} title="Rename">
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => onDelete(acc.id)}>
+                    <Button size="sm" variant="ghost" className="text-sage hover:text-red-600" onClick={() => onDelete(acc.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </TableCell>
