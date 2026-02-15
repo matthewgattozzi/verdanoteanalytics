@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import {
   Search, ChevronLeft, ChevronRight, Filter, Upload, LayoutGrid, Loader2, Save, X,
 } from "lucide-react";
+import { TableSkeleton } from "@/components/skeletons/TableSkeleton";
 
 const TAG_FIELDS = ["ad_type", "person", "style", "hook", "product", "theme"] as const;
 const TAG_LABELS: Record<string, string> = {
@@ -208,6 +209,9 @@ const TaggingPage = () => {
           </div>
 
           {/* Table */}
+          {isLoading ? (
+            <TableSkeleton rows={8} cols={8} />
+          ) : (
           <div className="border border-border rounded-lg overflow-x-auto">
             <Table>
               <TableHeader>
@@ -220,13 +224,7 @@ const TaggingPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-32 text-center">
-                      <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
-                    </TableCell>
-                  </TableRow>
-                ) : creatives.length === 0 ? (
+                {isLoading ? null : creatives.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="h-32 text-center text-sm text-muted-foreground">
                       No creatives found
@@ -272,6 +270,7 @@ const TaggingPage = () => {
               </TableBody>
             </Table>
           </div>
+          )}
 
           {/* Pagination */}
           {totalPages > 1 && (
