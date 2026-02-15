@@ -15,11 +15,24 @@ const VIDEO_BATCH_SIZE = 1;
 const MAX_TOTAL = 5000;
 const MAX_VIDEO_SIZE = 150 * 1024 * 1024; // 150MB cap
 const TIME_BUDGET_MS = 8 * 60 * 1000; // 8 minutes max per invocation
+const FETCH_TIMEOUT_MS = 30_000; // 30s timeout per HTTP request
+
+/** Fetch with a timeout — aborts if the request takes longer than timeoutMs */
+async function fetchWithTimeout(url: string, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /** Fetch a fresh high-res image URL from Meta Graph API. */
 async function getFreshImageUrl(adId: string, accountId: string): Promise<string | null> {
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `https://graph.facebook.com/v21.0/${adId}?fields=creative{thumbnail_url,image_url,image_hash,object_story_spec}&access_token=${META_ACCESS_TOKEN}`
     );
     if (!res.ok) {
@@ -34,7 +47,7 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
       creative.object_story_spec?.link_data?.image_hash ||
       creative.object_story_spec?.photo_data?.image_hash;
     if (imageHash) {
-      const imgRes = await fetch(
+      const imgRes = await fetchWithTimeout(
         `https://graph.facebook.com/v21.0/${accountId}/adimages?hashes=["${imageHash}"]&fields=url,url_128,width,height,original_width,original_height,permalink_url&access_token=${META_ACCESS_TOKEN}`
       );
       if (imgRes.ok) {
@@ -57,7 +70,7 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
     const videoId = spec?.video_data?.video_id || spec?.template_data?.video_data?.video_id;
     if (videoId) {
       // Request high-res video thumbnails
-      const vidRes = await fetch(
+      const vidRes = await fetchWithTimeout(
         `https://graph.facebook.com/v21.0/${videoId}?fields=thumbnails{uri,width,height}&access_token=${META_ACCESS_TOKEN}`
       );
       if (vidRes.ok) {
@@ -74,7 +87,7 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
         }
       }
       // Fallback: request largest available picture (1080px)
-      const picRes = await fetch(
+      const picRes = await fetchWithTimeout(
         `https://graph.facebook.com/v21.0/${videoId}/picture?redirect=false&width=1080&height=1080&access_token=${META_ACCESS_TOKEN}`
       );
       if (picRes.ok) {
@@ -87,13 +100,13 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
     }
 
     if (creative.id) {
-      const creativeRes = await fetch(
+      const creativeRes = await fetchWithTimeout(
         `https://graph.facebook.com/v21.0/${creative.id}?fields=effective_object_story_id,image_url&access_token=${META_ACCESS_TOKEN}`
       );
       if (creativeRes.ok) {
         const creativeData = await creativeRes.json();
         if (creativeData.effective_object_story_id) {
-          const postRes = await fetch(
+          const postRes = await fetchWithTimeout(
             `https://graph.facebook.com/v21.0/${creativeData.effective_object_story_id}?fields=full_picture&access_token=${META_ACCESS_TOKEN}`
           );
           if (postRes.ok) {
@@ -133,7 +146,7 @@ async function getFreshImageUrl(adId: string, accountId: string): Promise<string
 async function getFreshPreviewUrl(adId: string): Promise<string | null> {
   try {
     // First try the ad preview endpoint
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `https://graph.facebook.com/v21.0/${adId}/previews?ad_format=DESKTOP_FEED_STANDARD&access_token=${META_ACCESS_TOKEN}`
     );
     if (res.ok) {
@@ -149,7 +162,7 @@ async function getFreshPreviewUrl(adId: string): Promise<string | null> {
       }
     }
     // Fallback: use the effective_object_story_id to build a Facebook post URL
-    const adRes = await fetch(
+    const adRes = await fetchWithTimeout(
       `https://graph.facebook.com/v21.0/${adId}?fields=creative{effective_object_story_id}&access_token=${META_ACCESS_TOKEN}`
     );
     if (adRes.ok) {
@@ -173,7 +186,7 @@ async function getFreshPreviewUrl(adId: string): Promise<string | null> {
 /** Fetch a fresh video source URL from Meta Graph API. */
 async function getFreshVideoUrl(adId: string): Promise<string | null> {
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `https://graph.facebook.com/v21.0/${adId}?fields=creative{object_story_spec,video_id}&access_token=${META_ACCESS_TOKEN}`
     );
     if (!res.ok) {
@@ -197,7 +210,7 @@ async function getFreshVideoUrl(adId: string): Promise<string | null> {
     }
 
     for (const vid of [...new Set(videoIds)]) {
-      const vidRes = await fetch(
+      const vidRes = await fetchWithTimeout(
         `https://graph.facebook.com/v21.0/${vid}?fields=source&access_token=${META_ACCESS_TOKEN}`
       );
       if (vidRes.ok) {
@@ -225,7 +238,7 @@ async function downloadAndCache(
   type: "image" | "video"
 ): Promise<string | null> {
   try {
-    const resp = await fetch(url);
+    const resp = await fetchWithTimeout(url, 60_000); // 60s for large file downloads
     if (!resp.ok) {
       console.log(`Download failed ${adId}: HTTP ${resp.status} ${resp.statusText}`);
       return null;
