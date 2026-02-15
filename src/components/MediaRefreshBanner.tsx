@@ -64,15 +64,13 @@ export function MediaRefreshBanner() {
       {/* Progress bar */}
       <div className="h-1 bg-accent w-full overflow-hidden">
         <div
-          className="h-full bg-primary/70 transition-all duration-1000 ease-out relative"
+          className="h-full bg-primary/70 transition-progress"
           style={{ width: `${progressPercent}%` }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
-        </div>
+        />
       </div>
 
       <div className="px-4 py-3 flex items-center gap-3">
-        <Image className="h-4 w-4 text-primary flex-shrink-0 animate-pulse" />
+        <Image className="h-4 w-4 text-primary flex-shrink-0" />
 
         <div className="flex-1 min-w-0">
           <p className="font-body text-[13px] font-medium text-forest">

@@ -33,7 +33,7 @@ export function MultiLineTrendChart({ dates, lines, height = 260 }: MultiLineTre
   return (
     <>
       <div
-        className="glass-panel p-4 cursor-pointer group relative hover:ring-1 hover:ring-primary/30 transition-all"
+        className="glass-panel p-4 cursor-pointer group relative"
         onClick={() => setExpanded(true)}
       >
         <div className="flex items-center justify-between mb-3">
@@ -45,7 +45,7 @@ export function MultiLineTrendChart({ dates, lines, height = 260 }: MultiLineTre
               </div>
             ))}
           </div>
-          <Expand className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+          <Expand className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100" />
         </div>
         <ChartSVG dates={dates} lines={lines} height={height} />
       </div>

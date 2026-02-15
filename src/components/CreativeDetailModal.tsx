@@ -76,12 +76,12 @@ function MediaPreview({ creative }: { creative: any }) {
         <div className="relative w-full">
           {/* Skeleton loader */}
           {!imgLoaded && (
-            <div className="w-full h-[300px] animate-pulse bg-muted-foreground/10 rounded" />
+            <div className="w-full h-[300px] bg-cream-dark rounded" />
           )}
           <img
             src={creative.thumbnail_url}
             alt={creative.ad_name}
-            className={`w-full max-h-[400px] object-contain transition-opacity duration-200 ${imgLoaded ? "opacity-100" : "opacity-0 absolute inset-0"}`}
+            className={`w-full max-h-[400px] object-contain ${imgLoaded ? "opacity-100" : "opacity-0 absolute inset-0"}`}
             loading="lazy"
             onLoad={() => setImgLoaded(true)}
             onError={() => setImgError(true)}
@@ -89,7 +89,7 @@ function MediaPreview({ creative }: { creative: any }) {
           {hasVideo && imgLoaded && (
             <button
               onClick={() => { setShowVideo(true); setVideoError(false); }}
-              className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+              className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 cursor-pointer"
             >
               <div className="h-14 w-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
                 <Play className="h-6 w-6 text-foreground ml-0.5" />
@@ -97,7 +97,7 @@ function MediaPreview({ creative }: { creative: any }) {
             </button>
           )}
           {isVideoAdWithoutSource && facebookAdUrl && imgLoaded && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100">
               <a href={facebookAdUrl} target="_blank" rel="noopener noreferrer">
                 <Button size="sm" className="gap-1.5 shadow-lg">
                   <Video className="h-4 w-4" />Watch on Facebook
