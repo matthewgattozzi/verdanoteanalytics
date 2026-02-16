@@ -19,6 +19,10 @@ interface SyncSettingsSectionProps {
   setWinnerKpiDirection: (v: string) => void;
   winnerKpiThreshold: string;
   setWinnerKpiThreshold: (v: string) => void;
+  killScaleKpi: string;
+  setKillScaleKpi: (v: string) => void;
+  killScaleKpiDirection: string;
+  setKillScaleKpiDirection: (v: string) => void;
   scaleThreshold: string;
   setScaleThreshold: (v: string) => void;
   killThreshold: string;
@@ -46,11 +50,14 @@ export function SyncSettingsSection({
   spendThreshold, setSpendThreshold,
   winnerKpi, setWinnerKpi, winnerKpiDirection, setWinnerKpiDirection,
   winnerKpiThreshold, setWinnerKpiThreshold,
+  killScaleKpi, setKillScaleKpi, killScaleKpiDirection, setKillScaleKpiDirection,
   scaleThreshold, setScaleThreshold, killThreshold, setKillThreshold,
   onSave, onApplyToAll, saving, showApplyAll,
 }: SyncSettingsSectionProps) {
   const kpiLabel = KPI_OPTIONS.find(k => k.value === winnerKpi)?.label || winnerKpi;
   const isGte = winnerKpiDirection !== "lte";
+  const ksKpiLabel = KPI_OPTIONS.find(k => k.value === killScaleKpi)?.label || killScaleKpi;
+  const ksIsGte = killScaleKpiDirection !== "lte";
 
   return (
     <section className="glass-panel p-6 space-y-4">
@@ -113,22 +120,46 @@ export function SyncSettingsSection({
         <div>
           <h3 className="font-heading text-[20px] text-forest">Kill / Scale Zones</h3>
           <p className="font-body text-[13px] text-slate mt-0.5">
-            Define {kpiLabel} thresholds for Scale, Watch, and Kill zones. {isGte ? "Scale ≥ top value, Kill < bottom value, Watch = in between." : "Scale ≤ bottom value, Kill > top value, Watch = in between."}
+            Define thresholds for Scale, Watch, and Kill zones. {ksIsGte ? "Scale ≥ top value, Kill < bottom value, Watch = in between." : "Scale ≤ bottom value, Kill > top value, Watch = in between."}
           </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label className="font-body text-[14px] font-medium text-charcoal">KPI Metric</Label>
+            <Select value={killScaleKpi} onValueChange={setKillScaleKpi}>
+              <SelectTrigger className="bg-background font-body text-[14px] text-charcoal"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {KPI_OPTIONS.map(o => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label className="font-body text-[14px] font-medium text-charcoal">Direction</Label>
+            <Select value={killScaleKpiDirection} onValueChange={setKillScaleKpiDirection}>
+              <SelectTrigger className="bg-background font-body text-[14px] text-charcoal"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {DIRECTION_OPTIONS.map(o => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label className="font-body text-[14px] font-medium text-scale">Scale Threshold</Label>
             <Input type="number" value={scaleThreshold} onChange={(e) => setScaleThreshold(e.target.value)} step="0.1" min="0" className="bg-background font-data text-[15px] font-medium text-charcoal" />
             <p className="font-body text-[12px] text-sage">
-              {isGte ? `${kpiLabel} ≥ this → Scale` : `${kpiLabel} ≤ this → Scale`}
+              {ksIsGte ? `${ksKpiLabel} ≥ this → Scale` : `${ksKpiLabel} ≤ this → Scale`}
             </p>
           </div>
           <div className="space-y-2">
             <Label className="font-body text-[14px] font-medium text-kill">Kill Threshold</Label>
             <Input type="number" value={killThreshold} onChange={(e) => setKillThreshold(e.target.value)} step="0.1" min="0" className="bg-background font-data text-[15px] font-medium text-charcoal" />
             <p className="font-body text-[12px] text-sage">
-              {isGte ? `${kpiLabel} < this → Kill` : `${kpiLabel} > this → Kill`}
+              {ksIsGte ? `${ksKpiLabel} < this → Kill` : `${ksKpiLabel} > this → Kill`}
             </p>
           </div>
         </div>

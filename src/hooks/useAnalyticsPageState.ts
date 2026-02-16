@@ -25,8 +25,8 @@ export function useAnalyticsPageState() {
   const spendThreshold = parseFloat(selectedAccount?.iteration_spend_threshold || "50");
 
   const killScaleConfig = useMemo(() => ({
-    winnerKpi: selectedAccount?.winner_kpi || "roas",
-    winnerKpiDirection: selectedAccount?.winner_kpi_direction || "gte",
+    winnerKpi: (selectedAccount as any)?.kill_scale_kpi || selectedAccount?.winner_kpi || "roas",
+    winnerKpiDirection: (selectedAccount as any)?.kill_scale_kpi_direction || selectedAccount?.winner_kpi_direction || "gte",
     scaleAt: parseFloat(selectedAccount?.scale_threshold || "0") || (parseFloat(selectedAccount?.winner_kpi_threshold || "0") || roasThreshold),
     killAt: parseFloat(selectedAccount?.kill_threshold || "0") || (parseFloat(selectedAccount?.winner_kpi_threshold || "0") || roasThreshold) * 0.5,
     spendThreshold,
