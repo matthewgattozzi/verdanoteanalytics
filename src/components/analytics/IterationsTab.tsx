@@ -292,7 +292,7 @@ export function IterationsTab({ creatives, spendThreshold, onCreativeClick }: It
   const [sortBy, setSortBy] = useState<SortKey>("priority");
   const [minSpendOverride, setMinSpendOverride] = useState<string>("");
 
-  const effectiveMinSpend = Math.max(100, minSpendOverride !== "" ? Number(minSpendOverride) || 0 : spendThreshold);
+  const effectiveMinSpend = minSpendOverride !== "" ? Math.max(0, Number(minSpendOverride) || 0) : spendThreshold;
 
   const benchmarks = useMemo(() => calculateBenchmarks(creatives), [creatives]);
 
