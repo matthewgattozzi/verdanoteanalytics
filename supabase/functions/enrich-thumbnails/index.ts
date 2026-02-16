@@ -7,9 +7,9 @@ const corsHeaders = {
 };
 
 const META_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN")!;
-const BATCH_SIZE = 5;
+const BATCH_SIZE = 10; // Process 10 in parallel per batch
 const TIME_BUDGET_MS = 120_000; // 2 min wall-clock
-const FETCH_TIMEOUT_MS = 30_000;
+const FETCH_TIMEOUT_MS = 20_000;
 const MAX_ITEMS = 500; // Max items per invocation
 
 const NO_THUMB_SENTINEL = "no-thumbnail";
@@ -232,27 +232,30 @@ serve(async (req) => {
       }
 
       const batch = items.slice(i, i + BATCH_SIZE);
-      for (const c of batch) {
-        if (Date.now() - startTime > TIME_BUDGET_MS) break;
-
-        try {
+      const results = await Promise.allSettled(
+        batch.map(async (c) => {
           const imageUrl = await discoverImageUrl(c.ad_id, c.account_id);
           if (imageUrl) {
             await supabase
               .from("creatives")
               .update({ thumbnail_url: imageUrl })
               .eq("ad_id", c.ad_id);
-            enriched++;
+            return "enriched";
           } else {
-            // Mark as sentinel so we don't retry forever
             await supabase
               .from("creatives")
               .update({ thumbnail_url: NO_THUMB_SENTINEL })
               .eq("ad_id", c.ad_id);
-            sentinel++;
+            return "sentinel";
           }
-        } catch (e) {
-          const msg = `${c.ad_id}: ${e}`;
+        })
+      );
+      for (const r of results) {
+        if (r.status === "fulfilled") {
+          if (r.value === "enriched") enriched++;
+          else sentinel++;
+        } else {
+          const msg = `${r.reason}`;
           console.log(`Error: ${msg}`);
           errors.push(msg);
         }
