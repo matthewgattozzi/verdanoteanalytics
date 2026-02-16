@@ -8,6 +8,7 @@ import { InlineTagSelect } from "@/components/InlineTagSelect";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LayoutGrid } from "lucide-react";
 import { HEAD_LABELS, NUMERIC_COLS, fmt, CELL_CONFIG } from "./constants";
+import { useCachedMedia } from "@/hooks/useCachedMedia";
 import { cn } from "@/lib/utils";
 
 interface CreativesTableProps {
@@ -27,11 +28,18 @@ const TAG_SELECT_FIELDS: Record<string, "ad_type" | "person" | "style" | "hook">
 };
 
 function CreativeCell({ c }: { c: any }) {
+  const { url, isLoading } = useCachedMedia(c.thumbnail_url);
+
   return (
     <div className="flex items-center gap-2.5 max-w-[280px]">
       <div className="h-10 w-10 rounded bg-muted flex-shrink-0 overflow-hidden flex items-center justify-center">
         {c.thumbnail_url ? (
-          <img src={c.thumbnail_url} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+          <img
+            src={url}
+            alt=""
+            className={`h-full w-full object-cover transition-opacity duration-200 ${isLoading ? "opacity-0" : "opacity-100"}`}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
         ) : (
           <LayoutGrid className="h-4 w-4 text-muted-foreground" />
         )}

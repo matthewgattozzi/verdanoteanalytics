@@ -4,6 +4,7 @@ import { LayoutGrid, Video } from "lucide-react";
 import { useState } from "react";
 import { fmt } from "./constants";
 import { cn } from "@/lib/utils";
+import { useCachedMedia } from "@/hooks/useCachedMedia";
 
 interface CreativesCardGridProps {
   creatives: any[];
@@ -13,23 +14,22 @@ interface CreativesCardGridProps {
 }
 
 function CardThumbnail({ src, alt }: { src: string; alt: string }) {
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState(false);
+  const { url, isLoading, error } = useCachedMedia(src);
+  const [imgError, setImgError] = useState(false);
 
-  if (error || !src) {
+  if (imgError || !src) {
     return <LayoutGrid className="h-6 w-6 text-muted-foreground" />;
   }
 
   return (
     <>
-      {!loaded && <div className="absolute inset-0 bg-cream-dark rounded" />}
+      {isLoading && <div className="absolute inset-0 bg-cream-dark rounded animate-pulse" />}
       <img
-        src={src}
+        src={url}
         alt={alt}
-        className={`h-full w-full object-contain ${loaded ? "opacity-100" : "opacity-0"}`}
+        className={`h-full w-full object-contain transition-opacity duration-300 ${isLoading ? "opacity-0" : "opacity-100"}`}
         loading="lazy"
-        onLoad={() => setLoaded(true)}
-        onError={() => setError(true)}
+        onError={() => setImgError(true)}
       />
     </>
   );
