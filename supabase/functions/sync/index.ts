@@ -618,12 +618,20 @@ serve(async (req) => {
       const { data: runningSyncs } = await supabase.from("sync_logs")
         .select("*")
         .eq("status", "running")
-        .order("started_at", { ascending: true })
-        .limit(1);
+        .order("started_at", { ascending: true });
 
       if (!runningSyncs?.length) {
         await promoteNextQueued(supabase);
         return new Response(JSON.stringify({ message: "No syncs to continue, promoted queued if any" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // Enforce single-runner: if multiple are "running", demote all but the oldest back to queued
+      if (runningSyncs.length > 1) {
+        const extraIds = runningSyncs.slice(1).map((s: any) => s.id);
+        await supabase.from("sync_logs")
+          .update({ status: "queued" })
+          .in("id", extraIds);
+        console.log(`Demoted ${extraIds.length} extra running sync(s) back to queued: ${extraIds.join(", ")}`);
       }
 
       const syncLog = runningSyncs[0];
@@ -652,7 +660,7 @@ serve(async (req) => {
       const { account_id, sync_type = "manual" } = body;
 
       // Check if requested accounts are already running/queued (allow queuing new ones)
-      const { data: activeSyncs } = await supabase.from("sync_logs").select("id, account_id").in("status", ["running", "queued"]);
+      const { data: activeSyncs } = await supabase.from("sync_logs").select("id, account_id, status").in("status", ["running", "queued"]);
       const activeAccountIds = new Set((activeSyncs || []).map((s: any) => s.account_id));
 
       let metaToken = Deno.env.get("META_ACCESS_TOKEN");
@@ -672,7 +680,6 @@ serve(async (req) => {
       }
       if (!accounts.length) return new Response(JSON.stringify({ error: "No accounts to sync" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      const hasRunning = (activeSyncs || []).some((s: any) => s.status === "running");
       const created: any[] = [];
 
       for (let i = 0; i < accounts.length; i++) {
@@ -689,11 +696,10 @@ serve(async (req) => {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - dateRangeDays);
 
-        // First new sync runs immediately only if nothing else is running
-        const shouldRun = !hasRunning && created.length === 0;
+        // Always insert as "queued" — promotion happens after insert
         const { data: logEntry, error: logError } = await supabase.from("sync_logs").insert({
           account_id: account.id, sync_type,
-          status: shouldRun ? "running" : "queued",
+          status: "queued",
           current_phase: 1,
           sync_state: { last_activity: new Date().toISOString() },
           date_range_start: startDate.toISOString().split("T")[0],
@@ -707,12 +713,39 @@ serve(async (req) => {
         created.push({ id: logEntry.id, account_id: account.id, account_name: account.name });
       }
 
-      // Only run first phase inline if we started a "running" sync (not just queued)
-      const firstRunning = created.find((c: any) => !hasRunning && created.indexOf(c) === 0);
-      if (firstRunning) {
-        const { data: firstLog } = await supabase.from("sync_logs").select("*").eq("id", firstRunning.id).single();
-        if (firstLog && firstLog.status === "running") {
-          await runSyncPhase(supabase, firstLog, metaToken);
+      if (!created.length) {
+        return new Response(JSON.stringify({ message: "All requested accounts already syncing" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // After inserting, check if there's already a running sync.
+      // If not, promote the oldest queued sync (which may be one we just created).
+      const { data: currentRunning } = await supabase.from("sync_logs")
+        .select("id")
+        .eq("status", "running")
+        .limit(1);
+
+      if (!currentRunning?.length) {
+        // No running sync — promote the oldest queued
+        const { data: oldest } = await supabase.from("sync_logs")
+          .select("*")
+          .eq("status", "queued")
+          .order("started_at", { ascending: true })
+          .limit(1);
+
+        if (oldest?.length) {
+          // Atomically promote only if still queued (prevents race condition)
+          const { data: promoted, error: promoteErr } = await supabase.from("sync_logs")
+            .update({ status: "running", sync_state: { last_activity: new Date().toISOString() } })
+            .eq("id", oldest[0].id)
+            .eq("status", "queued")  // only if still queued
+            .select()
+            .single();
+
+          if (promoted && !promoteErr) {
+            console.log(`Promoted sync ${promoted.id} for ${promoted.account_id}`);
+            // Run first phase inline
+            await runSyncPhase(supabase, promoted, metaToken);
+          }
         }
       }
 
