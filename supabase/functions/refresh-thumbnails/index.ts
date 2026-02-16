@@ -10,7 +10,8 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const META_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN")!;
 const THUMB_BUCKET = "ad-thumbnails";
 const VIDEO_BUCKET = "ad-videos";
-const BATCH_SIZE = 5; // Keep small to avoid CPU time limit on edge functions
+const DISCOVERY_BATCH_SIZE = 5; // Meta API discovery — sequential to avoid CPU spikes
+const CACHE_BATCH_SIZE = 15; // Pure download+upload — parallelizable I/O
 const VIDEO_BATCH_SIZE = 1;
 const MAX_TOTAL = 5000;
 const MAX_VIDEO_SIZE = 150 * 1024 * 1024; // 150MB cap
@@ -323,6 +324,19 @@ serve(async (req) => {
     // Phase 1: Discover work — only items that haven't been cached or marked as failed
     // Thumbnails: find creatives where thumbnail_url is NULL (never fetched)
     // OR not yet cached to storage AND not marked as "no-thumbnail" sentinel
+    // FAST PATH: thumbnails that already have a CDN URL — just download & cache (no Meta API needed)
+    let uncachedThumbsQuery = supabase
+      .from("creatives")
+      .select("ad_id, account_id, thumbnail_url")
+      .not("thumbnail_url", "is", null)
+      .neq("thumbnail_url", NO_THUMB_SENTINEL)
+      .not("thumbnail_url", "like", `%/storage/v1/object/public/%`);
+    if (accountFilter) uncachedThumbsQuery = uncachedThumbsQuery.eq("account_id", accountFilter);
+    const { data: uncachedThumbs } = await uncachedThumbsQuery
+      .order("spend", { ascending: false, nullsFirst: false })
+      .limit(MAX_TOTAL);
+
+    // SLOW PATH: thumbnails with NULL URL — need Meta API discovery
     let missingThumbsQuery = supabase
       .from("creatives")
       .select("ad_id, account_id, thumbnail_url")
@@ -330,18 +344,9 @@ serve(async (req) => {
     if (accountFilter) missingThumbsQuery = missingThumbsQuery.eq("account_id", accountFilter);
     const { data: missingThumbs } = await missingThumbsQuery.limit(MAX_TOTAL);
 
-    let uncachedThumbsQuery = supabase
-      .from("creatives")
-      .select("ad_id, account_id, thumbnail_url")
-      .not("thumbnail_url", "is", null)
-      .neq("thumbnail_url", NO_THUMB_SENTINEL); // Skip previously failed items
-    if (accountFilter) uncachedThumbsQuery = uncachedThumbsQuery.eq("account_id", accountFilter);
-    if (!forceRefresh) {
-      uncachedThumbsQuery = uncachedThumbsQuery.not("thumbnail_url", "like", `%/storage/v1/object/public/%`);
-    }
-    const { data: uncachedThumbs } = await uncachedThumbsQuery.limit(MAX_TOTAL);
-
-    const allThumbWork = [...(missingThumbs || []), ...(uncachedThumbs || [])].slice(0, MAX_TOTAL);
+    const fastPathThumbs = uncachedThumbs || [];
+    const slowPathThumbs = missingThumbs || [];
+    const allThumbWork = [...fastPathThumbs, ...slowPathThumbs].slice(0, MAX_TOTAL);
 
     // Videos: skip items already marked as "no-video"
     let missingVideosQuery = supabase
@@ -400,7 +405,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Found ${thumbs.length} thumbnails to process, ${noVideos.length} ads missing video_url, ${videos.length} uncached videos`);
+    console.log(`Found ${fastPathThumbs.length} thumbnails to cache (fast), ${slowPathThumbs.length} to discover (slow), ${noVideos.length} ads missing video_url, ${videos.length} uncached videos`);
 
     // Phase 2: Process thumbnails
     if (logId) await updateLog(supabase, logId, { current_phase: 2 });
@@ -409,45 +414,59 @@ serve(async (req) => {
     let budgetExceeded = false;
 
     let thumbCached = 0, thumbFailed = 0;
-    for (let i = 0; i < thumbs.length; i += BATCH_SIZE) {
-      // Check budget BEFORE starting a new batch
+
+    // FAST PATH: parallel download+upload for thumbnails that already have CDN URLs
+    for (let i = 0; i < fastPathThumbs.length; i += CACHE_BATCH_SIZE) {
       if (isOverBudget()) {
-        console.log(`Time budget reached before thumbnail batch ${i}. Processed ${thumbCached + thumbFailed}/${thumbs.length}`);
+        console.log(`Budget reached during fast-path at ${i}/${fastPathThumbs.length}. Cached: ${thumbCached}`);
         budgetExceeded = true;
         break;
       }
+      const batch = fastPathThumbs.slice(i, i + CACHE_BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map(async (c: any) => {
+          if (isOverBudget()) return false;
+          const storageUrl = await downloadAndCache(supabase, THUMB_BUCKET, c.account_id, c.ad_id, c.thumbnail_url, "image");
+          if (storageUrl) {
+            await supabase.from("creatives").update({ thumbnail_url: storageUrl }).eq("ad_id", c.ad_id);
+            return true;
+          } else {
+            // CDN URL expired or bad — mark as sentinel
+            await supabase.from("creatives").update({ thumbnail_url: NO_THUMB_SENTINEL }).eq("ad_id", c.ad_id);
+            return false;
+          }
+        })
+      );
+      thumbCached += results.filter((r: any) => r.status === "fulfilled" && r.value).length;
+      thumbFailed += results.filter((r: any) => r.status === "rejected" || (r.status === "fulfilled" && !r.value)).length;
 
-      const batch = thumbs.slice(i, i + BATCH_SIZE);
-      // Process sequentially to minimize CPU spikes from concurrent JSON parsing
-      const results: boolean[] = [];
-      for (const c of batch) {
-        if (isOverBudget()) { results.push(false); continue; }
+      if (logId && i % 60 === 0) {
+        await updateLog(supabase, logId, { thumbs_cached: thumbCached, thumbs_failed: thumbFailed });
+      }
+    }
 
-        const freshUrl = await getFreshImageUrl(c.ad_id, c.account_id);
-        if (!freshUrl) {
-          await supabase.from("creatives").update({ thumbnail_url: NO_THUMB_SENTINEL }).eq("ad_id", c.ad_id);
-          results.push(false);
-          continue;
+    // SLOW PATH: sequential Meta API discovery for NULL thumbnails (only if budget remains)
+    if (!budgetExceeded) {
+      for (let i = 0; i < slowPathThumbs.length; i += DISCOVERY_BATCH_SIZE) {
+        if (isOverBudget()) {
+          console.log(`Budget reached during slow-path at ${i}/${slowPathThumbs.length}`);
+          budgetExceeded = true;
+          break;
         }
-        if (!c.thumbnail_url) {
+        const batch = slowPathThumbs.slice(i, i + DISCOVERY_BATCH_SIZE);
+        for (const c of batch) {
+          if (isOverBudget()) continue;
+          const freshUrl = await getFreshImageUrl(c.ad_id, c.account_id);
+          if (!freshUrl) {
+            await supabase.from("creatives").update({ thumbnail_url: NO_THUMB_SENTINEL }).eq("ad_id", c.ad_id);
+            thumbFailed++;
+            continue;
+          }
+          // Store the CDN URL for now — fast-path will cache it next run
           await supabase.from("creatives").update({ thumbnail_url: freshUrl }).eq("ad_id", c.ad_id);
-          results.push(true);
-          continue;
-        }
-
-        if (isOverBudget()) { results.push(false); continue; }
-
-        const storageUrl = await downloadAndCache(supabase, THUMB_BUCKET, c.account_id, c.ad_id, freshUrl, "image");
-        if (storageUrl) {
-          await supabase.from("creatives").update({ thumbnail_url: storageUrl }).eq("ad_id", c.ad_id);
-          results.push(true);
-        } else {
-          await supabase.from("creatives").update({ thumbnail_url: NO_THUMB_SENTINEL }).eq("ad_id", c.ad_id);
-          results.push(false);
+          thumbCached++;
         }
       }
-      thumbCached += results.filter(Boolean).length;
-      thumbFailed += results.filter(r => !r).length;
     }
 
     // Phase 3: Process videos (only if we have budget remaining)
@@ -455,7 +474,7 @@ serve(async (req) => {
 
     let videosFetched = 0, videosMarkedNA = 0;
     if (!budgetExceeded) {
-      for (let i = 0; i < noVideos.length; i += BATCH_SIZE) {
+      for (let i = 0; i < noVideos.length; i += DISCOVERY_BATCH_SIZE) {
         if (isOverBudget()) { budgetExceeded = true; break; }
         const batch = noVideos.slice(i, i + BATCH_SIZE);
         for (const c of batch) {
@@ -560,10 +579,10 @@ serve(async (req) => {
     }
 
     // Remaining work summary
-    const thumbsRemaining = thumbs.length - (thumbCached + thumbFailed);
+    const thumbsRemaining = allThumbWork.length - (thumbCached + thumbFailed);
     const videosRemaining = (noVideos.length + videos.length) - (totalVideosCached + totalVideosFailed);
     const previewsRemaining = previews.length - previewsFetched;
-    console.log(`Done — Thumbs: ${thumbCached} cached, ${thumbFailed} failed, ${thumbsRemaining} remaining | Videos fetched: ${videosFetched}, marked N/A: ${videosMarkedNA}, cached: ${videoCached}, failed: ${videoFailed}, ${videosRemaining} remaining | Previews: ${previewsFetched}/${previews.length}, ${previewsRemaining} remaining`);
+    console.log(`Done — Thumbs: ${thumbCached} cached (${fastPathThumbs.length} fast-path, ${slowPathThumbs.length} slow-path), ${thumbFailed} failed, ${thumbsRemaining} remaining | Videos fetched: ${videosFetched}, cached: ${videoCached}, failed: ${videoFailed}, ${videosRemaining} remaining | Previews: ${previewsFetched}/${previews.length}`);
     if (budgetExceeded) {
       console.log(`⏳ Time budget reached. Next cron run will continue with remaining: ~${thumbsRemaining} thumbs, ~${videosRemaining} videos, ~${previewsRemaining} previews`);
     } else if (thumbsRemaining > 0 || videosRemaining > 0 || previewsRemaining > 0) {
@@ -573,7 +592,7 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({
-      thumbnails: { cached: thumbCached, failed: thumbFailed, total: thumbs.length },
+      thumbnails: { cached: thumbCached, failed: thumbFailed, total: allThumbWork.length, fastPath: fastPathThumbs.length, slowPath: slowPathThumbs.length },
       videos: { fetched: videosFetched, markedNA: videosMarkedNA, cached: videoCached, failed: videoFailed, total: videos.length + noVideos.length },
       previews: { fetched: previewsFetched, total: previews.length },
       budgetExceeded,
