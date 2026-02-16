@@ -42,6 +42,8 @@ export function useSettingsPageState() {
   const [winnerKpiThreshold, setWinnerKpiThreshold] = useState("2.0");
   const [scaleThreshold, setScaleThreshold] = useState("2.0");
   const [killThreshold, setKillThreshold] = useState("1.0");
+  const [killScaleKpi, setKillScaleKpi] = useState("roas");
+  const [killScaleKpiDirection, setKillScaleKpiDirection] = useState("gte");
   const [primaryKpi, setPrimaryKpi] = useState("");
   const [secondaryKpis, setSecondaryKpis] = useState("");
   const [companyPdfUrl, setCompanyPdfUrl] = useState<string | null>(null);
@@ -59,6 +61,8 @@ export function useSettingsPageState() {
     setWinnerKpiThreshold(String(account.winner_kpi_threshold ?? account.winner_roas_threshold ?? 2.0));
     setScaleThreshold(String(account.scale_threshold ?? 2.0));
     setKillThreshold(String(account.kill_threshold ?? 1.0));
+    setKillScaleKpi((account as any).kill_scale_kpi || "roas");
+    setKillScaleKpiDirection((account as any).kill_scale_kpi_direction || "gte");
     setPrimaryKpi(account.primary_kpi || "Purchase ROAS > 1.5x");
     setSecondaryKpis(account.secondary_kpis || "CTR, Hook Rate, Volume");
     setCompanyPdfUrl((account as any).company_pdf_url || null);
@@ -79,12 +83,14 @@ export function useSettingsPageState() {
       winner_kpi_threshold: parseFloat(winnerKpiThreshold) || 2.0,
       scale_threshold: parseFloat(scaleThreshold) || 2.0,
       kill_threshold: parseFloat(killThreshold) || 1.0,
+      kill_scale_kpi: killScaleKpi,
+      kill_scale_kpi_direction: killScaleKpiDirection,
       primary_kpi: primaryKpi || null,
       secondary_kpis: secondaryKpis || null,
       creative_analysis_prompt: creativePrompt === DEFAULT_CREATIVE_PROMPT ? null : creativePrompt || null,
       insights_prompt: insightsPrompt === DEFAULT_INSIGHTS_PROMPT ? null : insightsPrompt || null,
     });
-  }, [account, dateRange, roasThreshold, spendThreshold, winnerKpi, winnerKpiDirection, winnerKpiThreshold, scaleThreshold, killThreshold, primaryKpi, secondaryKpis, creativePrompt, insightsPrompt, updateAccountSettings]);
+  }, [account, dateRange, roasThreshold, spendThreshold, winnerKpi, winnerKpiDirection, winnerKpiThreshold, scaleThreshold, killThreshold, killScaleKpi, killScaleKpiDirection, primaryKpi, secondaryKpis, creativePrompt, insightsPrompt, updateAccountSettings]);
 
   const handleApplyToAll = useCallback(() => {
     (accounts || []).forEach((acc: any) => {
@@ -165,6 +171,7 @@ export function useSettingsPageState() {
     dateRange, setDateRange, roasThreshold, setRoasThreshold, spendThreshold, setSpendThreshold,
     winnerKpi, setWinnerKpi, winnerKpiDirection, setWinnerKpiDirection,
     winnerKpiThreshold, setWinnerKpiThreshold,
+    killScaleKpi, setKillScaleKpi, killScaleKpiDirection, setKillScaleKpiDirection,
     scaleThreshold, setScaleThreshold, killThreshold, setKillThreshold,
     primaryKpi, setPrimaryKpi, secondaryKpis, setSecondaryKpis,
     companyPdfUrl, setCompanyPdfUrl,

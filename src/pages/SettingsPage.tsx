@@ -82,6 +82,8 @@ const SettingsPage = () => {
           winnerKpi={s.winnerKpi} setWinnerKpi={s.setWinnerKpi}
           winnerKpiDirection={s.winnerKpiDirection} setWinnerKpiDirection={s.setWinnerKpiDirection}
           winnerKpiThreshold={s.winnerKpiThreshold} setWinnerKpiThreshold={s.setWinnerKpiThreshold}
+          killScaleKpi={s.killScaleKpi} setKillScaleKpi={s.setKillScaleKpi}
+          killScaleKpiDirection={s.killScaleKpiDirection} setKillScaleKpiDirection={s.setKillScaleKpiDirection}
           scaleThreshold={s.scaleThreshold} setScaleThreshold={s.setScaleThreshold}
           killThreshold={s.killThreshold} setKillThreshold={s.setKillThreshold}
           onSave={s.handleSave} onApplyToAll={s.handleApplyToAll}
