@@ -74,9 +74,9 @@ export default {
         },
         forest: "#0D3B25",
         sage: {
-          DEFAULT: "#A8C5B2",
+          DEFAULT: "#6B9A7E",
           light: "#E8F5EE",
-          dark: "#8FB39C",
+          dark: "#578568",
         },
         cream: {
           DEFAULT: "#FDF8F0",
