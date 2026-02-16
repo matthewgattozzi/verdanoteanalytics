@@ -196,7 +196,9 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
   }
 
   const saveState = async (nextPhase: number, newState: any, status = "running") => {
-    const merged = { ...state, ...newState, last_activity: new Date().toISOString() };
+    // Exclude non-serializable fields (Set objects) from persisted state
+    const { _validAdCache, ...serializableState } = state;
+    const merged = { ...serializableState, ...newState, last_activity: new Date().toISOString() };
     try {
       await supabase.from("sync_logs").update({
         current_phase: nextPhase,
@@ -450,9 +452,10 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
           if (result.error) { nextUrl = null; break; }
           if (result.data && result.data.length > 0) {
             // Build rows directly — use account-level valid ad cache to avoid per-page lookups
-            if (!state._validAdCache) {
-              // Load all valid ad_ids for this account once (cached in closure)
-              const validAdIds = new Set<string>();
+            if (!state._validAdCache || !(state._validAdCache instanceof Set)) {
+              // Load all valid ad_ids for this account once (cached in state)
+              // On resume, state._validAdCache may be a plain array from JSON serialization
+              const validAdIds = new Set<string>(Array.isArray(state._validAdCache) ? state._validAdCache : []);
               let offset = 0;
               const FETCH_SIZE = 5000;
               while (true) {
