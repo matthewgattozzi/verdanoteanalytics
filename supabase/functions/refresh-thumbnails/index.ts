@@ -330,7 +330,8 @@ serve(async (req) => {
       .select("ad_id, account_id, thumbnail_url")
       .not("thumbnail_url", "is", null)
       .neq("thumbnail_url", NO_THUMB_SENTINEL)
-      .not("thumbnail_url", "like", `%/storage/v1/object/public/%`);
+      .not("thumbnail_url", "like", `%/storage/v1/object/public/%`)
+      .gt("impressions", 0);
     if (accountFilter) uncachedThumbsQuery = uncachedThumbsQuery.eq("account_id", accountFilter);
     const { data: uncachedThumbs } = await uncachedThumbsQuery
       .order("spend", { ascending: false, nullsFirst: false })
@@ -340,7 +341,8 @@ serve(async (req) => {
     let missingThumbsQuery = supabase
       .from("creatives")
       .select("ad_id, account_id, thumbnail_url")
-      .is("thumbnail_url", null);
+      .is("thumbnail_url", null)
+      .gt("impressions", 0);
     if (accountFilter) missingThumbsQuery = missingThumbsQuery.eq("account_id", accountFilter);
     const { data: missingThumbs } = await missingThumbsQuery.limit(MAX_TOTAL);
 
@@ -353,7 +355,8 @@ serve(async (req) => {
       .from("creatives")
       .select("ad_id, account_id")
       .is("video_url", null)
-      .gt("video_views", 0);
+      .gt("video_views", 0)
+      .gt("impressions", 0);
     if (accountFilter) missingVideosQuery = missingVideosQuery.eq("account_id", accountFilter);
     const { data: missingVideos } = await missingVideosQuery.limit(2000);
 
@@ -362,7 +365,8 @@ serve(async (req) => {
       .select("ad_id, account_id, video_url")
       .not("video_url", "is", null)
       .not("video_url", "like", `%/storage/v1/object/public/%`)
-      .neq("video_url", NO_VIDEO_SENTINEL);
+      .neq("video_url", NO_VIDEO_SENTINEL)
+      .gt("impressions", 0);
     if (accountFilter) uncachedVideosQuery = uncachedVideosQuery.eq("account_id", accountFilter);
     const { data: uncachedVideos } = await uncachedVideosQuery.limit(2000);
 
@@ -370,7 +374,8 @@ serve(async (req) => {
     let missingPreviewQuery = supabase
       .from("creatives")
       .select("ad_id")
-      .is("preview_url", null);
+      .is("preview_url", null)
+      .gt("impressions", 0);
     if (accountFilter) missingPreviewQuery = missingPreviewQuery.eq("account_id", accountFilter);
     const { data: missingPreviews } = await missingPreviewQuery.limit(MAX_TOTAL);
 
