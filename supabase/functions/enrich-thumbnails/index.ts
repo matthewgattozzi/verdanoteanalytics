@@ -184,7 +184,8 @@ serve(async (req) => {
     let query = supabase
       .from("creatives")
       .select("ad_id, account_id")
-      .is("thumbnail_url", null);
+      .is("thumbnail_url", null)
+      .gt("impressions", 0);
     if (accountFilter) query = query.eq("account_id", accountFilter);
 
     // Prioritize creatives with spend > 0
@@ -202,6 +203,7 @@ serve(async (req) => {
         .from("creatives")
         .select("ad_id, account_id")
         .is("thumbnail_url", null)
+        .gt("impressions", 0)
         .or("spend.is.null,spend.eq.0");
       if (accountFilter) zeroQuery = zeroQuery.eq("account_id", accountFilter);
       const { data: zeroSpend } = await zeroQuery.limit(remaining);
