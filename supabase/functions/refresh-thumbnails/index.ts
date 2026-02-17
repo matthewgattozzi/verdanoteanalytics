@@ -476,7 +476,7 @@ serve(async (req) => {
     if (!budgetExceeded) {
       for (let i = 0; i < noVideos.length; i += DISCOVERY_BATCH_SIZE) {
         if (isOverBudget()) { budgetExceeded = true; break; }
-        const batch = noVideos.slice(i, i + BATCH_SIZE);
+        const batch = noVideos.slice(i, i + DISCOVERY_BATCH_SIZE);
         for (const c of batch) {
           if (isOverBudget()) continue;
           const freshUrl = await getFreshVideoUrl(c.ad_id);
