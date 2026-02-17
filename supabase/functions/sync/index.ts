@@ -246,9 +246,14 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
       let fetchedCount = state.creatives_fetched || 0;
 
       // STRIPPED DOWN: Only essential fields — no creative{}, no preview_shareable_link
+      // Filter: only fetch ads that have been delivered (have impressions)
+      const deliveredFilter = encodeURIComponent(JSON.stringify([
+        { field: "impressions", operator: "GREATER_THAN", value: "0" }
+      ]));
       let nextUrl = cursor || (
         `https://graph.facebook.com/${META_API_VERSION}/${accountId}/ads?` +
         `fields=id,name,status,campaign{name},adset{name}` +
+        `&filtering=${deliveredFilter}` +
         `&limit=200&access_token=${encodeURIComponent(metaToken)}`
       );
 
