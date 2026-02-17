@@ -7,10 +7,10 @@ const corsHeaders = {
 };
 
 const META_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN")!;
-const BATCH_SIZE = 10; // Process 10 in parallel per batch
-const TIME_BUDGET_MS = 120_000; // 2 min wall-clock
-const FETCH_TIMEOUT_MS = 20_000;
-const MAX_ITEMS = 500; // Max items per invocation
+const BATCH_SIZE = 20; // Process 20 in parallel per batch
+const TIME_BUDGET_MS = 115_000; // ~2 min wall-clock (with margin)
+const FETCH_TIMEOUT_MS = 8_000; // 8s timeout – fail fast
+const MAX_ITEMS = 1000; // Max items per invocation
 
 const NO_THUMB_SENTINEL = "no-thumbnail";
 
