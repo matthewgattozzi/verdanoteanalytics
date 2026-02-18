@@ -7,6 +7,7 @@ import { useAccountContext } from "@/contexts/AccountContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { DEFAULT_CREATIVE_PROMPT, DEFAULT_INSIGHTS_PROMPT } from "@/components/settings/AIContextSection";
+import { useSettings, useSaveSettings } from "@/hooks/useSettingsApi";
 
 export function useSettingsPageState() {
   const { isBuilder } = useAuth();
@@ -21,6 +22,8 @@ export function useSettingsPageState() {
   const sync = useSync();
   const refreshMedia = useRefreshMedia();
   const queryClient = useQueryClient();
+  const { data: globalSettings } = useSettings();
+  const saveSettings = useSaveSettings();
 
   // Modal state
   const [renamingAccount, setRenamingAccount] = useState<{ id: string; name: string } | null>(null);
@@ -51,6 +54,13 @@ export function useSettingsPageState() {
   const [insightsPrompt, setInsightsPrompt] = useState("");
   const [initialized, setInitialized] = useState<string | null>(null);
 
+  // Global cooldown setting (from settings table, not per-account)
+  const [syncCooldownMinutes, setSyncCooldownMinutes] = useState(() => {
+    if (!globalSettings) return "0";
+    const row = (globalSettings as any[]).find?.((r: any) => r.key === "sync_cooldown_minutes");
+    return row?.value ?? "0";
+  });
+
   // Sync form state when account changes
   if (account && initialized !== account.id) {
     setDateRange(String(account.date_range_days || 30));
@@ -70,6 +80,10 @@ export function useSettingsPageState() {
     setInsightsPrompt((account as any).insights_prompt || DEFAULT_INSIGHTS_PROMPT);
     setInitialized(account.id);
   }
+
+  const handleSaveCooldown = useCallback(() => {
+    saveSettings.mutate({ sync_cooldown_minutes: syncCooldownMinutes });
+  }, [syncCooldownMinutes, saveSettings]);
 
   const handleSave = useCallback(() => {
     if (!account) return;
@@ -176,8 +190,9 @@ export function useSettingsPageState() {
     primaryKpi, setPrimaryKpi, secondaryKpis, setSecondaryKpis,
     companyPdfUrl, setCompanyPdfUrl,
     creativePrompt, setCreativePrompt, insightsPrompt, setInsightsPrompt,
+    syncCooldownMinutes, setSyncCooldownMinutes,
     // Handlers
-    handleSave, handleApplyToAll,
+    handleSave, handleApplyToAll, handleSaveCooldown,
     applyingPrompts, applyProgress, handleApplyPromptsToAll,
     handleCsvUpload, handleConfirmCsvUpload,
   };

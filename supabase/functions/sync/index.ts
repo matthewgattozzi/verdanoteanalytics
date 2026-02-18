@@ -132,6 +132,35 @@ const HEARTBEAT_INTERVAL_MS = 20 * 1000;
 
 // ─── Promote Next Queued Sync ────────────────────────────────────────────────
 async function promoteNextQueued(supabase: any) {
+  // Check for configurable cooldown between sequential account syncs
+  const { data: cooldownRow } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", "sync_cooldown_minutes")
+    .single();
+  const cooldownMinutes = parseFloat(cooldownRow?.value || "0");
+
+  if (cooldownMinutes > 0) {
+    // Find the most recently completed sync
+    const { data: lastCompleted } = await supabase
+      .from("sync_logs")
+      .select("completed_at")
+      .in("status", ["completed", "completed_with_errors", "failed", "cancelled"])
+      .order("completed_at", { ascending: false })
+      .limit(1);
+
+    if (lastCompleted?.length && lastCompleted[0].completed_at) {
+      const completedAt = new Date(lastCompleted[0].completed_at).getTime();
+      const cooldownMs = cooldownMinutes * 60 * 1000;
+      const elapsed = Date.now() - completedAt;
+      if (elapsed < cooldownMs) {
+        const remainingSec = Math.ceil((cooldownMs - elapsed) / 1000);
+        console.log(`Cooldown active — next sync will start in ~${remainingSec}s`);
+        return; // cron will retry in ~1 minute
+      }
+    }
+  }
+
   const { data: next } = await supabase.from("sync_logs")
     .select("id")
     .eq("status", "queued")

@@ -86,6 +86,8 @@ const SettingsPage = () => {
           killScaleKpiDirection={s.killScaleKpiDirection} setKillScaleKpiDirection={s.setKillScaleKpiDirection}
           scaleThreshold={s.scaleThreshold} setScaleThreshold={s.setScaleThreshold}
           killThreshold={s.killThreshold} setKillThreshold={s.setKillThreshold}
+          syncCooldownMinutes={s.syncCooldownMinutes} setSyncCooldownMinutes={s.setSyncCooldownMinutes}
+          onSaveCooldown={s.handleSaveCooldown}
           onSave={s.handleSave} onApplyToAll={s.handleApplyToAll}
           saving={s.updateAccountSettings.isPending} showApplyAll={s.accounts.length > 1}
         />

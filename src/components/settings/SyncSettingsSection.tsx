@@ -27,6 +27,9 @@ interface SyncSettingsSectionProps {
   setScaleThreshold: (v: string) => void;
   killThreshold: string;
   setKillThreshold: (v: string) => void;
+  syncCooldownMinutes: string;
+  setSyncCooldownMinutes: (v: string) => void;
+  onSaveCooldown: () => void;
   onSave: () => void;
   onApplyToAll: () => void;
   saving: boolean;
@@ -52,6 +55,7 @@ export function SyncSettingsSection({
   winnerKpiThreshold, setWinnerKpiThreshold,
   killScaleKpi, setKillScaleKpi, killScaleKpiDirection, setKillScaleKpiDirection,
   scaleThreshold, setScaleThreshold, killThreshold, setKillThreshold,
+  syncCooldownMinutes, setSyncCooldownMinutes, onSaveCooldown,
   onSave, onApplyToAll, saving, showApplyAll,
 }: SyncSettingsSectionProps) {
   const kpiLabel = KPI_OPTIONS.find(k => k.value === winnerKpi)?.label || winnerKpi;
@@ -75,6 +79,33 @@ export function SyncSettingsSection({
           <Label className="font-body text-[14px] font-medium text-charcoal">Iteration Spend Threshold ($)</Label>
           <Input type="number" value={spendThreshold} onChange={(e) => setSpendThreshold(e.target.value)} min="0" className="bg-background font-data text-[15px] font-medium text-charcoal" />
           <p className="font-body text-[12px] text-sage">Minimum spend to include in analysis.</p>
+        </div>
+      </div>
+
+      <div className="border-t border-border pt-4 space-y-2">
+        <div>
+          <h3 className="font-heading text-[20px] text-forest">Sync Cooldown</h3>
+          <p className="font-body text-[13px] text-slate mt-0.5">Global delay between sequential account syncs to reduce Meta API rate limit pressure.</p>
+        </div>
+        <div className="max-w-[200px] space-y-2">
+          <Label className="font-body text-[14px] font-medium text-charcoal">Cooldown (minutes)</Label>
+          <Input
+            type="number"
+            value={syncCooldownMinutes}
+            onChange={(e) => setSyncCooldownMinutes(e.target.value)}
+            min="0"
+            max="60"
+            step="1"
+            className="bg-background font-data text-[15px] font-medium text-charcoal"
+          />
+          <p className="font-body text-[12px] text-sage">
+            {syncCooldownMinutes === "0" || !syncCooldownMinutes
+              ? "No cooldown — accounts sync back-to-back."
+              : `~${syncCooldownMinutes} minute${Number(syncCooldownMinutes) !== 1 ? "s" : ""} wait after each account finishes before the next begins.`}
+          </p>
+          <Button size="sm" variant="outline" onClick={onSaveCooldown} className="mt-1">
+            Save Cooldown
+          </Button>
         </div>
       </div>
 
