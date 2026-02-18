@@ -30,11 +30,11 @@ export function useCreateApiKey() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (name: string): Promise<string> => {
-      // Generate a secure random key: vrd_ prefix + 40 random hex chars
-      const randomBytes = new Uint8Array(20);
+      // Generate a secure random key: vdn_ prefix + 24 random hex chars
+      const randomBytes = new Uint8Array(12);
       crypto.getRandomValues(randomBytes);
       const randomHex = Array.from(randomBytes).map(b => b.toString(16).padStart(2, "0")).join("");
-      const apiKey = `vrd_${randomHex}`;
+      const apiKey = `vdn_${randomHex}`;
 
       const { data, error } = await supabase.rpc("create_api_key", {
         key_name: name,
