@@ -1,5 +1,6 @@
 import { ReactNode, useState } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
+import { AIChatWidget } from "@/components/AIChatWidget";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 
@@ -48,6 +49,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           {children}
         </div>
       </main>
+      <AIChatWidget />
     </div>
   );
 }
