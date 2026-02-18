@@ -12,7 +12,7 @@ const corsHeaders = {
 // ─── Meta API Helper ─────────────────────────────────────────────────────────
 
 const META_API_VERSION = "v22.0";
-const MAX_RATE_LIMIT_RETRIES = 3;
+const MAX_RATE_LIMIT_RETRIES = 5; // Up from 3 — handles large account rate pressure
 
 async function metaFetch(
   url: string,
@@ -30,7 +30,8 @@ async function metaFetch(
       if (json.error) {
         if ((json.error.code === 80004 || json.error.code === 80000 || json.error.error_subcode === 2446079) && rateLimitRetries < MAX_RATE_LIMIT_RETRIES) {
           rateLimitRetries++;
-          const waitSec = 30 * rateLimitRetries;
+          // Exponential backoff: 30s, 60s, 120s, 180s, 300s — capped at 5 min
+          const waitSec = Math.min(300, 30 * Math.pow(2, rateLimitRetries - 1));
           console.log(`Rate limited, waiting ${waitSec}s (retry ${rateLimitRetries}/${MAX_RATE_LIMIT_RETRIES})...`);
           ctx.apiErrors.push({ timestamp: new Date().toISOString(), message: `Rate limited, backing off ${waitSec}s` });
           await new Promise(r => setTimeout(r, waitSec * 1000));
@@ -215,6 +216,12 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
   const syncType = syncLog.sync_type || "manual";
   const dateRangeDays = syncType === "initial" ? 90 : (account.date_range_days || 14);
 
+  // Adaptive settings for large accounts (>3k creatives) — gentler on Meta API
+  const isLargeAccount = (account.creative_count || 0) > 3000;
+  const insightsPageSize = isLargeAccount ? 200 : 500;  // Reduce payload size for large accounts
+  const interRequestDelayMs = isLargeAccount ? 300 : 150; // Slower paging to avoid rate limits
+  console.log(`Account size: ${account.creative_count} creatives — using page_size=${insightsPageSize}, delay=${interRequestDelayMs}ms`);
+
   console.log(`\n━━━ Phase ${phase} for ${account.name} (${accountId}) ━━━`);
 
   // Check cancellation
@@ -334,7 +341,7 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
           console.log(`  Ads fetched & upserted: ${fetchedCount}`);
         }
         nextUrl = result.next;
-        if (nextUrl) await new Promise(r => setTimeout(r, 150));
+        if (nextUrl) await new Promise(r => setTimeout(r, interRequestDelayMs));
       }
 
       if (nextUrl && isTimedOut()) {
@@ -366,7 +373,7 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
         `https://graph.facebook.com/${META_API_VERSION}/${accountId}/insights?` +
         `time_range=${encodeURIComponent(timeRange)}&level=ad` +
         `&fields=${insightsFields}` +
-        `&limit=500&access_token=${encodeURIComponent(metaToken)}`
+        `&limit=${insightsPageSize}&access_token=${encodeURIComponent(metaToken)}`
       );
 
       while (nextUrl && !isTimedOut()) {
@@ -391,7 +398,7 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
           console.log(`  Insights bulk-upserted: ${insightsCount}`);
         }
         nextUrl = result.next;
-        if (nextUrl) await new Promise(r => setTimeout(r, 200));
+        if (nextUrl) await new Promise(r => setTimeout(r, interRequestDelayMs));
       }
 
       if (nextUrl && isTimedOut()) {
@@ -477,7 +484,7 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
           `https://graph.facebook.com/${META_API_VERSION}/${accountId}/insights?` +
           `time_range=${encodeURIComponent(chunkRange)}&time_increment=1&level=ad` +
           `&fields=${insightsFields}` +
-          `&limit=500&access_token=${encodeURIComponent(metaToken)}`
+          `&limit=${insightsPageSize}&access_token=${encodeURIComponent(metaToken)}`
         );
 
         while (nextUrl && !isTimedOut()) {
@@ -520,7 +527,7 @@ async function runSyncPhase(supabase: any, syncLog: any, metaToken: string) {
             console.log(`    Upserted ${rows.length} daily rows (filtered from ${result.data.length})`);
           }
           nextUrl = result.next;
-          if (nextUrl) await new Promise(r => setTimeout(r, 150));
+          if (nextUrl) await new Promise(r => setTimeout(r, interRequestDelayMs));
         }
 
         if (nextUrl && isTimedOut()) {
