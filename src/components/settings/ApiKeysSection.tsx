@@ -6,8 +6,10 @@ import { useApiKeys, useCreateApiKey, useRevokeApiKey, useDeleteApiKey } from "@
 import { ConfirmDeleteDialog } from "@/components/user-settings/ConfirmDeleteDialog";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function ApiKeysSection() {
+  const { isBuilder } = useAuth();
   const { data: keys = [], isLoading } = useApiKeys();
   const createKey = useCreateApiKey();
   const revokeKey = useRevokeApiKey();
@@ -18,6 +20,9 @@ export function ApiKeysSection() {
   const [showKey, setShowKey] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
+
+  // Defense-in-depth: only builders can access API keys
+  if (!isBuilder) return null;
 
   const handleCreate = async () => {
     if (!newKeyName.trim()) return;
