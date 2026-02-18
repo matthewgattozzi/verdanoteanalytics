@@ -148,6 +148,42 @@ export type Database = {
           },
         ]
       }
+      api_keys: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          permissions: string[] | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          permissions?: string[] | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          permissions?: string[] | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       creative_daily_metrics: {
         Row: {
           account_id: string
@@ -858,6 +894,10 @@ export type Database = {
         Returns: number
       }
       bulk_update_creative_metrics: { Args: { payload: Json }; Returns: number }
+      create_api_key: {
+        Args: { api_key: string; key_name: string }
+        Returns: string
+      }
       get_user_account_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_role: {
         Args: { _user_id: string }

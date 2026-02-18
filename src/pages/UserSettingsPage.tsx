@@ -16,6 +16,7 @@ import { ConfirmDeleteDialog } from "@/components/user-settings/ConfirmDeleteDia
 import { useUserSettingsPageState } from "@/hooks/useUserSettingsPageState";
 import { useIsSyncing } from "@/hooks/useIsSyncing";
 import { SyncHistorySection } from "@/components/settings/SyncHistorySection";
+import { ApiKeysSection } from "@/components/settings/ApiKeysSection";
 import { useAuth } from "@/contexts/AuthContext";
 
 const UserSettingsPage = () => {
@@ -100,6 +101,9 @@ const UserSettingsPage = () => {
                 onDeleteUser={s.setShowDeleteUserConfirm}
               />
               <SyncHistorySection />
+              <div className="border-t border-border pt-8">
+                <ApiKeysSection />
+              </div>
             </TabsContent>
           )}
         </Tabs>
