@@ -39,6 +39,7 @@ const clientNavItems = [
   { title: "Overview", url: "/", icon: LayoutGrid },
   { title: "Creatives", url: "/creatives", icon: Zap },
   { title: "Reports", url: "/reports", icon: FileText },
+  { title: "AI Analyst", url: "/ai-chat", icon: Sparkles },
 ];
 
 export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {

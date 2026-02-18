@@ -59,7 +59,7 @@ function ProtectedRoutes() {
         <Route path="/settings" element={effectiveClient ? <Navigate to="/" replace /> : <SettingsPage />} />
         <Route path="/user-settings" element={<UserSettingsPage />} />
         <Route path="/saved-views" element={effectiveClient ? <Navigate to="/" replace /> : <SavedViewsPage />} />
-        <Route path="/ai-chat" element={effectiveClient ? <Navigate to="/" replace /> : <AIChatPage />} />
+        <Route path="/ai-chat" element={<AIChatPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AccountProvider>
