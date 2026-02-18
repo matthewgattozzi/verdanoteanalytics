@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.api]
 verify_jwt = false
+
+[functions.api-auth]
+verify_jwt = false
