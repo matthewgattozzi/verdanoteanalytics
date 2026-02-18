@@ -23,6 +23,7 @@ import SavedViewsPage from "./pages/SavedViewsPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import UpdatePasswordPage from "./pages/UpdatePasswordPage";
+import AIChatPage from "./pages/AIChatPage";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 import { useClientPreview } from "@/hooks/useClientPreviewMode";
@@ -58,6 +59,7 @@ function ProtectedRoutes() {
         <Route path="/settings" element={effectiveClient ? <Navigate to="/" replace /> : <SettingsPage />} />
         <Route path="/user-settings" element={<UserSettingsPage />} />
         <Route path="/saved-views" element={effectiveClient ? <Navigate to="/" replace /> : <SavedViewsPage />} />
+        <Route path="/ai-chat" element={effectiveClient ? <Navigate to="/" replace /> : <AIChatPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AccountProvider>

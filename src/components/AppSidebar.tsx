@@ -10,6 +10,7 @@ import {
   Bookmark,
   Tags,
   Eye,
+  Sparkles,
 } from "lucide-react";
 import {
   Select,
@@ -31,6 +32,7 @@ const baseNavItems = [
   { title: "Tagging", url: "/tagging", icon: Tags },
   { title: "Reports", url: "/reports", icon: FileText },
   { title: "Saved Views", url: "/saved-views", icon: Bookmark },
+  { title: "AI Analyst", url: "/ai-chat", icon: Sparkles },
 ];
 
 const clientNavItems = [
