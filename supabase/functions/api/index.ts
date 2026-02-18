@@ -15,6 +15,15 @@ async function sha256Hex(text: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+function extractApiKey(req: Request): string | null {
+  // Support both Authorization: Bearer <key> and x-api-key: <key>
+  const authHeader = req.headers.get("Authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    return authHeader.replace("Bearer ", "");
+  }
+  return req.headers.get("x-api-key");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -23,10 +32,10 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // Authenticate via API key header
-  const apiKey = req.headers.get("x-api-key");
+  // Authenticate via x-api-key header or Authorization: Bearer <key>
+  const apiKey = extractApiKey(req);
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: "Missing x-api-key header" }), {
+    return new Response(JSON.stringify({ error: "Missing API key. Use x-api-key header or Authorization: Bearer <key>" }), {
       status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
