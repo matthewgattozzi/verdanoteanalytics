@@ -51,7 +51,7 @@ function ProtectedRoutes() {
       <Routes>
         <Route path="/" element={<OverviewPage />} />
         <Route path="/creatives" element={<CreativesPage />} />
-        <Route path="/creatives/compare" element={effectiveClient ? <Navigate to="/" replace /> : <ComparePage />} />
+        <Route path="/creatives/compare" element={<ComparePage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/tagging" element={effectiveClient ? <Navigate to="/" replace /> : <TaggingPage />} />
         <Route path="/reports" element={effectiveClient ? <ClientReportsPage /> : <ReportsPage />} />
