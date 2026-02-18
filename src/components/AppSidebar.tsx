@@ -38,6 +38,7 @@ const baseNavItems = [
 const clientNavItems = [
   { title: "Overview", url: "/", icon: LayoutGrid },
   { title: "Creatives", url: "/creatives", icon: Zap },
+  { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Reports", url: "/reports", icon: FileText },
   { title: "AI Analyst", url: "/ai-chat", icon: Sparkles },
 ];
