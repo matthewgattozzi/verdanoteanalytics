@@ -3,6 +3,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { AIChatWidget } from "@/components/AIChatWidget";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
+import verdanoteLogo from "@/assets/verdanote_logo.png";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -43,7 +44,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <span className="text-sm font-semibold">Verdanote</span>
+          <img src={verdanoteLogo} alt="Verdanote" className="h-5" />
         </div>
         <div className="p-4 md:p-6 max-w-[1400px] mx-auto">
           {children}
