@@ -12,6 +12,7 @@ import {
   Eye,
   Sparkles,
 } from "lucide-react";
+import verdanoteLogo from "@/assets/verdanote_logo.png";
 import {
   Select,
   SelectContent,
@@ -61,11 +62,8 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <aside className="flex h-screen w-56 flex-col bg-background border-r border-input">
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-5 py-5 border-b border-input">
-        <div className="h-9 w-9 rounded-xl flex items-center justify-center overflow-hidden">
-          <img src="/favicon.png" alt="Logo" className="h-9 w-9" />
-        </div>
-        <span className="font-heading text-[17px] text-forest">Verdanote</span>
+      <div className="flex items-center px-5 py-5 border-b border-input">
+        <img src={verdanoteLogo} alt="Verdanote" className="h-7" />
       </div>
 
       {/* Role badge + Account Switcher */}
