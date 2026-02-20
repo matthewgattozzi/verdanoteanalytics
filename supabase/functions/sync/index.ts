@@ -28,7 +28,12 @@ async function metaFetch(
       const json = await resp.json();
 
       if (json.error) {
-        if ((json.error.code === 80004 || json.error.code === 80000 || json.error.error_subcode === 2446079) && rateLimitRetries < MAX_RATE_LIMIT_RETRIES) {
+        const isRateLimitError = json.error.code === 80004 || json.error.code === 80000 || json.error.error_subcode === 2446079
+          || json.error.code === 4 || json.error.code === 17 || json.error.code === 32
+          || (typeof json.error.message === "string" && (
+            json.error.message.includes("request limit") || json.error.message.includes("rate limit") || json.error.message.includes("too many calls")
+          ));
+        if (isRateLimitError && rateLimitRetries < MAX_RATE_LIMIT_RETRIES) {
           rateLimitRetries++;
           // Exponential backoff: 30s, 60s, 120s, 180s, 300s — capped at 5 min
           const waitSec = Math.min(300, 30 * Math.pow(2, rateLimitRetries - 1));
@@ -58,8 +63,7 @@ async function metaFetch(
         }
         console.error("Meta API error:", JSON.stringify(json.error));
         ctx.apiErrors.push({ timestamp: new Date().toISOString(), message: json.error.message || "Unknown Meta error" });
-        const isRateLimit = json.error.code === 80004 || json.error.code === 80000;
-        return { data: null, next: null, error: true, rateLimited: isRateLimit };
+        return { data: null, next: null, error: true, rateLimited: isRateLimitError };
       }
 
       return { data: json.data || [], next: json.paging?.next || null, error: false, rateLimited: false };
