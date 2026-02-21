@@ -1,0 +1,2 @@
+ALTER TABLE public.sync_logs DROP CONSTRAINT sync_logs_sync_type_check;
+ALTER TABLE public.sync_logs ADD CONSTRAINT sync_logs_sync_type_check CHECK (sync_type = ANY (ARRAY['initial'::text, 'manual'::text, 'bulk'::text, 'daily'::text]));
