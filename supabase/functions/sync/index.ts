@@ -613,7 +613,13 @@ serve(async (req) => {
     if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const authToken = authHeader.replace("Bearer ", "");
 
-    const isAnonKey = authToken === Deno.env.get("SUPABASE_ANON_KEY") || authToken === Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
+    // Check if this is a cron/anon-key call: the Supabase gateway already validates the JWT,
+    // so if the token decodes to role=anon, it's a valid cron call.
+    let isAnonKey = false;
+    try {
+      const payload = JSON.parse(atob(authToken.split(".")[1]));
+      isAnonKey = payload.role === "anon";
+    } catch (_) { /* not a JWT */ }
 
     if (!isAnonKey) {
       const { data: { user }, error: authError } = await supabase.auth.getUser(authToken);
